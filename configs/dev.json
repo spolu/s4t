@@ -1,0 +1,6 @@
+{
+  "generator": "unif_k",
+  "generator_unif_k_variable_count": 32,
+  "generator_unif_k_clause_length": 3,
+  "generator_unif_k_clause_count": 128
+}
