@@ -123,20 +123,23 @@ class Transformer:
 
             loss_meter.update(loss.item())
 
-        Log.out("SAT TRAIN", {
-            'batch_count': self._sat_batch_count,
-            'loss_avg': loss_meter.avg,
-            # 'loss_min': loss_meter.min,
-            # 'loss_max': loss_meter.max,
-        })
+            self._sat_batch_count += 1
 
-        if self._tb_writer is not None:
-            self._tb_writer.add_scalar(
-                "train/sat/loss",
-                loss_meter.avg, self._sat_batch_count,
-            )
+            if self._sat_batch_count % 10 == 0:
+                Log.out("SAT TRAIN", {
+                    'batch_count': self._sat_batch_count,
+                    'loss_avg': loss_meter.avg,
+                    # 'loss_min': loss_meter.min,
+                    # 'loss_max': loss_meter.max,
+                })
 
-        self._sat_batch_count += 1
+                if self._tb_writer is not None:
+                    self._tb_writer.add_scalar(
+                        "train/sat/loss",
+                        loss_meter.avg, self._sat_batch_count,
+                    )
+
+                loss_meter = Meter()
 
     def batch_test_sat(
             self,
