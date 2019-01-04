@@ -147,6 +147,9 @@ class Transformer:
         self._sat_policy.eval()
         loss_meter = Meter()
 
+        hit = 0
+        total = 0
+
         with torch.no_grad():
             for it, (clauses, sats) in enumerate(self._test_loader):
                 generated = self._sat_policy(clauses)
@@ -155,9 +158,17 @@ class Transformer:
 
                 loss_meter.update(loss.item())
 
+                for i in range(generated.size(0)):
+                    if generated[i].item() >= 0.5 and sats[i].item() >= 0.5:
+                        hit += 1
+                    if generated[i].item() < 0.5 and sats[i].item() < 0.5:
+                        hit += 1
+                    total += 1
+
         Log.out("SAT TEST", {
             'batch_count': self._sat_batch_count,
             'loss_avg': loss_meter.avg,
+            'hit_rate': "{:.2f}".format(hit / total),
             # 'loss_min': loss_meter.min,
             # 'loss_max': loss_meter.max,
         })
@@ -166,6 +177,10 @@ class Transformer:
             self._tb_writer.add_scalar(
                 "test/sat/loss",
                 loss_meter.avg, self._sat_batch_count,
+            )
+            self._tb_writer.add_scalar(
+                "test/sat/hit_rate",
+                hit / total, self._sat_batch_count,
             )
 
         return loss_meter.avg
@@ -239,6 +254,5 @@ def train():
     while True:
         transformer.batch_train_sat()
         transformer.batch_test_sat()
+        transformer.save_sat()
         i += 1
-        if i % 10 == 0:
-            transformer.save_sat()
