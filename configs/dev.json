@@ -2,5 +2,18 @@
   "generator": "unif_k",
   "generator_unif_k_variable_count": 32,
   "generator_unif_k_clause_length": 3,
-  "generator_unif_k_clause_count": 128
+  "generator_unif_k_clause_count": 128,
+
+  "transformer_embedding_size": 64,
+  "transformer_hidden_size": 256,
+  "transformer_attention_head_count": 8,
+  "transformer_intermediate_size": 512,
+  "transformer_batch_size": 256,
+  "transformer_learning_rate": 0.0001,
+  "transformer_adam_beta_1": 0.9,
+  "transformer_adam_beta_2": 0.999,
+  "transformer_load_dir": null,
+  "transformer_save_dir": null,
+
+  "tensorboard_log_dir": null
 }

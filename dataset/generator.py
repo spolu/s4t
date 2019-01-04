@@ -2,12 +2,10 @@ import argparse
 import os
 import random
 
-from satispy import Variable, Cnf
-from satispy.solver import Minisat
-
 from utils.config import Config
 from utils.log import Log
 from utils.minisat import Minisat
+
 
 class UnifKGenerator:
     def __init__(
@@ -46,11 +44,13 @@ class UnifKGenerator:
 
         return cnf
 
+
 class SelsamGenerator:
     def __init__(
             self,
     ) -> None:
         pass
+
 
 def generate():
     parser = argparse.ArgumentParser(description="")
@@ -64,7 +64,7 @@ def generate():
         type=int, help="number of sample to generate",
     )
     parser.add_argument(
-        'output_dir',
+        'dataset_dir',
         type=str, help="directory to dump samples to",
     )
 
@@ -84,7 +84,7 @@ def generate():
 
     config = Config.from_file(args.config_path)
     sample_count = args.sample_count
-    output_dir = os.path.expanduser(args.output_dir)
+    dataset_dir = os.path.expanduser(args.dataset_dir)
 
     if args.generator_unif_k_variable_count is not None:
         config.override(
@@ -109,8 +109,8 @@ def generate():
 
     assert generator is not None
 
-    if not os.path.isdir(output_dir):
-        os.mkdir(output_dir)
+    if not os.path.isdir(dataset_dir):
+        os.mkdir(dataset_dir)
 
     minisat = Minisat()
 
@@ -127,24 +127,28 @@ def generate():
         success, assignment = minisat.solve(cnf)
 
         store = False
+        header = ""
         total += 1
         if success:
             total_sat += 1
             if sat <= unsat:
+                header = "c SAT\n"
                 generated += 1
                 sat += 1
                 store = True
         if not success:
             total_unsat += 1
             if unsat <= sat:
+                header = "c UNSAT\n"
                 generated += 1
                 unsat += 1
                 store = True
 
         if store:
             with open(os.path.join(
-                    output_dir, "{}.cnf".format(generated)
+                    dataset_dir, "{}.cnf".format(generated)
             ), 'w') as f:
+                f.write(header)
                 f.write(cnf)
                 f.flush()
 

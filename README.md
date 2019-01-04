@@ -1,3 +1,3 @@
-## Installation
+## Requirements
 
-`minisat` must be present the $PATH
+`minisat` must be present in the `$PATH`

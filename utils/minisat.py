@@ -30,7 +30,7 @@ class Minisat:
         lines = outfile.readlines()[1:]
         assert len(lines) == 1
 
-        assignment = [int(v) for v in lines[0].split(" ")]
+        assignment = [int(v) for v in lines[0].split(' ')]
         assert assignment[-1] == 0
 
         return True, assignment[:-1]
