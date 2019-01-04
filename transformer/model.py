@@ -285,6 +285,16 @@ class SAT(nn.Module):
                 self.attention_head_count,
                 self.intermediate_size,
             ),
+            Transformer(
+                self.hidden_size,
+                self.attention_head_count,
+                self.intermediate_size,
+            ),
+            Transformer(
+                self.hidden_size,
+                self.attention_head_count,
+                self.intermediate_size,
+            ),
         ]
 
         # k = clause_count
@@ -310,6 +320,9 @@ class SAT(nn.Module):
             module.weight.data.normal_(mean=0.0, std=0.02)
             if module.bias is not None:
                 module.bias.data.zero_()
+
+    def parameters_count(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
     def forward(
             self,

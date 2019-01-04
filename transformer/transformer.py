@@ -52,6 +52,12 @@ class Transformer:
             ),
         )
 
+        Log.out(
+            "Initializing transformer", {
+                'parameter_count': self._sat_policy.parameters_count()
+            },
+        )
+
         if self._load_dir:
             if os.path.isfile(self._load_dir + "/sat_policy.pt"):
                 self._sat_policy.load_state_dict(
@@ -108,8 +114,8 @@ class Transformer:
 
             loss = F.mse_loss(generated, sats)
 
-            if it == 0:
-                print("{}".format(generated[0:2]))
+            # if it == 0:
+            #     print("{}".format(generated[0:2]))
 
             self._sat_optimizer.zero_grad()
             loss.backward()
@@ -225,14 +231,11 @@ def train():
     )
 
     transformer = Transformer(config, train_dataset, test_dataset)
-    Log.out(
-        "Initializing transformer", {},
-    )
 
     i = 0
     while True:
-        if i % 10 == 0:
-            transformer.batch_test_sat()
-            transformer.save_sat()
         transformer.batch_train_sat()
+        transformer.batch_test_sat()
         i += 1
+        if i % 10 == 0:
+            transformer.save_sat()

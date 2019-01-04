@@ -78,7 +78,7 @@ def generate():
     )
     parser.add_argument(
         '--generator_unif_k_clause_count',
-        type=float, help="config override",
+        type=int, help="config override",
     )
     args = parser.parse_args()
 
