@@ -331,6 +331,6 @@ class SAT(nn.Module):
         embeds = self.variable_embedding(clauses)
         embeds = embeds.sum(2)
         hiddens = self.layers(embeds)
-        means = 10 * hiddens.mean(1)
+        means = hiddens.mean(1)
         outputs = self.head(means)
         return outputs
