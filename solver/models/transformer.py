@@ -304,7 +304,7 @@ class SATTransformer(nn.Module):
 
         head = [
             nn.Linear(self.hidden_size, 1),
-            # nn.Sigmoid(),
+            nn.Tanh(),
         ]
 
         self.layers = nn.Sequential(*layers)
@@ -332,5 +332,5 @@ class SATTransformer(nn.Module):
         embeds = embeds.sum(2)
         hiddens = self.layers(embeds)
         means = hiddens.mean(1)
-        outputs = self.head(means)
+        outputs = 0.5 + 0.5 * self.head(means)
         return outputs
