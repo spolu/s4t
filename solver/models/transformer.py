@@ -250,14 +250,14 @@ class OneHotEmbedding(nn.Module):
         return input.matmul(self.weight)
 
 
-class SAT(nn.Module):
+class SATTransformer(nn.Module):
     def __init__(
             self,
             config,
             variable_count,
             clause_count,
     ):
-        super(SAT, self).__init__()
+        super(SATTransformer, self).__init__()
 
         self.device = torch.device(config.get('device'))
         self.embedding_size = config.get('transformer_embedding_size')
