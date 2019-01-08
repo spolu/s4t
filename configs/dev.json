@@ -9,7 +9,7 @@
   "transformer_attention_head_count": 8,
   "transformer_intermediate_size": 512,
 
-  "solver_batch_size": 2048,
+  "solver_batch_size": 1024,
   "solver_learning_rate": 0.00005,
   "solver_adam_beta_1": 0.9,
   "solver_adam_beta_2": 0.999,
