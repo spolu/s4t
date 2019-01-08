@@ -266,9 +266,10 @@ class SATTransformer(nn.Module):
         self.attention_head_count = \
             config.get('transformer_attention_head_count')
 
-        self.variable_embedding = nn.Embedding(
-            2*variable_count, self.embedding_size,
-        )
+        # self.embedding = nn.Embedding(
+        #     2*variable_count, self.embedding_size,
+        # )
+        self.embedding = nn.Linear(clause_count, self.embedding_size)
 
         layers = []
 
@@ -297,11 +298,6 @@ class SATTransformer(nn.Module):
             ),
         ]
 
-        # k = clause_count
-        # while k != 1:
-        #     layers += [Downsample(config)]
-        #     k = int(k / 2)
-
         head = [
             nn.Linear(self.hidden_size, 1),
             nn.Tanh(),
@@ -328,8 +324,8 @@ class SATTransformer(nn.Module):
             self,
             clauses,
     ):
-        embeds = self.variable_embedding(clauses)
-        embeds = embeds.sum(2)
+        embeds = self.embedding(clauses)
+        # embeds = embeds.sum(2)
         hiddens = self.layers(embeds)
         means = hiddens.mean(1)
         outputs = 0.5 + 0.5 * self.head(means)

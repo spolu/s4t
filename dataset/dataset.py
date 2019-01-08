@@ -1,4 +1,7 @@
+import concurrent.futures
 import os
+import random
+import threading
 import torch
 
 from utils.config import Config
@@ -37,7 +40,7 @@ class CNF:
 
         assert self._clause_count == len(self._clauses)
 
-    def __getitem__(
+    def get_clause_as_word(
             self,
     ):
         clauses = []
@@ -60,6 +63,50 @@ class CNF:
 
         return (
             torch.LongTensor(clauses).to(self._device),
+            sat.to(self._device),
+        )
+
+    def get_variable_as_word(
+            self,
+            variable_count,
+            clause_count,
+    ):
+        variables_map = random.sample(
+            range(0, variable_count),
+            self._variable_count,
+        )
+        clauses_map = random.sample(
+            range(0, clause_count),
+            self._clause_count,
+        )
+
+        variables = torch.zeros(variable_count, clause_count)
+
+        for c in range(self._clause_count):
+            for a in self._clauses[c]:
+                v = a
+                assert v != 0
+                truth = True
+                if v < 0:
+                    v = -v
+                    truth = False
+                v -= 1
+
+                assert v >= 0
+                assert v < self._variable_count
+                assert v < variable_count
+
+                if truth:
+                    variables[variables_map[v]][clauses_map[c]] = 1.0
+                else:
+                    variables[variables_map[v]][clauses_map[c]] = -1.0
+
+        sat = torch.zeros(1)
+        if self._sat:
+            sat[0] = 1.0
+
+        return (
+            variables.to(self._device),
             sat.to(self._device),
         )
 
@@ -87,14 +134,31 @@ class SATDataset(Dataset):
         self._clause_count = 0
 
         self._cnfs = []
-        for p in files:
-            with open(p, 'r') as f:
+
+        def build_cnf(path):
+            with open(path, 'r') as f:
                 cnf = CNF(config, f.read())
-                if cnf._variable_count > self._variable_count:
-                    self._variable_count = cnf._variable_count
-                if cnf._clause_count > self._clause_count:
-                    self._clause_count = cnf._clause_count
-                self._cnfs.append(cnf)
+            return cnf
+
+        lock = threading.Lock()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            for cnf in executor.map(build_cnf, files):
+                with lock:
+                    if cnf._variable_count > self._variable_count:
+                        self._variable_count = cnf._variable_count
+                    if cnf._clause_count > self._clause_count:
+                        self._clause_count = cnf._clause_count
+                    self._cnfs.append(cnf)
+
+        # for p in files:
+        #     with open(p, 'r') as f:
+        #         cnf = CNF(config, f.read())
+        #         if cnf._variable_count > self._variable_count:
+        #             self._variable_count = cnf._variable_count
+        #         if cnf._clause_count > self._clause_count:
+        #             self._clause_count = cnf._clause_count
+        #         self._cnfs.append(cnf)
 
         assert len(self._cnfs) > 0
 
@@ -117,4 +181,7 @@ class SATDataset(Dataset):
             self,
             idx: int,
     ):
-        return self._cnfs[idx].__getitem__()
+        return self._cnfs[idx].get_variable_as_word(
+            self._variable_count,
+            self._clause_count,
+        )
