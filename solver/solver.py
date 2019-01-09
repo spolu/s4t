@@ -77,13 +77,14 @@ class Solver:
             self._train_dataset,
             batch_size=self._config.get('solver_batch_size'),
             shuffle=True,
-            num_workers=0,
+            pin_memory=True,
+            num_workers=8,
         )
         self._test_loader = torch.utils.data.DataLoader(
             self._test_dataset,
             batch_size=self._config.get('solver_batch_size'),
             shuffle=False,
-            num_workers=0,
+            pin_memory=True,
         )
 
         self._sat_batch_count = 0
@@ -110,9 +111,8 @@ class Solver:
         loss_meter = Meter()
 
         for it, (clauses, sats) in enumerate(self._train_loader):
-            generated = self._sat_policy(clauses)
-
-            loss = F.mse_loss(generated, sats)
+            generated = self._sat_policy(clauses.to(self._device))
+            loss = F.mse_loss(generated, sats.to(self._device))
 
             # if it == 0:
             #     print("{}".format(generated[0:2]))
@@ -152,9 +152,8 @@ class Solver:
 
         with torch.no_grad():
             for it, (clauses, sats) in enumerate(self._test_loader):
-                generated = self._sat_policy(clauses)
-
-                loss = F.mse_loss(generated, sats)
+                generated = self._sat_policy(clauses.to(self._device))
+                loss = F.mse_loss(generated, sats.to(self._device))
 
                 loss_meter.update(loss.item())
 
