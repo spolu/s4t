@@ -95,7 +95,7 @@ class CNF:
     #         self._clause_count,
     #     )
 
-    #     final_variables = torch.zeros(variable_count, clause_count)
+    #     variables = torch.zeros(variable_count, clause_count)
 
     #     for c in range(self._clause_count):
     #         for a in self._clauses[c]:
@@ -111,29 +111,22 @@ class CNF:
     #             assert v < self._variable_count
     #             assert v < variable_count
 
-    #             # cl = c
-    #             # if truth:
-    #             #     cl += self._clause_count
-
-    #             # assert cl >= 0
-    #             # assert cl < 2*self._clause_count
-
     #             if truth:
-    #                 final_variables[
+    #                 variables[
     #                     variables_map[v]
     #                 ][clauses_map[c]] = 1.0
     #             else:
-    #                 final_variables[
+    #                 variables[
     #                     variables_map[v]
     #                 ][clauses_map[c]] = -1.0
 
-    #     final_sat = torch.zeros(1)
+    #     sat = torch.zeros(1)
     #     if self._sat:
-    #         final_sat[0] = 1.0
+    #         sat[0] = 1.0
 
     #     return (
-    #         final_variables,
-    #         final_sat,
+    #         variables,
+    #         sat,
     #     )
 
 
