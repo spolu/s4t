@@ -1,5 +1,5 @@
 import os
-# import random
+import random
 import torch
 
 from utils.config import Config
@@ -46,26 +46,38 @@ class CNF:
             variable_count,
             clause_count,
     ):
-        clauses = []
+        variables_map = random.sample(
+            range(0, variable_count),
+            self._variable_count,
+        )
+        clauses_map = random.sample(
+            range(0, clause_count),
+            self._clause_count,
+        )
+
+        clauses = torch.zeros(clause_count, variable_count)
 
         for c in range(self._clause_count):
-            cc = []
             for a in self._clauses[c]:
                 v = a
+                truth = True
                 assert v != 0
-                if v > 0:
-                    v -= 1
-                v += self._variable_count
-                assert v >= 0 and v < 2*self._variable_count
-                cc.append(v)
-            clauses.append(cc)
+                if v < 0:
+                    v = -v
+                    truth = False
+                v -= 1
+                assert v >= 0 and v < self._variable_count
+                if truth:
+                    clauses[clauses_map[c]][variables_map[v]] = 1.0
+                else:
+                    clauses[clauses_map[c]][variables_map[v]] = -1.0
 
         sat = torch.zeros(1)
         if self._sat:
             sat[0] = 1.0
 
         return (
-            torch.LongTensor(clauses),
+            clauses,
             sat,
         )
 
@@ -133,7 +145,9 @@ class SATDataset(Dataset):
     ) -> None:
         self._config = config
         self._device = torch.device(config.get('device'))
+
         self._variable_count = config.get('dataset_variable_count')
+        self._clause_count = config.get('dataset_clause_count')
 
         Log.out(
             "Loading dataset", {
@@ -146,8 +160,6 @@ class SATDataset(Dataset):
             if os.path.isfile(os.path.join(dataset_dir, f))
         ]
 
-        self._clause_count = 0
-
         self._cnfs = []
 
         def build_cnf(path):
@@ -157,8 +169,7 @@ class SATDataset(Dataset):
         for p in files:
             cnf = build_cnf(p)
             assert cnf._variable_count <= self._variable_count
-            if cnf._clause_count > self._clause_count:
-                self._clause_count = cnf._clause_count
+            assert cnf._clause_count <= self._clause_count
             self._cnfs.append(cnf)
 
         assert len(self._cnfs) > 0

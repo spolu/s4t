@@ -5,6 +5,7 @@
   "generator_unif_k_clause_count": 128,
 
   "dataset_variable_count": 8,
+  "dataset_clause_count": 40,
 
   "solver_batch_size": 512,
   "solver_learning_rate": 0.00005,
