@@ -2,8 +2,6 @@ import math
 import torch
 import torch.nn as nn
 
-from torch.nn.parameter import Parameter
-
 
 def gelu(
         x,
@@ -232,32 +230,14 @@ class Downsample(nn.Module):
         return x.transpose(1, 2)
 
 
-class OneHotEmbedding(nn.Module):
-    def __init__(
-            self,
-            dict_size,
-            embedding_size,
-    ):
-        super(OneHotEmbedding, self).__init__()
-
-        self.weight = Parameter(torch.Tensor(dict_size, embedding_size))
-        torch.nn.init.normal_(self.weight)
-
-    def forward(
-            self,
-            input,
-    ):
-        return input.matmul(self.weight)
-
-
-class SAT(nn.Module):
+class SATTransformer(nn.Module):
     def __init__(
             self,
             config,
             variable_count,
             clause_count,
     ):
-        super(SAT, self).__init__()
+        super(SATTransformer, self).__init__()
 
         self.device = torch.device(config.get('device'))
         self.embedding_size = config.get('transformer_embedding_size')
@@ -265,46 +245,32 @@ class SAT(nn.Module):
         self.intermediate_size = config.get('transformer_intermediate_size')
         self.attention_head_count = \
             config.get('transformer_attention_head_count')
+        self.layer_count = config.get('transformer_layer_count')
 
-        self.variable_embedding = nn.Embedding(
+        self.embedding = nn.Embedding(
             2*variable_count, self.embedding_size,
         )
+        # self.embedding = nn.Linear(clause_count, self.embedding_size)
 
         layers = []
 
         layers += [
             nn.Linear(self.embedding_size, self.hidden_size),
             nn.Linear(self.hidden_size, self.hidden_size),
-            Transformer(
-                self.hidden_size,
-                self.attention_head_count,
-                self.intermediate_size,
-            ),
-            Transformer(
-                self.hidden_size,
-                self.attention_head_count,
-                self.intermediate_size,
-            ),
-            Transformer(
-                self.hidden_size,
-                self.attention_head_count,
-                self.intermediate_size,
-            ),
-            Transformer(
-                self.hidden_size,
-                self.attention_head_count,
-                self.intermediate_size,
-            ),
         ]
 
-        # k = clause_count
-        # while k != 1:
-        #     layers += [Downsample(config)]
-        #     k = int(k / 2)
+        for _ in range(self.layer_count):
+            layers += [
+                Transformer(
+                    self.hidden_size,
+                    self.attention_head_count,
+                    self.intermediate_size,
+                ),
+            ]
 
         head = [
             nn.Linear(self.hidden_size, 1),
-            # nn.Sigmoid(),
+            nn.Tanh(),
         ]
 
         self.layers = nn.Sequential(*layers)
@@ -328,9 +294,9 @@ class SAT(nn.Module):
             self,
             clauses,
     ):
-        embeds = self.variable_embedding(clauses)
+        embeds = self.embedding(clauses)
         embeds = embeds.sum(2)
         hiddens = self.layers(embeds)
         means = hiddens.mean(1)
-        outputs = self.head(means)
+        outputs = 0.5 + 0.5 * self.head(means)
         return outputs

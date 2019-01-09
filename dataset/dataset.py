@@ -1,4 +1,5 @@
 import os
+# import random
 import torch
 
 from utils.config import Config
@@ -37,8 +38,13 @@ class CNF:
 
         assert self._clause_count == len(self._clauses)
 
-    def __getitem__(
+        self._final_variables = None
+        self._final_sat = None
+
+    def get(
             self,
+            variable_count,
+            clause_count,
     ):
         clauses = []
 
@@ -59,9 +65,64 @@ class CNF:
             sat[0] = 1.0
 
         return (
-            torch.LongTensor(clauses).to(self._device),
-            sat.to(self._device),
+            torch.LongTensor(clauses),
+            sat,
         )
+
+    # def get(
+    #         self,
+    #         variable_count,
+    #         clause_count,
+    # ):
+    #     variables_map = random.sample(
+    #         range(0, variable_count),
+    #         self._variable_count,
+    #     )
+    #     clauses_map = random.sample(
+    #         range(0, clause_count),
+    #         self._clause_count,
+    #     )
+
+    #     final_variables = torch.zeros(variable_count, clause_count)
+
+    #     for c in range(self._clause_count):
+    #         for a in self._clauses[c]:
+    #             v = a
+    #             assert v != 0
+    #             truth = True
+    #             if v < 0:
+    #                 v = -v
+    #                 truth = False
+    #             v -= 1
+
+    #             assert v >= 0
+    #             assert v < self._variable_count
+    #             assert v < variable_count
+
+    #             # cl = c
+    #             # if truth:
+    #             #     cl += self._clause_count
+
+    #             # assert cl >= 0
+    #             # assert cl < 2*self._clause_count
+
+    #             if truth:
+    #                 final_variables[
+    #                     variables_map[v]
+    #                 ][clauses_map[c]] = 1.0
+    #             else:
+    #                 final_variables[
+    #                     variables_map[v]
+    #                 ][clauses_map[c]] = -1.0
+
+    #     final_sat = torch.zeros(1)
+    #     if self._sat:
+    #         final_sat[0] = 1.0
+
+    #     return (
+    #         final_variables,
+    #         final_sat,
+    #     )
 
 
 class SATDataset(Dataset):
@@ -71,6 +132,8 @@ class SATDataset(Dataset):
             dataset_dir: str,
     ) -> None:
         self._config = config
+        self._device = torch.device(config.get('device'))
+        self._variable_count = config.get('dataset_variable_count')
 
         Log.out(
             "Loading dataset", {
@@ -83,20 +146,28 @@ class SATDataset(Dataset):
             if os.path.isfile(os.path.join(dataset_dir, f))
         ]
 
-        self._variable_count = 0
         self._clause_count = 0
 
         self._cnfs = []
+
+        def build_cnf(path):
+            with open(path, 'r') as f:
+                return CNF(config, f.read())
+
         for p in files:
-            with open(p, 'r') as f:
-                cnf = CNF(config, f.read())
-                if cnf._variable_count > self._variable_count:
-                    self._variable_count = cnf._variable_count
-                if cnf._clause_count > self._clause_count:
-                    self._clause_count = cnf._clause_count
-                self._cnfs.append(cnf)
+            cnf = build_cnf(p)
+            assert cnf._variable_count <= self._variable_count
+            if cnf._clause_count > self._clause_count:
+                self._clause_count = cnf._clause_count
+            self._cnfs.append(cnf)
 
         assert len(self._cnfs) > 0
+
+        Log.out(
+            "Loaded dataset", {
+                'dataset_dir': dataset_dir,
+                'cnf_count': len(self._cnfs),
+            })
 
     def variable_count(
             self,
@@ -117,4 +188,7 @@ class SATDataset(Dataset):
             self,
             idx: int,
     ):
-        return self._cnfs[idx].__getitem__()
+        return self._cnfs[idx].get(
+            self._variable_count,
+            self._clause_count,
+        )

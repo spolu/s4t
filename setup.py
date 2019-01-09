@@ -14,7 +14,7 @@ setup(
     entry_points={
         'console_scripts': [
             'generate_dataset=dataset.generator:generate',
-            'transformer_trainer=transformer.transformer:train',
+            'train_solver=solver.solver:train',
         ],
     },
 )
