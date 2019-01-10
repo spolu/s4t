@@ -211,16 +211,22 @@ class MixedRandK8Generator(BaseMixedGenerator):
             self,
             test,
     ) -> None:
-        samples = 125_000
+        samples = 100_000
         if test:
-            samples = 125
+            samples = 100
 
         fix_args = [
             [3, 4, 20],
             [4, 4, 48],
+
+            [3, 8, 38],
+            [3, 8, 39],
             [3, 8, 40],
+            [3, 8, 41],
+            [3, 8, 42],
+            [4, 8, 86],
             [4, 8, 88],
-            # [6, 8, 370],
+            [4, 8, 90],
         ]
         ext_args = [
             [3, 4, 10, 30],
@@ -254,18 +260,32 @@ class MixedRandK16Generator(BaseMixedGenerator):
             self,
             test,
     ) -> None:
-        samples = 200_000
+        samples = 100_000
         if test:
-            samples = 200
+            samples = 100
 
         fix_args = [
             [3, 4, 20],
             [4, 4, 48],
+
+            [3, 8, 39],
             [3, 8, 40],
+            [3, 8, 41],
+
+            [4, 8, 86],
             [4, 8, 88],
-            # [6, 8, 370],
+            [4, 8, 90],
+
+            [3, 16, 70],
+            [3, 16, 72],
+            [3, 16, 73],
             [3, 16, 74],
+            [3, 16, 76],
+            [3, 16, 78],
+
+            [4, 16, 164],
             [4, 16, 166],
+            [4, 16, 168],
         ]
         ext_args = [
             [3, 4, 10, 30],
