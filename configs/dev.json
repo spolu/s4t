@@ -1,11 +1,6 @@
 {
-  "generator": "unif_k",
-  "generator_unif_k_variable_count": 32,
-  "generator_unif_k_clause_length": 3,
-  "generator_unif_k_clause_count": 128,
-
-  "dataset_variable_count": 8,
-  "dataset_clause_count": 40,
+  "dataset_variable_count": 16,
+  "dataset_clause_count": 70,
 
   "solver_batch_size": 512,
   "solver_learning_rate": 0.00005,

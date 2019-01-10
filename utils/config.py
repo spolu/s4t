@@ -1,3 +1,4 @@
+import copy
 import json
 
 
@@ -30,6 +31,11 @@ class Config:
         a = json.dumps(self._config, sort_keys=True)
         b = json.dumps(other._config, sort_keys=True)
         return a == b
+
+    def clone(
+            self,
+    ):
+        return Config(copy.deepcopy(self._config))
 
     @staticmethod
     def from_dict(
