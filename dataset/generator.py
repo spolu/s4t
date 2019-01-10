@@ -379,9 +379,11 @@ def generate():
             # 3, 32, 142,
             # 4, 32, 320,
 
-            4, 16, 124,
+            # 3, 500, 3550,
+
+            3, 8, 40,
         )
-        generator.generate(dataset_dir, '', 1000, 8)
+        generator.generate(dataset_dir, 'fix_rand_k_plus_3_8_40', 200_000, 8)
     if args.generator == "ext_rand_k":
         generator = ExtRandKGenerator(
             # 3, 4, 10, 30,
@@ -395,7 +397,7 @@ def generate():
 
             4, 32, 240, 480,
         )
-        generator.generate(dataset_dir, '', 1000, 8)
+        generator.generate(dataset_dir, '', 1000, 1)
     if args.generator == "mixed_rand_k_8":
         generator = MixedRandK8Generator(False)
         generator.generate(dataset_dir, 2)
