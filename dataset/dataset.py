@@ -1,5 +1,5 @@
 import os
-import random
+# import random
 import torch
 
 from utils.config import Config
@@ -46,14 +46,14 @@ class CNF:
             variable_count,
             clause_count,
     ):
-        variables_map = random.sample(
-            range(0, variable_count),
-            self._variable_count,
-        )
-        clauses_map = random.sample(
-            range(0, clause_count),
-            self._clause_count,
-        )
+        # variables_map = random.sample(
+        #     range(0, variable_count),
+        #     self._variable_count,
+        # )
+        # clauses_map = random.sample(
+        #     range(0, clause_count),
+        #     self._clause_count,
+        # )
 
         clauses = torch.zeros(clause_count, variable_count)
 
@@ -68,9 +68,11 @@ class CNF:
                 v -= 1
                 assert v >= 0 and v < self._variable_count
                 if truth:
-                    clauses[clauses_map[c]][variables_map[v]] = 1.0
+                    # clauses[clauses_map[c]][variables_map[v]] = 1.0
+                    clauses[c][v] = 1.0
                 else:
-                    clauses[clauses_map[c]][variables_map[v]] = -1.0
+                    # clauses[clauses_map[c]][variables_map[v]] = -1.0
+                    clauses[c][v] = -1.0
 
         sat = torch.zeros(1)
         if self._sat:
@@ -86,14 +88,14 @@ class CNF:
     #         variable_count,
     #         clause_count,
     # ):
-    #     variables_map = random.sample(
-    #         range(0, variable_count),
-    #         self._variable_count,
-    #     )
-    #     clauses_map = random.sample(
-    #         range(0, clause_count),
-    #         self._clause_count,
-    #     )
+    #     # variables_map = random.sample(
+    #     #     range(0, variable_count),
+    #     #     self._variable_count,
+    #     # )
+    #     # clauses_map = random.sample(
+    #     #     range(0, clause_count),
+    #     #     self._clause_count,
+    #     # )
 
     #     variables = torch.zeros(variable_count, clause_count)
 
@@ -112,13 +114,11 @@ class CNF:
     #             assert v < variable_count
 
     #             if truth:
-    #                 variables[
-    #                     variables_map[v]
-    #                 ][clauses_map[c]] = 1.0
+    #                 # variables[variables_map[v]][clauses_map[c]] = 1.0
+    #                 variables[v][c] = 1.0
     #             else:
-    #                 variables[
-    #                     variables_map[v]
-    #                 ][clauses_map[c]] = -1.0
+    #                 # variables[variables_map[v]][clauses_map[c]] = -1.0
+    #                 variables[v][c] = -1.0
 
     #     sat = torch.zeros(1)
     #     if self._sat:
