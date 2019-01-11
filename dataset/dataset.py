@@ -67,14 +67,14 @@ class CNF:
                 if lit > 0:
                     t = truth_map[lit-1]
                     assert t != 0
-                    if (t > 0 and lit > 0) or (t < 0 and lit < 0):
+                    if t > 0:
                         cl_pos[clauses_map[c]][i] = variables_map[lit-1]
                     else:
                         cl_neg[clauses_map[c]][i] = variables_map[lit-1]
                 else:
                     t = truth_map[-lit-1]
                     assert t != 0
-                    if (t > 0 and lit > 0) or (t < 0 and lit < 0):
+                    if t < 0:
                         cl_pos[clauses_map[c]][i] = variables_map[-lit-1]
                     else:
                         cl_neg[clauses_map[c]][i] = variables_map[-lit-1]
