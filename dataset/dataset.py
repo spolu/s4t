@@ -69,10 +69,10 @@ class CNF:
                 assert v >= 0 and v < self._variable_count
                 if truth:
                     clauses[clauses_map[c]][variables_map[v]] = 1.0
-                    clauses[c][v] = 1.0
+                    # clauses[c][v] = 1.0
                 else:
                     clauses[clauses_map[c]][variables_map[v]] = -1.0
-                    clauses[c][v] = -1.0
+                    # clauses[c][v] = -1.0
 
         sat = torch.zeros(1)
         if self._sat:
