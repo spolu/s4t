@@ -47,87 +47,62 @@ class CNF:
             clause_count,
     ):
         variables_map = random.sample(
-            range(0, variable_count),
+            range(1, variable_count+1),
             self._variable_count,
         )
         clauses_map = random.sample(
             range(0, clause_count),
             self._clause_count,
         )
+        truth_map = random.choices([-1, 1], k=self._variable_count)
 
-        clauses = torch.zeros(clause_count, variable_count)
+        cl_pos = torch.zeros(clause_count, 3, dtype=torch.int64)
+        cl_neg = torch.zeros(clause_count, 3, dtype=torch.int64)
 
         for c in range(self._clause_count):
-            for a in self._clauses[c]:
-                v = a
-                truth = True
-                assert v != 0
-                if v < 0:
-                    v = -v
-                    truth = False
-                v -= 1
-                assert v >= 0 and v < self._variable_count
-                if truth:
-                    clauses[clauses_map[c]][variables_map[v]] = 1.0
-                    # clauses[c][v] = 1.0
+            assert len(self._clauses[c]) <= 3
+            for i in range(len(self._clauses[c])):
+                lit = self._clauses[c][i]
+                assert lit != 0
+                if lit > 0:
+                    t = truth_map[lit-1]
+                    assert t != 0
+                    if (t > 0 and lit > 0) or (t < 0 and lit < 0):
+                        cl_pos[clauses_map[c]][i] = variables_map[lit-1]
+                    else:
+                        cl_neg[clauses_map[c]][i] = variables_map[lit-1]
                 else:
-                    clauses[clauses_map[c]][variables_map[v]] = -1.0
-                    # clauses[c][v] = -1.0
+                    t = truth_map[-lit-1]
+                    assert t != 0
+                    if (t > 0 and lit > 0) or (t < 0 and lit < 0):
+                        cl_pos[clauses_map[c]][i] = variables_map[-lit-1]
+                    else:
+                        cl_neg[clauses_map[c]][i] = variables_map[-lit-1]
+
+        # for c in range(self._clause_count):
+        #     for a in self._clauses[c]:
+        #         assert a != 0
+
+        #         v = a
+        #         truth = True
+        #         assert v != 0
+        #         if v < 0:
+        #             v = -v
+        #             truth = False
+        #         v -= 1
+        #         assert v >= 0 and v < self._variable_count
+        #         if truth:
+        #             clauses[clauses_map[c]][variables_map[v]] = 1.0
+        #             # clauses[c][v] = 1.0
+        #         else:
+        #             clauses[clauses_map[c]][variables_map[v]] = -1.0
+        #             # clauses[c][v] = -1.0
 
         sat = torch.zeros(1)
         if self._sat:
             sat[0] = 1.0
 
-        return (
-            clauses,
-            sat,
-        )
-
-    # def get(
-    #         self,
-    #         variable_count,
-    #         clause_count,
-    # ):
-    #     # variables_map = random.sample(
-    #     #     range(0, variable_count),
-    #     #     self._variable_count,
-    #     # )
-    #     # clauses_map = random.sample(
-    #     #     range(0, clause_count),
-    #     #     self._clause_count,
-    #     # )
-
-    #     variables = torch.zeros(variable_count, clause_count)
-
-    #     for c in range(self._clause_count):
-    #         for a in self._clauses[c]:
-    #             v = a
-    #             assert v != 0
-    #             truth = True
-    #             if v < 0:
-    #                 v = -v
-    #                 truth = False
-    #             v -= 1
-
-    #             assert v >= 0
-    #             assert v < self._variable_count
-    #             assert v < variable_count
-
-    #             if truth:
-    #                 # variables[variables_map[v]][clauses_map[c]] = 1.0
-    #                 variables[v][c] = 1.0
-    #             else:
-    #                 # variables[variables_map[v]][clauses_map[c]] = -1.0
-    #                 variables[v][c] = -1.0
-
-    #     sat = torch.zeros(1)
-    #     if self._sat:
-    #         sat[0] = 1.0
-
-    #     return (
-    #         variables,
-    #         sat,
-    #     )
+        return (cl_pos, cl_neg, sat)
 
 
 class SATDataset(Dataset):

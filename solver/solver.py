@@ -110,12 +110,12 @@ class Solver:
         self._sat_policy.train()
         loss_meter = Meter()
 
-        for it, (clauses, sats) in enumerate(self._train_loader):
-            generated = self._sat_policy(clauses.to(self._device))
+        for it, (cl_pos, cl_neg, sats) in enumerate(self._train_loader):
+            generated = self._sat_policy(
+                cl_pos.to(self._device),
+                cl_neg.to(self._device),
+            )
             loss = F.mse_loss(generated, sats.to(self._device))
-
-            # if it == 0:
-            #     print("{}".format(generated[0:2]))
 
             self._sat_optimizer.zero_grad()
             (10 * loss).backward()
@@ -141,8 +141,6 @@ class Solver:
                     'batch_count': self._sat_batch_count,
                     'loss_avg': loss_meter.avg,
                     'hit_rate': "{:.2f}".format(hit / total),
-                    # 'loss_min': loss_meter.min,
-                    # 'loss_max': loss_meter.max,
                 })
 
                 if self._tb_writer is not None:
@@ -167,8 +165,11 @@ class Solver:
         total = 0
 
         with torch.no_grad():
-            for it, (clauses, sats) in enumerate(self._test_loader):
-                generated = self._sat_policy(clauses.to(self._device))
+            for it, (cl_pos, cl_neg, sats) in enumerate(self._test_loader):
+                generated = self._sat_policy(
+                    cl_pos.to(self._device),
+                    cl_neg.to(self._device),
+                )
                 loss = F.mse_loss(generated, sats.to(self._device))
 
                 loss_meter.update(loss.item())
@@ -184,8 +185,6 @@ class Solver:
             'batch_count': self._sat_batch_count,
             'loss_avg': loss_meter.avg,
             'hit_rate': "{:.2f}".format(hit / total),
-            # 'loss_min': loss_meter.min,
-            # 'loss_max': loss_meter.max,
         })
 
         if self._tb_writer is not None:

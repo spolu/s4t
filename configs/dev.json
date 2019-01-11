@@ -1,6 +1,6 @@
 {
-  "dataset_variable_count": 8,
-  "dataset_clause_count": 60,
+  "dataset_variable_count": 16,
+  "dataset_clause_count": 64,
 
   "solver_batch_size": 512,
   "solver_learning_rate": 0.00005,

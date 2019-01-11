@@ -247,8 +247,11 @@ class SATTransformer(nn.Module):
             config.get('transformer_attention_head_count')
         self.layer_count = config.get('transformer_layer_count')
 
-        self.embedding = nn.Linear(variable_count, self.embedding_size)
+        # self.embedding = nn.Linear(variable_count, self.embedding_size)
         # self.embedding = nn.Linear(clause_count, self.embedding_size)
+        self.embedding = nn.Embedding(
+            variable_count+1, self.embedding_size,
+        )
 
         layers = []
 
@@ -275,7 +278,7 @@ class SATTransformer(nn.Module):
         self.head = nn.Sequential(*head)
 
         self.apply(self.init_weights)
-        self.embedding.weight.data.normal_(mean=0.0, std=1.0)
+        # self.embedding.weight.data.normal_(mean=0.0, std=1.0)
 
     def init_weights(
             self,
@@ -291,9 +294,10 @@ class SATTransformer(nn.Module):
 
     def forward(
             self,
-            clauses,
+            cl_pos,
+            cl_neg,
     ):
-        embeds = self.embedding(clauses)
+        embeds = self.embedding(cl_pos).sum(2) - self.embedding(cl_neg).sum(2)
         hiddens = self.layers(embeds)
         means = hiddens.mean(1)
         outputs = 0.5 + 0.5 * self.head(means)
