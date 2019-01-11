@@ -211,40 +211,36 @@ class MixedRandK8Generator(BaseMixedGenerator):
             self,
             test,
     ) -> None:
-        samples = 100_000
-        if test:
-            samples = 100
-
         fix_args = [
-            [3, 4, 20],
-            [4, 4, 48],
+            ([3, 4, 19], 100_000),
+            ([3, 4, 20], 100_000),
+            ([3, 4, 21], 100_000),
 
-            [3, 8, 38],
-            [3, 8, 39],
-            [3, 8, 40],
-            [3, 8, 41],
-            [3, 8, 42],
-            [4, 8, 86],
-            [4, 8, 88],
-            [4, 8, 90],
+            ([3, 8, 38], 100_000),
+            ([3, 8, 39], 100_000),
+            ([3, 8, 40], 100_000),
+            ([3, 8, 41], 100_000),
+            ([3, 8, 42], 100_000),
         ]
         ext_args = [
-            [3, 4, 10, 30],
-            [4, 4, 36, 72],
-            [3, 8, 20, 60],
-            [4, 8, 66, 132],
+            ([3, 4, 10, 30], 100_000),
+            ([3, 8, 20, 60], 100_000),
         ]
 
         plan = []
 
-        for args in fix_args:
+        for args, samples in fix_args:
+            if test:
+                samples = int(samples / 1000)
             plan.append({
                 'generator': FixRandKGenerator(*args),
                 'prefix': "fix_rand_k_{}".format('_'.join(map(str, args))),
                 'sample_count': samples,
                 'num_workers': 4,
             })
-        for args in ext_args:
+        for args, samples in ext_args:
+            if test:
+                samples = int(samples / 1000)
             plan.append({
                 'generator': ExtRandKGenerator(*args),
                 'prefix': "ext_rand_k_{}".format('_'.join(map(str, args))),
@@ -265,47 +261,46 @@ class MixedRandK16Generator(BaseMixedGenerator):
             samples = 100
 
         fix_args = [
-            [3, 4, 20],
-            [4, 4, 48],
+            ([3, 4, 19], 100_000),
+            ([3, 4, 20], 100_000),
+            ([3, 4, 21], 100_000),
 
-            [3, 8, 39],
-            [3, 8, 40],
-            [3, 8, 41],
+            ([3, 8, 38], 100_000),
+            ([3, 8, 39], 100_000),
+            ([3, 8, 40], 100_000),
+            ([3, 8, 41], 100_000),
+            ([3, 8, 42], 100_000),
 
-            [4, 8, 86],
-            [4, 8, 88],
-            [4, 8, 90],
-
-            [3, 16, 70],
-            [3, 16, 72],
-            [3, 16, 73],
-            [3, 16, 74],
-            [3, 16, 76],
-            [3, 16, 78],
-
-            [4, 16, 164],
-            [4, 16, 166],
-            [4, 16, 168],
+            ([3, 16, 70], 100_000),
+            ([3, 16, 71], 100_000),
+            ([3, 16, 72], 100_000),
+            ([3, 16, 73], 100_000),
+            ([3, 16, 74], 100_000),
+            ([3, 16, 75], 100_000),
+            ([3, 16, 76], 100_000),
+            ([3, 16, 77], 100_000),
+            ([3, 16, 78], 100_000),
         ]
         ext_args = [
-            [3, 4, 10, 30],
-            [4, 4, 36, 72],
-            [3, 8, 20, 60],
-            [4, 8, 66, 132],
-            [3, 16, 55, 110],
-            [4, 16, 124, 249],
+            ([3, 4, 10, 30], 200_000),
+            ([3, 8, 20, 60], 200_000),
+            ([3, 16, 55, 110], 200_000),
         ]
 
         plan = []
 
-        for args in fix_args:
+        for args, samples in fix_args:
+            if test:
+                samples = int(samples / 1000)
             plan.append({
                 'generator': FixRandKGenerator(*args),
                 'prefix': "fix_rand_k_{}".format('_'.join(map(str, args))),
                 'sample_count': samples,
                 'num_workers': 4,
             })
-        for args in ext_args:
+        for args, samples in ext_args:
+            if test:
+                samples = int(samples / 1000)
             plan.append({
                 'generator': ExtRandKGenerator(*args),
                 'prefix': "ext_rand_k_{}".format('_'.join(map(str, args))),
@@ -321,42 +316,72 @@ class MixedRandK32Generator(BaseMixedGenerator):
             self,
             test,
     ) -> None:
-        samples = 300_000
-        if test:
-            samples = 300
-
-        fix_args = [
-            [3, 4, 20],
-            [4, 4, 48],
-            [3, 8, 40],
-            [4, 8, 88],
-            # [6, 8, 370],
-            [3, 16, 74],
-            [4, 16, 166],
-            [3, 32, 142],
-            [4, 32, 320],
-        ]
         ext_args = [
             [3, 4, 10, 30],
-            [4, 4, 36, 72],
             [3, 8, 20, 60],
-            [4, 8, 66, 132],
             [3, 16, 55, 110],
-            [4, 16, 124, 249],
             [3, 32, 106, 213],
-            [4, 32, 240, 480],
+        ]
+        fix_args = [
+            ([3, 4, 19], 100_000),
+            ([3, 4, 20], 100_000),
+            ([3, 4, 21], 100_000),
+
+            ([3, 8, 38], 100_000),
+            ([3, 8, 39], 100_000),
+            ([3, 8, 40], 100_000),
+            ([3, 8, 41], 100_000),
+            ([3, 8, 42], 100_000),
+
+            ([3, 16, 70], 100_000),
+            ([3, 16, 71], 100_000),
+            ([3, 16, 72], 100_000),
+            ([3, 16, 73], 100_000),
+            ([3, 16, 74], 100_000),
+            ([3, 16, 75], 100_000),
+            ([3, 16, 76], 100_000),
+            ([3, 16, 77], 100_000),
+            ([3, 16, 78], 100_000),
+
+            ([3, 32, 134], 100_000),
+            ([3, 32, 135], 100_000),
+            ([3, 32, 136], 100_000),
+            ([3, 32, 137], 100_000),
+            ([3, 32, 138], 100_000),
+            ([3, 32, 139], 100_000),
+            ([3, 32, 140], 100_000),
+            ([3, 32, 141], 100_000),
+            ([3, 32, 142], 100_000),
+            ([3, 32, 143], 100_000),
+            ([3, 32, 144], 100_000),
+            ([3, 32, 145], 100_000),
+            ([3, 32, 146], 100_000),
+            ([3, 32, 147], 100_000),
+            ([3, 32, 148], 100_000),
+            ([3, 32, 149], 100_000),
+            ([3, 32, 150], 100_000),
+        ]
+        ext_args = [
+            ([3, 4, 10, 30], 300_000),
+            ([3, 8, 20, 60], 300_000),
+            ([3, 16, 55, 110], 300_000),
+            ([3, 32, 106, 213], 300_000),
         ]
 
         plan = []
 
-        for args in fix_args:
+        for args, samples in fix_args:
+            if test:
+                samples = int(samples / 1000)
             plan.append({
                 'generator': FixRandKGenerator(*args),
                 'prefix': "fix_rand_k_{}".format('_'.join(map(str, args))),
                 'sample_count': samples,
                 'num_workers': 4,
             })
-        for args in ext_args:
+        for args, samples in ext_args:
+            if test:
+                samples = int(samples / 1000)
             plan.append({
                 'generator': ExtRandKGenerator(*args),
                 'prefix': "ext_rand_k_{}".format('_'.join(map(str, args))),

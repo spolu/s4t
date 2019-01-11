@@ -126,9 +126,21 @@ class Solver:
             self._sat_batch_count += 1
 
             if self._sat_batch_count % 10 == 0:
+
+                hit = 0
+                total = 0
+
+                for i in range(generated.size(0)):
+                    if generated[i].item() >= 0.5 and sats[i].item() >= 0.5:
+                        hit += 1
+                    if generated[i].item() < 0.5 and sats[i].item() < 0.5:
+                        hit += 1
+                    total += 1
+
                 Log.out("SAT TRAIN", {
                     'batch_count': self._sat_batch_count,
                     'loss_avg': loss_meter.avg,
+                    'hit_rate': "{:.2f}".format(hit / total),
                     # 'loss_min': loss_meter.min,
                     # 'loss_max': loss_meter.max,
                 })
@@ -137,6 +149,10 @@ class Solver:
                     self._tb_writer.add_scalar(
                         "train/sat/loss",
                         loss_meter.avg, self._sat_batch_count,
+                    )
+                    self._tb_writer.add_scalar(
+                        "train/sat/hit_rate",
+                        hit / total, self._sat_batch_count,
                     )
 
                 loss_meter = Meter()
