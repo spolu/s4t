@@ -1,10 +1,8 @@
 import argparse
 import os
 import random
-import threading
 import concurrent.futures
 
-from utils.config import Config
 from utils.log import Log
 from utils.minisat import Minisat
 
@@ -176,8 +174,9 @@ class FixRandKGenerator(BaseRandKGenerator):
 class SelsamGenerator:
     def __init__(
             self,
+            variable_count,
     ) -> None:
-        pass
+        self._variable_count = variable_count
 
 
 class BaseMixedGenerator:

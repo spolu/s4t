@@ -54,7 +54,7 @@ class CNF:
             range(0, clause_count),
             self._clause_count,
         )
-        truth_map = random.choices([-1, 1], k=self._variable_count)
+        # truth_map = random.choices([-1, 1], k=self._variable_count)
 
         cl_pos = torch.zeros(clause_count, 3, dtype=torch.int64)
         cl_neg = torch.zeros(clause_count, 3, dtype=torch.int64)
@@ -65,19 +65,9 @@ class CNF:
                 lit = self._clauses[c][i]
                 assert lit != 0
                 if lit > 0:
-                    t = truth_map[lit-1]
-                    assert t != 0
-                    if t > 0:
-                        cl_pos[clauses_map[c]][i] = variables_map[lit-1]
-                    else:
-                        cl_neg[clauses_map[c]][i] = variables_map[lit-1]
+                    cl_pos[clauses_map[c]][i] = variables_map[lit-1]
                 else:
-                    t = truth_map[-lit-1]
-                    assert t != 0
-                    if t < 0:
-                        cl_pos[clauses_map[c]][i] = variables_map[-lit-1]
-                    else:
-                        cl_neg[clauses_map[c]][i] = variables_map[-lit-1]
+                    cl_neg[clauses_map[c]][i] = variables_map[-lit-1]
 
         # for c in range(self._clause_count):
         #     for a in self._clauses[c]:
