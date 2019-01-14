@@ -247,7 +247,7 @@ class SelsamGenerator:
 
         pos = 0
         build = True
-        step = 4
+        step = 12
         while satisfiable:
             if build:
                 k = min(
@@ -717,13 +717,13 @@ def generate():
         generator = SelsamGenerator(8, 8, 256)
         generator.generate(dataset_dir, 'selsam_8', 1000, 8)
     if args.generator == "selsam_16":
-        generator = SelsamGenerator(16, 64, 256)
+        generator = SelsamGenerator(16, 80, 288)
         generator.generate(dataset_dir, 'selsam_16', 1000, 1)
     if args.generator == "selsam_40":
-        generator = SelsamGenerator(40, 64, 256)
+        generator = SelsamGenerator(40, 150, 600)
         generator.generate(dataset_dir, 'selsam_40', 1000, 1)
     if args.generator == "selsam_64":
-        generator = SelsamGenerator(64, 64, 256)
+        generator = SelsamGenerator(64, 250, 900)
         generator.generate(dataset_dir, 'selsam_64', 1000, 1)
 
     if args.generator == "mixed_rand_k_8":
