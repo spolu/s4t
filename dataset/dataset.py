@@ -56,11 +56,11 @@ class CNF:
         )
         # truth_map = random.choices([-1, 1], k=self._variable_count)
 
-        cl_pos = torch.zeros(clause_count, 3, dtype=torch.int64)
-        cl_neg = torch.zeros(clause_count, 3, dtype=torch.int64)
+        cl_pos = torch.zeros(clause_count, 8, dtype=torch.int64)
+        cl_neg = torch.zeros(clause_count, 8, dtype=torch.int64)
 
         for c in range(self._clause_count):
-            assert len(self._clauses[c]) <= 3
+            assert len(self._clauses[c]) <= 8
             for i in range(len(self._clauses[c])):
                 lit = self._clauses[c][i]
                 assert lit != 0

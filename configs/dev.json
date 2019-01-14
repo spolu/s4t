@@ -1,19 +1,19 @@
 {
-  "dataset_variable_count": 16,
-  "dataset_clause_count": 64,
+  "dataset_variable_count": 8,
+  "dataset_clause_count": 256,
 
-  "solver_batch_size": 512,
-  "solver_learning_rate": 0.00005,
+  "solver_batch_size": 64,
+  "solver_learning_rate": 0.00004,
   "solver_adam_beta_1": 0.9,
   "solver_adam_beta_2": 0.999,
   "solver_load_dir": null,
   "solver_save_dir": null,
 
-  "transformer_layer_count": 4,
-  "transformer_embedding_size": 64,
-  "transformer_hidden_size": 256,
+  "transformer_layer_count": 6,
+  "transformer_embedding_size": 128,
+  "transformer_hidden_size": 512,
   "transformer_attention_head_count": 8,
-  "transformer_intermediate_size": 512,
+  "transformer_intermediate_size": 1024,
 
   "tensorboard_log_dir": null
 }
