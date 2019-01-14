@@ -1,10 +1,73 @@
 import argparse
+import concurrent.futures
+import numpy as np
 import os
 import random
-import concurrent.futures
+import typing
 
 from utils.log import Log
 from utils.minisat import Minisat
+from utils.str2bool import str2bool
+
+
+def cnf_from_clauses(
+        clauses: typing.List[typing.List[int]],
+        generator_name: str,
+) -> str:
+    variable_count = 0
+
+    for cl in clauses:
+        for v in cl:
+            t = max(v, -v)
+            assert t > 0
+            if t > variable_count:
+                variable_count = t
+
+    cnf = "c generator: {}".format(generator_name)
+    cnf += "\np cnf {} {}".format(variable_count, len(clauses))
+    for cl in clauses:
+        cnf += "\n"
+        for v in cl:
+            cnf += "{} ".format(v)
+        cnf += "0"
+
+    return cnf, variable_count, len(clauses)
+
+
+def convert_to_8cnf(
+        clauses: typing.List[typing.List[int]],
+) -> typing.List[typing.List[int]]:
+    good_clauses = [c for c in clauses if len(c) <= 8]
+    bad_clauses = [c for c in clauses if len(c) > 8]
+
+    def variable_count(clauses):
+        return len(
+            set(abs(literal) for clause in clauses for literal in clause)
+        )
+
+    def reduce_clause(clause, next_var):
+        cur_var = next_var
+        if len(clause) <= 8:
+            return [clause], next_var
+
+        reduced, next_var = reduce_clause(
+            [cur_var] + list(clause[2:]),
+            next_var+1,
+        )
+
+        return [[clause[0], clause[1], -cur_var]] + reduced, next_var
+
+    next_var = variable_count(clauses) + 1
+    for c in bad_clauses:
+        reduced, next_var = reduce_clause(c, next_var)
+        good_clauses.extend(reduced)
+
+    # print("{}/{} => {}/{}".format(
+    #     len(clauses), variable_count(clauses),
+    #     len(good_clauses), variable_count(good_clauses),
+    # ))
+
+    return good_clauses
 
 
 class BaseRandKGenerator:
@@ -20,28 +83,20 @@ class BaseRandKGenerator:
             self,
             clause_count,
     ) -> str:
-        cnf = "c generator: {}".format(self.name())
-        cnf += "\nc clause_length: {}".format(self._clause_length)
-        cnf += "\nc variable_count: {}".format(self._variable_count)
-        cnf += "\nc clause_count: {}".format(clause_count)
-        cnf += "\nc clause_to_variable_ratio: {:.2f}".format(
-            clause_count / self._variable_count,
-        )
-        cnf += "\np cnf {} {}".format(
-            self._variable_count,
-            clause_count,
-        )
-
+        clauses = []
         variables = range(1, self._variable_count+1)
+
         for c in range(clause_count):
-            clause = random.sample(variables, self._clause_length)
-            cnf += "\n"
-            for a in clause:
+            sample = random.sample(variables, self._clause_length)
+            clause = []
+            for v in sample:
                 if random.random() < 0.5:
-                    cnf += "{} ".format(-a)
+                    clause.apennd(-v)
                 else:
-                    cnf += "{} ".format(a)
-            cnf += "0"
+                    clause.apennd(v)
+            clauses.append(clause)
+
+        cnf, _, _ = cnf_from_clauses(clauses, self.name())
 
         return cnf
 
@@ -66,7 +121,7 @@ class BaseRandKGenerator:
 
             while generated < chunk:
                 cnf = self.produce()
-                success, assignment = minisat.solve(cnf)
+                success, _ = minisat.solve(cnf)
 
                 store = False
                 header = ""
@@ -175,8 +230,149 @@ class SelsamGenerator:
     def __init__(
             self,
             variable_count,
+            variable_count_max,
+            clause_count_max,
     ) -> None:
         self._variable_count = variable_count
+        self._variable_count_max = variable_count_max
+        self._clause_count_max = clause_count_max
+        self._minisat = Minisat()
+
+    def produce_pair(
+            self,
+    ):
+        satisfiable = True
+        clauses = []
+        variables = range(1, self._variable_count+1)
+
+        pos = 0
+        build = True
+        step = 4
+        while satisfiable:
+            if build:
+                k = min(
+                    2 + np.random.binomial(1, 0.3) + np.random.geometric(0.4),
+                    self._variable_count,
+                )
+
+                sample = random.sample(variables, k)
+                clause = []
+                for v in sample:
+                    if random.random() < 0.5:
+                        clause.append(-v)
+                    else:
+                        clause.append(v)
+                clauses.append(clause)
+                pos += 1
+
+                if pos % step == 0:
+                    cnf, _, _ = cnf_from_clauses(clauses, self.name())
+                    success, _ = self._minisat.solve(cnf)
+
+                    if not success:
+                        assert pos >= step
+                        pos -= step
+                        build = False
+
+            else:
+                pos += 1
+                cnf, _, _ = cnf_from_clauses(clauses[:pos], self.name())
+                success, _ = self._minisat.solve(cnf)
+
+                if not success:
+                    clauses = clauses[:pos]
+                    satisfiable = False
+
+        unsat_cnf, unsat_variable_count, unsat_clause_count = cnf_from_clauses(
+            convert_to_8cnf(clauses),
+            self.name(),
+        )
+        flip = random.randint(0, len(clauses[-1])-1)
+        clauses[-1][flip] = -clauses[-1][flip]
+        sat_cnf, sat_variable_count, sat_clause_count = cnf_from_clauses(
+            convert_to_8cnf(clauses),
+            self.name(),
+        )
+
+        # success, _ = self._minisat.solve(sat_cnf)
+        # assert success is True
+        # success, _ = self._minisat.solve(unsat_cnf)
+        # assert success is False
+
+        if unsat_variable_count > self._variable_count_max or \
+                unsat_clause_count > self._clause_count_max:
+            print("SKIPPING {} {}".format(
+                unsat_variable_count,
+                unsat_clause_count,
+            ))
+            unsat_cnf = None
+        if sat_variable_count > self._variable_count_max or \
+                sat_clause_count > self._clause_count_max:
+            print("SKIPPING {} {}".format(
+                sat_variable_count,
+                sat_clause_count,
+            ))
+            sat_cnf = None
+
+        return (unsat_cnf, sat_cnf)
+
+    def generate(
+            self,
+            dataset_dir,
+            prefix,
+            sample_count,
+            num_workers=8,
+    ) -> None:
+        chunk = int(sample_count/num_workers)
+
+        def process(worker):
+            generated = 0
+
+            while generated < chunk:
+                unsat_cnf, sat_cnf = self.produce_pair()
+
+                if unsat_cnf is None or sat_cnf is None:
+                    continue
+                # print(sat_cnf.split('\n')[1])
+
+                unsat_cnf = "c UNSAT\n" + unsat_cnf
+                sat_cnf = "c SAT\n" + sat_cnf
+
+                generated += 1
+                with open(os.path.join(
+                        dataset_dir, "{}_{}.cnf".format(
+                            prefix, worker*chunk + generated,
+                        )
+                ), 'w') as f:
+                    f.write(unsat_cnf)
+                    f.flush()
+                generated += 1
+                with open(os.path.join(
+                        dataset_dir, "{}_{}.cnf".format(
+                            prefix, worker*chunk + generated,
+                        )
+                ), 'w') as f:
+                    f.write(sat_cnf)
+                    f.flush()
+
+                if generated % 20 == 0:
+                    Log.out(
+                        "Generating samples", {
+                            'generator': self.name(),
+                            'total': generated,
+                            'worker': worker,
+                            'generated': generated,
+                        })
+
+        with concurrent.futures.ThreadPoolExecutor(
+                max_workers=num_workers
+        ) as executor:
+            executor.map(process, range(num_workers))
+
+    def name(
+            self,
+    ) -> str:
+        return "selsam_{}".format(self._variable_count)
 
 
 class BaseMixedGenerator:
@@ -391,6 +587,71 @@ class MixedRandK32Generator(BaseMixedGenerator):
         super(MixedRandK32Generator, self).__init__(plan)
 
 
+class MixedSelsam8Generator(BaseMixedGenerator):
+    def __init__(
+            self,
+            test,
+    ) -> None:
+        selsam_args = [
+            ([4, 4, 256], 50_000),
+            ([5, 5, 256], 50_000),
+            ([6, 6, 256], 50_000),
+            ([7, 7, 256], 100_000),
+            ([8, 8, 256], 200_000),
+        ]
+
+        plan = []
+
+        for args, samples in selsam_args:
+            if test:
+                samples = int(samples / 1000)
+            plan.append({
+                'generator': SelsamGenerator(*args),
+                'prefix': "selsam_{}".format('_'.join(map(str, args))),
+                'sample_count': samples,
+                'num_workers': 4,
+            })
+
+        super(MixedSelsam8Generator, self).__init__(plan)
+
+
+class MixedSelsam16Generator(BaseMixedGenerator):
+    def __init__(
+            self,
+            test,
+    ) -> None:
+        selsam_args = [
+            ([4, 4, 256], 10_000),
+            ([5, 5, 256], 10_000),
+            ([6, 6, 256], 10_000),
+            ([7, 7, 256], 10_000),
+            ([8, 8, 256], 10_000),
+            ([8, 8, 256], 50_000),
+            ([9, 64, 256], 50_000),
+            ([10, 64, 256], 50_000),
+            ([11, 64, 256], 50_000),
+            ([12, 64, 256], 100_000),
+            ([13, 64, 256], 100_000),
+            ([14, 64, 256], 100_000),
+            ([15, 64, 256], 100_000),
+            ([16, 64, 256], 100_000),
+        ]
+
+        plan = []
+
+        for args, samples in selsam_args:
+            if test:
+                samples = int(samples / 1000)
+            plan.append({
+                'generator': SelsamGenerator(*args),
+                'prefix': "selsam_{}".format('_'.join(map(str, args))),
+                'sample_count': samples,
+                'num_workers': 4,
+            })
+
+        super(MixedSelsam16Generator, self).__init__(plan)
+
+
 def generate():
     parser = argparse.ArgumentParser(description="")
 
@@ -402,11 +663,17 @@ def generate():
         'dataset_dir',
         type=str, help="directory to dump samples to",
     )
+    parser.add_argument(
+        '--test',
+        type=str2bool, help="generate a test set",
+    )
 
     args = parser.parse_args()
 
     dataset_dir = os.path.expanduser(args.dataset_dir)
     generator = None
+    if args.test is None:
+        args.test = False
 
     if not os.path.isdir(dataset_dir):
         os.mkdir(dataset_dir)
@@ -442,14 +709,38 @@ def generate():
             4, 32, 240, 480,
         )
         generator.generate(dataset_dir, '', 1000, 1)
+
+    if args.generator == "selsam_4":
+        generator = SelsamGenerator(4, 4, 64)
+        generator.generate(dataset_dir, 'selsam_4', 1000, 4)
+    if args.generator == "selsam_8":
+        generator = SelsamGenerator(8, 8, 256)
+        generator.generate(dataset_dir, 'selsam_8', 1000, 8)
+    if args.generator == "selsam_16":
+        generator = SelsamGenerator(16, 64, 256)
+        generator.generate(dataset_dir, 'selsam_16', 1000, 1)
+    if args.generator == "selsam_40":
+        generator = SelsamGenerator(40, 64, 256)
+        generator.generate(dataset_dir, 'selsam_40', 1000, 1)
+    if args.generator == "selsam_64":
+        generator = SelsamGenerator(64, 64, 256)
+        generator.generate(dataset_dir, 'selsam_64', 1000, 1)
+
     if args.generator == "mixed_rand_k_8":
-        generator = MixedRandK8Generator(False)
+        generator = MixedRandK8Generator(args.test)
         generator.generate(dataset_dir, 2)
     if args.generator == "mixed_rand_k_16":
-        generator = MixedRandK16Generator(False)
+        generator = MixedRandK16Generator(args.test)
         generator.generate(dataset_dir, 2)
     if args.generator == "mixed_rand_k_32":
-        generator = MixedRandK32Generator(False)
+        generator = MixedRandK32Generator(args.test)
+        generator.generate(dataset_dir, 2)
+
+    if args.generator == "mixed_selsam_8":
+        generator = MixedSelsam8Generator(args.test)
+        generator.generate(dataset_dir, 2)
+    if args.generator == "mixed_selsam_16":
+        generator = MixedSelsam16Generator(args.test)
         generator.generate(dataset_dir, 2)
 
     assert generator is not None
