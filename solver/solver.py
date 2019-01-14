@@ -270,3 +270,44 @@ def train():
         solver.batch_test_sat()
         solver.save_sat()
         i += 1
+
+
+def test():
+    parser = argparse.ArgumentParser(description="")
+
+    parser.add_argument(
+        'config_path',
+        type=str, help="path to the config file",
+    )
+    parser.add_argument(
+        'test_dataset_dir',
+        type=str, help="test dataset directory",
+    )
+    parser.add_argument(
+        '--device',
+        type=str, help="config override",
+    )
+    parser.add_argument(
+        '--solver_load_dir',
+        type=str, help="config override",
+    )
+    args = parser.parse_args()
+
+    config = Config.from_file(args.config_path)
+
+    if args.device is not None:
+        config.override('device', args.device)
+    if args.solver_load_dir is not None:
+        config.override(
+            'solver_load_dir',
+            os.path.expanduser(args.solver_load_dir),
+        )
+
+    test_dataset = SATDataset(
+        config,
+        os.path.expanduser(args.test_dataset_dir),
+    )
+
+    solver = Solver(config, test_dataset, test_dataset)
+
+    solver.batch_test_sat()

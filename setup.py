@@ -15,6 +15,7 @@ setup(
         'console_scripts': [
             'generate_dataset=dataset.generator:generate',
             'train_solver=solver.solver:train',
+            'test_solver=solver.solver:test',
         ],
     },
 )
