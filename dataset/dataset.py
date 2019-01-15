@@ -102,6 +102,8 @@ class SATDataset(Dataset):
             dataset_dir: str,
     ) -> None:
         dataset_dir = os.path.expanduser(dataset_dir)
+        dataset_dir = os.path.abspath(dataset_dir)
+
         self._config = config
         self._device = torch.device(config.get('device'))
 
