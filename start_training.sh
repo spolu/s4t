@@ -1,3 +1,5 @@
+source activate s4t
+
 if [ -z "$(git ls-files -m)" ]; then
   echo "All changes are committed"
 else
