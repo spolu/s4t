@@ -155,6 +155,11 @@ class Solver:
 
                 loss_meter = Meter()
 
+            if self._sat_batch_count % 160 == 0:
+                self.batch_test_sat()
+                self.save_sat()
+                self._sat_policy.train()
+
     def batch_test_sat(
             self,
     ):
@@ -267,8 +272,8 @@ def train():
     i = 0
     while True:
         solver.batch_train_sat()
-        solver.batch_test_sat()
-        solver.save_sat()
+        # solver.batch_test_sat()
+        # solver.save_sat()
         i += 1
 
 

@@ -1,9 +1,9 @@
 {
-  "dataset_variable_count": 8,
+  "dataset_variable_count": 16,
   "dataset_clause_count": 256,
 
-  "solver_batch_size": 64,
-  "solver_learning_rate": 0.00002,
+  "solver_batch_size": 92,
+  "solver_learning_rate": 0.00001,
   "solver_adam_beta_1": 0.9,
   "solver_adam_beta_2": 0.999,
   "solver_load_dir": null,
