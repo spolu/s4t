@@ -77,14 +77,14 @@ class Solver:
             self._train_dataset,
             batch_size=self._config.get('solver_batch_size'),
             shuffle=True,
-            # pin_memory=True,
+            pin_memory=True,
             num_workers=8,
         )
         self._test_loader = torch.utils.data.DataLoader(
             self._test_dataset,
             batch_size=self._config.get('solver_batch_size'),
             shuffle=False,
-            # pin_memory=True,
+            pin_memory=True,
         )
 
         self._sat_batch_count = 0
