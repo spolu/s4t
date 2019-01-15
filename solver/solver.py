@@ -213,11 +213,11 @@ def train():
         type=str, help="path to the config file",
     )
     parser.add_argument(
-        'train_dataset_dir',
+        '--train_dataset_dir',
         type=str, help="train dataset directory",
     )
     parser.add_argument(
-        'test_dataset_dir',
+        '--test_dataset_dir',
         type=str, help="test dataset directory",
     )
     parser.add_argument(
@@ -242,6 +242,16 @@ def train():
 
     if args.device is not None:
         config.override('device', args.device)
+    if args.train_dataset_dir is not None:
+        config.override(
+            'train_dataset_dir',
+            os.path.expanduser(args.train_dataset_dir),
+        )
+    if args.test_dataset_dir is not None:
+        config.override(
+            'test_dataset_dir',
+            os.path.expanduser(args.test_dataset_dir),
+        )
     if args.tensorboard_log_dir is not None:
         config.override(
             'tensorboard_log_dir',
@@ -260,11 +270,11 @@ def train():
 
     train_dataset = SATDataset(
         config,
-        os.path.expanduser(args.train_dataset_dir),
+        os.path.expanduser(config.get("train_dataset_dir")),
     )
     test_dataset = SATDataset(
         config,
-        os.path.expanduser(args.test_dataset_dir),
+        os.path.expanduser(config.get("test_dataset_dir")),
     )
 
     solver = Solver(config, train_dataset, test_dataset)
