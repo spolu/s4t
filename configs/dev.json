@@ -1,17 +1,17 @@
 {
   "device": "cuda:0",
   "dataset_variable_count": 16,
-  "dataset_clause_count": 256,
+  "dataset_clause_count": 64,
 
-  "solver_batch_size": 110,
+  "solver_batch_size": 256,
   "solver_learning_rate": 0.00001,
   "solver_adam_beta_1": 0.9,
   "solver_adam_beta_2": 0.999,
   "solver_load_dir": null,
   "solver_save_dir": null,
 
-  "solver_train_dataset_dir": "./data/test_selsam_4/",
-  "solver_test_dataset_dir": "./data/test_selsam_8/",
+  "solver_train_dataset_dir": "./data/train_selsam_4/",
+  "solver_test_dataset_dir": "./data/train_selsam_8/",
 
   "transformer_layer_count": 6,
   "transformer_embedding_size": 128,
