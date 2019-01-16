@@ -1,7 +1,7 @@
 {
   "device": "cuda:0",
   "dataset_variable_count": 16,
-  "dataset_clause_count": 64,
+  "dataset_clause_count": 128,
 
   "solver_batch_size": 256,
   "solver_learning_rate": 0.00001,
