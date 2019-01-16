@@ -1,6 +1,8 @@
 import argparse
 import os
 import torch
+import torch.distributed as distributed
+import torch.utils.data.distributed
 import torch.optim as optim
 import torch.nn.functional as F
 
@@ -8,11 +10,12 @@ from dataset.dataset import SATDataset
 
 from tensorboardX import SummaryWriter
 
-from solver.models.transformer import SATTransformer
+from solver.models.transformer import S
 
 from utils.config import Config
 from utils.meter import Meter
 from utils.log import Log
+from utils.str2bool import str2bool
 
 
 class Solver:
@@ -33,15 +36,28 @@ class Solver:
 
         self._tb_writer = None
         if self._config.get('tensorboard_log_dir'):
-            self._tb_writer = SummaryWriter(
-                self._config.get('tensorboard_log_dir'),
-            )
+            if self._config.get('distributed_rank') == 0:
+                self._tb_writer = SummaryWriter(
+                    self._config.get('tensorboard_log_dir'),
+                )
 
-        self._sat_policy = SATTransformer(
+        self._sat_policy = S(
             self._config,
             self._train_dataset.variable_count(),
             self._train_dataset.clause_count(),
         ).to(self._device)
+
+        Log.out(
+            "Initializing solver", {
+                'parameter_count': self._sat_policy.parameters_count()
+            },
+        )
+
+        if self._config.get('distributed_training'):
+            self._sat_policy = torch.nn.parallel.DistributedDataParallel(
+                self._sat_policy,
+                device_ids=[self._device],
+            )
 
         self._sat_optimizer = optim.Adam(
             self._sat_policy.parameters(),
@@ -50,12 +66,6 @@ class Solver:
                 self._config.get('solver_adam_beta_1'),
                 self._config.get('solver_adam_beta_2'),
             ),
-        )
-
-        Log.out(
-            "Initializing solver", {
-                'parameter_count': self._sat_policy.parameters_count()
-            },
         )
 
         if self._load_dir:
@@ -73,17 +83,26 @@ class Solver:
                     ),
                 )
 
+        self._train_sampler = None
+        if self._config.get('distributed_training'):
+            self._train_sampler = \
+                torch.utils.data.distributed.DistributedSampler(
+                    self._train_dataset,
+                )
+
         self._train_loader = torch.utils.data.DataLoader(
             self._train_dataset,
             batch_size=self._config.get('solver_batch_size'),
-            shuffle=True,
+            shuffle=(self._train_sampler is None),
             pin_memory=True,
             num_workers=8,
+            sampler=self._train_sampler,
         )
         self._test_loader = torch.utils.data.DataLoader(
             self._test_dataset,
             batch_size=self._config.get('solver_batch_size'),
             shuffle=False,
+            num_workers=8,
             pin_memory=True,
         )
 
@@ -109,6 +128,9 @@ class Solver:
     def batch_train_sat(self):
         self._sat_policy.train()
         loss_meter = Meter()
+
+        if self._config.get('distributed_training'):
+            self._train_sampler.set_epoch(self._sat_batch_count)
 
         for it, (cl_pos, cl_neg, sats) in enumerate(self._train_loader):
             generated = self._sat_policy(
@@ -157,8 +179,10 @@ class Solver:
 
             if self._sat_batch_count % 160 == 0:
                 self.batch_test_sat()
-                self.save_sat()
                 self._sat_policy.train()
+
+                if self._config.get('distributed_rank') == 0:
+                    self.save_sat()
 
     def batch_test_sat(
             self,
@@ -221,10 +245,6 @@ def train():
         type=str, help="test dataset directory",
     )
     parser.add_argument(
-        '--device',
-        type=str, help="config override",
-    )
-    parser.add_argument(
         '--solver_save_dir',
         type=str, help="config override",
     )
@@ -236,12 +256,39 @@ def train():
         '--tensorboard_log_dir',
         type=str, help="config override",
     )
+
+    parser.add_argument(
+        '--device',
+        type=str, help="config override",
+    )
+
+    parser.add_argument(
+        '--distributed_training',
+        type=str2bool, help="confg override",
+    )
+    parser.add_argument(
+        '--distributed_world_size',
+        type=int, help="config override",
+    )
+    parser.add_argument(
+        '--distributed_rank',
+        type=int, help="config override",
+    )
+
     args = parser.parse_args()
 
     config = Config.from_file(args.config_path)
 
     if args.device is not None:
         config.override('device', args.device)
+
+    if args.distributed_training is not None:
+        config.override('distributed_training', args.distributed_training)
+    if args.distributed_rank is not None:
+        config.override('distributed_rank', args.distributed_rank)
+    if args.distributed_world_size is not None:
+        config.override('distributed_world_size', args.distributed_world_size)
+
     if args.train_dataset_dir is not None:
         config.override(
             'solver_train_dataset_dir',
@@ -268,13 +315,24 @@ def train():
             os.path.expanduser(args.solver_save_dir),
         )
 
+    if config.get('distributed_training'):
+        distributed.init_process_group(
+            backend=config.get('distributed_backend'),
+            init_method=config.get('distributed_init_method'),
+            rank=config.get('distributed_rank'),
+            world_size=config.get('distributed_world_size'),
+        )
+
+    if config.get('device') != 'cpu':
+        torch.cuda.set_device(torch.device(config.get('device')))
+
     train_dataset = SATDataset(
         config,
-        os.path.expanduser(config.get("solver_train_dataset_dir")),
+        os.path.expanduser(config.get('solver_train_dataset_dir')),
     )
     test_dataset = SATDataset(
         config,
-        os.path.expanduser(config.get("solver_test_dataset_dir")),
+        os.path.expanduser(config.get('solver_test_dataset_dir')),
     )
 
     solver = Solver(config, train_dataset, test_dataset)
