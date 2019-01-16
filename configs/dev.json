@@ -11,7 +11,7 @@
   "solver_save_dir": null,
 
   "solver_train_dataset_dir": "./data/train_selsam_4/",
-  "solver_test_dataset_dir": "./data/train_selsam_4/",
+  "solver_test_dataset_dir": "./data/test_selsam_4/",
 
   "transformer_layer_count": 6,
   "transformer_embedding_size": 128,
