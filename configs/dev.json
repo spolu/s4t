@@ -11,7 +11,7 @@
   "dataset_clause_count": 64,
 
   "solver_batch_size": 512,
-  "solver_learning_rate": 0.00005,
+  "solver_learning_rate": 0.00004,
   "solver_adam_beta_1": 0.9,
   "solver_adam_beta_2": 0.999,
   "solver_load_dir": null,
