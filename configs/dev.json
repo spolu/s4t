@@ -4,7 +4,7 @@
   "dataset_clause_count": 256,
 
   "solver_batch_size": 110,
-  "solver_learning_rate": 0.000001,
+  "solver_learning_rate": 0.00001,
   "solver_adam_beta_1": 0.9,
   "solver_adam_beta_2": 0.999,
   "solver_load_dir": null,
