@@ -710,21 +710,25 @@ def generate():
         )
         generator.generate(dataset_dir, '', 1000, 1)
 
+    selsam_sample = 10_000
+    if args.test:
+        selsam_sample = 1000
+
     if args.generator == "selsam_4":
         generator = SelsamGenerator(4, 4, 64)
-        generator.generate(dataset_dir, 'selsam_4', 10000, 4)
+        generator.generate(dataset_dir, 'selsam_4', selsam_sample, 4)
     if args.generator == "selsam_8":
         generator = SelsamGenerator(8, 8, 128)
-        generator.generate(dataset_dir, 'selsam_8', 10000, 8)
+        generator.generate(dataset_dir, 'selsam_8', selsam_sample, 8)
     if args.generator == "selsam_16":
         generator = SelsamGenerator(16, 80, 288)
-        generator.generate(dataset_dir, 'selsam_16', 1000, 1)
+        generator.generate(dataset_dir, 'selsam_16', selsam_sample, 1)
     if args.generator == "selsam_40":
         generator = SelsamGenerator(40, 150, 600)
-        generator.generate(dataset_dir, 'selsam_40', 1000, 1)
+        generator.generate(dataset_dir, 'selsam_40', selsam_sample, 1)
     if args.generator == "selsam_64":
         generator = SelsamGenerator(64, 250, 900)
-        generator.generate(dataset_dir, 'selsam_64', 1000, 1)
+        generator.generate(dataset_dir, 'selsam_64', selsam_sample, 1)
 
     if args.generator == "mixed_rand_k_8":
         generator = MixedRandK8Generator(args.test)
