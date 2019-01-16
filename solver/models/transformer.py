@@ -230,14 +230,14 @@ class Downsample(nn.Module):
         return x.transpose(1, 2)
 
 
-class SATTransformer(nn.Module):
+class S(nn.Module):
     def __init__(
             self,
             config,
             variable_count,
             clause_count,
     ):
-        super(SATTransformer, self).__init__()
+        super(S, self).__init__()
 
         self.device = torch.device(config.get('device'))
         self.embedding_size = config.get('transformer_embedding_size')

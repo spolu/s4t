@@ -8,7 +8,7 @@ from dataset.dataset import SATDataset
 
 from tensorboardX import SummaryWriter
 
-from solver.models.transformer import SATTransformer
+from solver.models.transformer import S
 
 from utils.config import Config
 from utils.meter import Meter
@@ -37,7 +37,7 @@ class Solver:
                 self._config.get('tensorboard_log_dir'),
             )
 
-        self._sat_policy = SATTransformer(
+        self._sat_policy = S(
             self._config,
             self._train_dataset.variable_count(),
             self._train_dataset.clause_count(),
