@@ -47,6 +47,12 @@ class Solver:
             self._train_dataset.clause_count(),
         ).to(self._device)
 
+        Log.out(
+            "Initializing solver", {
+                'parameter_count': self._sat_policy.parameters_count()
+            },
+        )
+
         if self._config.get('distributed_training'):
             self._sat_policy = torch.nn.parallel.DistributedDataParallel(
                 self._sat_policy,
@@ -60,12 +66,6 @@ class Solver:
                 self._config.get('solver_adam_beta_1'),
                 self._config.get('solver_adam_beta_2'),
             ),
-        )
-
-        Log.out(
-            "Initializing solver", {
-                'parameter_count': self._sat_policy.parameters_count()
-            },
         )
 
         if self._load_dir:
@@ -96,7 +96,7 @@ class Solver:
             shuffle=(self._train_sampler is None),
             pin_memory=True,
             num_workers=8,
-            train_sampler=self._train_sampler,
+            sampler=self._train_sampler,
         )
         self._test_loader = torch.utils.data.DataLoader(
             self._test_dataset,
