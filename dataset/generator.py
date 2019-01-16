@@ -711,11 +711,11 @@ def generate():
         generator.generate(dataset_dir, '', 1000, 1)
 
     if args.generator == "selsam_4":
-        generator = SelsamGenerator(4, 4, 64)
-        generator.generate(dataset_dir, 'selsam_4', 1000, 4)
+        generator = SelsamGenerator(4, 4, 256)
+        generator.generate(dataset_dir, 'selsam_4', 10000, 4)
     if args.generator == "selsam_8":
         generator = SelsamGenerator(8, 8, 256)
-        generator.generate(dataset_dir, 'selsam_8', 1000, 8)
+        generator.generate(dataset_dir, 'selsam_8', 10000, 8)
     if args.generator == "selsam_16":
         generator = SelsamGenerator(16, 80, 288)
         generator.generate(dataset_dir, 'selsam_16', 1000, 1)
