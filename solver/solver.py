@@ -357,24 +357,58 @@ def test():
         type=str, help="test dataset directory",
     )
     parser.add_argument(
-        '--device',
-        type=str, help="config override",
-    )
-    parser.add_argument(
         '--solver_load_dir',
         type=str, help="config override",
     )
+
+    parser.add_argument(
+        '--device',
+        type=str, help="config override",
+    )
+
+    parser.add_argument(
+        '--distributed_training',
+        type=str2bool, help="confg override",
+    )
+    parser.add_argument(
+        '--distributed_world_size',
+        type=int, help="config override",
+    )
+    parser.add_argument(
+        '--distributed_rank',
+        type=int, help="config override",
+    )
+
     args = parser.parse_args()
 
     config = Config.from_file(args.config_path)
 
     if args.device is not None:
         config.override('device', args.device)
+
+    if args.distributed_training is not None:
+        config.override('distributed_training', args.distributed_training)
+    if args.distributed_rank is not None:
+        config.override('distributed_rank', args.distributed_rank)
+    if args.distributed_world_size is not None:
+        config.override('distributed_world_size', args.distributed_world_size)
+
     if args.solver_load_dir is not None:
         config.override(
             'solver_load_dir',
             os.path.expanduser(args.solver_load_dir),
         )
+
+    if config.get('distributed_training'):
+        distributed.init_process_group(
+            backend=config.get('distributed_backend'),
+            init_method=config.get('distributed_init_method'),
+            rank=config.get('distributed_rank'),
+            world_size=config.get('distributed_world_size'),
+        )
+
+    if config.get('device') != 'cpu':
+        torch.cuda.set_device(torch.device(config.get('device')))
 
     test_dataset = SATDataset(
         config,
