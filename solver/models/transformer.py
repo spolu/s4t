@@ -187,14 +187,12 @@ class Transformer(nn.Module):
 class Upsample(nn.Module):
     def __init__(
             self,
-            config,
+            hidden_size,
     ):
         super(Upsample, self).__init__()
 
-        self.hidden_size = config.get('transformer_hidden_size')
-
         self.conv_transpose = nn.ConvTranspose1d(
-            self.hidden_size, self.hidden_size,
+            hidden_size, hidden_size,
             2, 2,
         )
 
@@ -210,14 +208,12 @@ class Upsample(nn.Module):
 class Downsample(nn.Module):
     def __init__(
             self,
-            config,
+            hidden_size,
     ):
         super(Downsample, self).__init__()
 
-        self.hidden_size = config.get('transformer_hidden_size')
-
         self.conv = nn.Conv1d(
-            self.hidden_size, self.hidden_size,
+            hidden_size, hidden_size,
             2, 2,
         )
 
@@ -265,6 +261,14 @@ class S(nn.Module):
                     self.attention_head_count,
                     self.intermediate_size,
                 ),
+                Transformer(
+                    self.hidden_size,
+                    self.attention_head_count,
+                    self.intermediate_size,
+                ),
+                Downsample(
+                    self.hidden_size,
+                )
             ]
 
         head = [

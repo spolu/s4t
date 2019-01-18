@@ -41,7 +41,7 @@ class Solver:
                     self._config.get('tensorboard_log_dir'),
                 )
 
-        self._sat_policy = S(
+        self._inner_sat_policy = S(
             self._config,
             self._train_dataset.variable_count(),
             self._train_dataset.clause_count(),
@@ -49,15 +49,17 @@ class Solver:
 
         Log.out(
             "Initializing solver", {
-                'parameter_count': self._sat_policy.parameters_count()
+                'parameter_count': self._inner_sat_policy.parameters_count()
             },
         )
 
         if self._config.get('distributed_training'):
             self._sat_policy = torch.nn.parallel.DistributedDataParallel(
-                self._sat_policy,
+                self._inner_sat_policy,
                 device_ids=[self._device],
             )
+        else:
+            self._sat_policy = self._inner_sat_policy
 
         self._sat_optimizer = optim.Adam(
             self._sat_policy.parameters(),
@@ -67,21 +69,6 @@ class Solver:
                 self._config.get('solver_adam_beta_2'),
             ),
         )
-
-        if self._load_dir:
-            if os.path.isfile(self._load_dir + "/sat_policy.pt"):
-                self._sat_policy.load_state_dict(
-                    torch.load(
-                        self._load_dir + "/sat_policy.pt",
-                        map_location=self._device,
-                    ),
-                )
-                self._sat_optimizer.load_state_dict(
-                    torch.load(
-                        self._load_dir + "/sat_optimizer.pt",
-                        map_location=self._device,
-                    ),
-                )
 
         self._train_sampler = None
         if self._config.get('distributed_training'):
@@ -108,21 +95,47 @@ class Solver:
 
         self._sat_batch_count = 0
 
+    def load_sat(
+            self,
+            training=True,
+    ):
+        rank = self._config.get('distributed_rank')
+
+        if self._load_dir:
+            if os.path.isfile(self._load_dir + "/sat_policy.pt"):
+                self._inner_sat_policy.load_state_dict(
+                    torch.load(
+                        self._load_dir + "/sat_policy_{}.pt".format(rank),
+                        map_location=self._device,
+                    ),
+                )
+                if training:
+                    self._sat_optimizer.load_state_dict(
+                        torch.load(
+                            self._load_dir +
+                            "/sat_optimizer_{}.pt".format(rank),
+                            map_location=self._device,
+                        ),
+                    )
+
     def save_sat(
             self,
     ):
+        rank = self._config.get('distributed_rank')
+
         if self._save_dir:
             Log.out(
                 "Saving sat models", {
                     'save_dir': self._save_dir,
                 })
+
             torch.save(
-                self._sat_policy.state_dict(),
-                self._save_dir + "/sat_policy.pt",
+                self._inner_sat_policy.state_dict(),
+                self._save_dir + "/sat_policy_{}.pt".format(rank),
             )
             torch.save(
                 self._sat_optimizer.state_dict(),
-                self._save_dir + "/sat_optimizer.pt",
+                self._save_dir + "/sat_optimizer_{}.pt".format(rank),
             )
 
     def batch_train_sat(self):
@@ -177,17 +190,16 @@ class Solver:
 
                 loss_meter = Meter()
 
-            if self._sat_batch_count % 160 == 0:
+            if self._sat_batch_count % 320 == 0:
+                self._sat_policy.eval()
                 self.batch_test_sat()
                 self._sat_policy.train()
-
-                if self._config.get('distributed_rank') == 0:
-                    self.save_sat()
+                self.save_sat()
 
     def batch_test_sat(
             self,
     ):
-        self._sat_policy.eval()
+        self.batch_test_sat()
         loss_meter = Meter()
 
         hit = 0
@@ -336,13 +348,10 @@ def train():
     )
 
     solver = Solver(config, train_dataset, test_dataset)
+    solver.load_sat(True)
 
-    i = 0
     while True:
         solver.batch_train_sat()
-        # solver.batch_test_sat()
-        # solver.save_sat()
-        i += 1
 
 
 def test():
@@ -366,19 +375,6 @@ def test():
         type=str, help="config override",
     )
 
-    parser.add_argument(
-        '--distributed_training',
-        type=str2bool, help="confg override",
-    )
-    parser.add_argument(
-        '--distributed_world_size',
-        type=int, help="config override",
-    )
-    parser.add_argument(
-        '--distributed_rank',
-        type=int, help="config override",
-    )
-
     args = parser.parse_args()
 
     config = Config.from_file(args.config_path)
@@ -399,14 +395,6 @@ def test():
             os.path.expanduser(args.solver_load_dir),
         )
 
-    if config.get('distributed_training'):
-        distributed.init_process_group(
-            backend=config.get('distributed_backend'),
-            init_method=config.get('distributed_init_method'),
-            rank=config.get('distributed_rank'),
-            world_size=config.get('distributed_world_size'),
-        )
-
     if config.get('device') != 'cpu':
         torch.cuda.set_device(torch.device(config.get('device')))
 
@@ -416,5 +404,6 @@ def test():
     )
 
     solver = Solver(config, test_dataset, test_dataset)
+    solver.load_sat(False)
 
     solver.batch_test_sat()
