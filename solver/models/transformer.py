@@ -251,9 +251,6 @@ class S(nn.Module):
 
         layers += [
             nn.Linear(self.embedding_size, self.hidden_size),
-            Downsample(self.hidden_size),
-            nn.Linear(self.hidden_size, self.hidden_size),
-            Downsample(self.hidden_size),
             nn.Linear(self.hidden_size, self.hidden_size),
         ]
 
