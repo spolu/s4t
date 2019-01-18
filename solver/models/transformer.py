@@ -266,9 +266,9 @@ class S(nn.Module):
                     self.attention_head_count,
                     self.intermediate_size,
                 ),
-                Downsample(
-                    self.hidden_size,
-                )
+                # Downsample(
+                #     self.hidden_size,
+                # )
             ]
 
         head = [
