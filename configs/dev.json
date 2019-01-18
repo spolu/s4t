@@ -17,7 +17,7 @@
   "solver_load_dir": null,
   "solver_save_dir": null,
 
-  "solver_train_dataset_dir": "./data/test_mixed_selsam_8/",
+  "solver_train_dataset_dir": "./data/train_mixed_selsam_8/",
   "solver_test_dataset_dir": "./data/test_mixed_selsam_8/",
 
   "transformer_layer_count": 3,
