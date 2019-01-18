@@ -199,7 +199,7 @@ class Solver:
     def batch_test_sat(
             self,
     ):
-        self.batch_test_sat()
+        self._sat_policy.eval()
         loss_meter = Meter()
 
         hit = 0
