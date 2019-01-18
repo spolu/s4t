@@ -10,7 +10,7 @@
   "dataset_variable_count": 16,
   "dataset_clause_count": 256,
 
-  "solver_batch_size": 100,
+  "solver_batch_size": 512,
   "solver_learning_rate": 0.00004,
   "solver_adam_beta_1": 0.9,
   "solver_adam_beta_2": 0.999,
@@ -20,7 +20,7 @@
   "solver_train_dataset_dir": "./data/train_mixed_selsam_8/",
   "solver_test_dataset_dir": "./data/test_mixed_selsam_8/",
 
-  "transformer_layer_count": 2,
+  "transformer_layer_count": 3,
   "transformer_embedding_size": 128,
   "transformer_hidden_size": 512,
   "transformer_attention_head_count": 8,
