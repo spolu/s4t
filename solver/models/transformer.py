@@ -250,8 +250,10 @@ class S(nn.Module):
         layers = []
 
         layers += [
+            Downsample(self.embedding_size),
+            nn.ReLU(),
             nn.Linear(self.embedding_size, self.hidden_size),
-            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.ReLU(),
         ]
 
         for _ in range(self.layer_count):
@@ -266,9 +268,6 @@ class S(nn.Module):
                     self.attention_head_count,
                     self.intermediate_size,
                 ),
-                Downsample(
-                    self.hidden_size,
-                )
             ]
 
         head = [
