@@ -252,6 +252,7 @@ class S(nn.Module):
         layers += [
             nn.Linear(self.embedding_size, self.hidden_size),
             nn.Linear(self.hidden_size, self.hidden_size),
+            nn.Tanh(),
         ]
 
         for _ in range(self.layer_count):
@@ -260,11 +261,13 @@ class S(nn.Module):
                     self.hidden_size,
                     self.attention_head_count,
                     self.intermediate_size,
+                    dropout=0.00,
                 ),
                 Transformer(
                     self.hidden_size,
                     self.attention_head_count,
                     self.intermediate_size,
+                    dropout=0.00,
                 ),
             ]
 
