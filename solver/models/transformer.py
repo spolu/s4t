@@ -251,9 +251,7 @@ class S(nn.Module):
 
         layers += [
             nn.Linear(self.embedding_size, self.hidden_size),
-            nn.ReLU(),
             nn.Linear(self.hidden_size, self.hidden_size),
-            nn.ReLU(),
         ]
 
         for _ in range(self.layer_count):
