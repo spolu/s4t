@@ -379,6 +379,19 @@ def test():
         type=str, help="config override",
     )
 
+    parser.add_argument(
+        '--distributed_training',
+        type=str2bool, help="confg override",
+    )
+    parser.add_argument(
+        '--distributed_world_size',
+        type=int, help="config override",
+    )
+    parser.add_argument(
+        '--distributed_rank',
+        type=int, help="config override",
+    )
+
     args = parser.parse_args()
 
     config = Config.from_file(args.config_path)
