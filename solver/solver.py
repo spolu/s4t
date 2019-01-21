@@ -106,7 +106,13 @@ class Solver:
         rank = self._config.get('distributed_rank')
 
         if self._load_dir:
-            if os.path.isfile(self._load_dir + "/sat_policy.pt"):
+            if os.path.isfile(
+                    self._load_dir + "/sat_policy_{}.pt".format(rank)
+            ):
+                Log.out(
+                    "Loading sat models", {
+                        'save_dir': self._load_dir,
+                    })
                 self._inner_sat_policy.load_state_dict(
                     torch.load(
                         self._load_dir + "/sat_policy_{}.pt".format(rank),
