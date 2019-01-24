@@ -13,9 +13,9 @@ setup(
     include_package_data=True,
     entry_points={
         'console_scripts': [
-            'generate_dataset=dataset.generator:generate',
-            'train_solver=solver.solver:train',
-            'test_solver=solver.solver:test',
+            'sat_generate_dataset=sat.dataset.generator:generate',
+            'sat_train_solver=sat.solver.solver:train',
+            'sat_test_solver=sat.solver.solver:test',
         ],
     },
 )

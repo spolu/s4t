@@ -7,24 +7,24 @@
   "distributed_backend": "nccl",
   "distributed_init_method": "env://",
 
-  "dataset_variable_count": 16,
-  "dataset_clause_count": 256,
+  "sat_dataset_variable_count": 16,
+  "sat_dataset_clause_count": 256,
 
-  "solver_batch_size": 100,
-  "solver_learning_rate": 0.00002,
-  "solver_adam_beta_1": 0.9,
-  "solver_adam_beta_2": 0.999,
-  "solver_load_dir": null,
-  "solver_save_dir": null,
+  "sat_solver_batch_size": 100,
+  "sat_solver_learning_rate": 0.00002,
+  "sat_solver_adam_beta_1": 0.9,
+  "sat_solver_adam_beta_2": 0.999,
+  "sat_solver_load_dir": null,
+  "sat_solver_save_dir": null,
 
-  "solver_train_dataset_dir": "./data/train_mixed_selsam_8/",
-  "solver_test_dataset_dir": "./data/test_mixed_selsam_8/",
+  "sat_solver_train_dataset_dir": "./sat/data/test_mixed_selsam_8/",
+  "sat_solver_test_dataset_dir": "./sat/data/test_mixed_selsam_8/",
 
-  "transformer_layer_count": 3,
-  "transformer_embedding_size": 128,
-  "transformer_hidden_size": 512,
-  "transformer_attention_head_count": 8,
-  "transformer_intermediate_size": 1024,
+  "sat_solver_transformer_layer_count": 3,
+  "sat_solver_transformer_embedding_size": 128,
+  "sat_solver_transformer_hidden_size": 512,
+  "sat_solver_transformer_attention_head_count": 8,
+  "sat_solver_transformer_intermediate_size": 1024,
 
   "tensorboard_log_dir": null
 }

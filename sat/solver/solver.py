@@ -6,11 +6,10 @@ import torch.utils.data.distributed
 import torch.optim as optim
 import torch.nn.functional as F
 
-from dataset.dataset import SATDataset
-
 from tensorboardX import SummaryWriter
 
-from solver.models.transformer import S
+from sat.dataset.dataset import SATDataset
+from sat.solver.models.transformer import S
 
 from utils.config import Config
 from utils.meter import Meter
@@ -31,8 +30,8 @@ class Solver:
 
         self._device = torch.device(config.get('device'))
 
-        self._save_dir = config.get('solver_save_dir')
-        self._load_dir = config.get('solver_load_dir')
+        self._save_dir = config.get('sat_solver_save_dir')
+        self._load_dir = config.get('sat_solver_load_dir')
 
         self._tb_writer = None
         if self._config.get('tensorboard_log_dir'):
@@ -63,10 +62,10 @@ class Solver:
 
         self._sat_optimizer = optim.Adam(
             self._sat_policy.parameters(),
-            lr=self._config.get('solver_learning_rate'),
+            lr=self._config.get('sat_solver_learning_rate'),
             betas=(
-                self._config.get('solver_adam_beta_1'),
-                self._config.get('solver_adam_beta_2'),
+                self._config.get('sat_solver_adam_beta_1'),
+                self._config.get('sat_solver_adam_beta_2'),
             ),
         )
 
@@ -83,7 +82,7 @@ class Solver:
 
         self._train_loader = torch.utils.data.DataLoader(
             self._train_dataset,
-            batch_size=self._config.get('solver_batch_size'),
+            batch_size=self._config.get('sat_solver_batch_size'),
             shuffle=(self._train_sampler is None),
             pin_memory=pin_memory,
             num_workers=8,
@@ -91,7 +90,7 @@ class Solver:
         )
         self._test_loader = torch.utils.data.DataLoader(
             self._test_dataset,
-            batch_size=self._config.get('solver_batch_size'),
+            batch_size=self._config.get('sat_solver_batch_size'),
             shuffle=False,
             num_workers=8,
             pin_memory=pin_memory,
@@ -350,11 +349,11 @@ def train():
 
     train_dataset = SATDataset(
         config,
-        os.path.expanduser(config.get('solver_train_dataset_dir')),
+        os.path.expanduser(config.get('sat_solver_train_dataset_dir')),
     )
     test_dataset = SATDataset(
         config,
-        os.path.expanduser(config.get('solver_test_dataset_dir')),
+        os.path.expanduser(config.get('sat_solver_test_dataset_dir')),
     )
 
     solver = Solver(config, train_dataset, test_dataset)

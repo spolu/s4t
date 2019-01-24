@@ -107,8 +107,8 @@ class SATDataset(Dataset):
         self._config = config
         self._device = torch.device(config.get('device'))
 
-        self._variable_count = config.get('dataset_variable_count')
-        self._clause_count = config.get('dataset_clause_count')
+        self._variable_count = config.get('sat_dataset_variable_count')
+        self._clause_count = config.get('sat_dataset_clause_count')
 
         Log.out(
             "Loading dataset", {
