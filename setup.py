@@ -16,6 +16,7 @@ setup(
             'sat_generate_dataset=sat.generator:generate',
             'sat_train_solver=sat.solver.solver:train',
             'sat_test_solver=sat.solver.solver:test',
+            'th2vec_train_autoencoder=th2vec.autoencoder:train',
         ],
     },
 )

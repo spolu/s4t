@@ -11,11 +11,8 @@ from torch.utils.data import Dataset
 class CNF:
     def __init__(
             self,
-            config: Config,
             cnf: str,
     ) -> None:
-        self._device = torch.device(config.get('device'))
-
         lines = cnf.splitlines()
 
         assert lines[0] == 'c SAT' or lines[0] == 'c UNSAT'
@@ -104,14 +101,11 @@ class SATDataset(Dataset):
         dataset_dir = os.path.expanduser(dataset_dir)
         dataset_dir = os.path.abspath(dataset_dir)
 
-        self._config = config
-        self._device = torch.device(config.get('device'))
-
         self._variable_count = config.get('sat_dataset_variable_count')
         self._clause_count = config.get('sat_dataset_clause_count')
 
         Log.out(
-            "Loading dataset", {
+            "Loading SAT dataset", {
                 'dataset_dir': dataset_dir,
             })
 
@@ -125,7 +119,7 @@ class SATDataset(Dataset):
 
         def build_cnf(path):
             with open(path, 'r') as f:
-                return CNF(config, f.read())
+                return CNF(f.read())
 
         for p in files:
             cnf = build_cnf(p)
@@ -136,7 +130,7 @@ class SATDataset(Dataset):
         assert len(self._cnfs) > 0
 
         Log.out(
-            "Loaded dataset", {
+            "Loaded SAT dataset", {
                 'dataset_dir': dataset_dir,
                 'cnf_count': len(self._cnfs),
             })

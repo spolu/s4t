@@ -17,14 +17,18 @@
   "sat_solver_load_dir": null,
   "sat_solver_save_dir": null,
 
-  "sat_solver_train_dataset_dir": "./sat/data/test_mixed_selsam_8/",
-  "sat_solver_test_dataset_dir": "./sat/data/test_mixed_selsam_8/",
+  "sat_solver_train_dataset_dir": "./data/sat/train_mixed_selsam_8/",
+  "sat_solver_test_dataset_dir": "./data/sat/test_mixed_selsam_8/",
 
   "sat_solver_transformer_layer_count": 3,
   "sat_solver_transformer_embedding_size": 128,
   "sat_solver_transformer_hidden_size": 512,
   "sat_solver_transformer_attention_head_count": 8,
   "sat_solver_transformer_intermediate_size": 1024,
+
+  "th2vec_theorem_length": 512,
+  "th2vec_train_dataset_dir": "./data/th2vec/holstep/train",
+  "th2vec_test_dataset_dir": "./data/th2vec/holstep/test",
 
   "tensorboard_log_dir": null
 }
