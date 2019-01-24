@@ -30,7 +30,7 @@
   "th2vec_theorem_length": 512,
   "th2vec_token_count": 2048,
 
-  "th2vec_batch_size": 12,
+  "th2vec_batch_size": 14,
   "th2vec_learning_rate": 0.00005,
   "th2vec_adam_beta_1": 0.9,
   "th2vec_adam_beta_2": 0.999,

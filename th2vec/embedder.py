@@ -257,57 +257,101 @@ class Th2Vec:
                 rel_simi_meter = Meter()
                 rnd_simi_meter = Meter()
 
-            # if self._batch_train % 100 == 0:
-            #     self._model.eval()
-            #     self.batch_test()
-            #     self.save_sat()
-            #     self._model.train()
+            if self._train_batch % 100 == 0:
+                self._model.eval()
+                self.batch_test()
+                self.save()
+                self._model.train()
 
-    # def batch_test(
-    #         self,
-    # ):
-    #     assert self._test_loader is not None
+    def batch_test(
+            self,
+    ):
+        assert self._test_loader is not None
 
-    #     self._model.eval()
-    #     loss_meter = Meter()
+        self._model.eval()
 
-    #     hit = 0
-    #     total = 0
+        all_loss_meter = Meter()
+        rel_loss_meter = Meter()
+        rnd_loss_meter = Meter()
+        nrm_loss_meter = Meter()
+        nrm_mean_meter = Meter()
+        rel_simi_meter = Meter()
+        rnd_simi_meter = Meter()
 
-    #     with torch.no_grad():
-    #         for it, (cl_pos, cl_neg, sats) in enumerate(self._test_loader):
-    #             generated = self._model(
-    #                 cl_pos.to(self._device),
-    #                 cl_neg.to(self._device),
-    #             )
-    #             loss = F.mse_loss(generated, sats.to(self._device))
+        with torch.no_grad():
+            for it, (inp, out, rnd) in enumerate(self._test_loader):
+                if (it+1) % 10 == 0:
+                    break
 
-    #             loss_meter.update(loss.item())
+                inp_embed = self._model(inp.to(self._device))
+                out_embed = self._model(out.to(self._device))
+                rnd_embed = self._model(rnd.to(self._device))
 
-    #             for i in range(generated.size(0)):
-    #                 if generated[i].item() >= 0.5 and sats[i].item() >= 0.5:
-    #                     hit += 1
-    #                 if generated[i].item() < 0.5 and sats[i].item() < 0.5:
-    #                     hit += 1
-    #                 total += 1
+                rel_loss = F.mse_loss(inp_embed, out_embed.detach())
+                rnd_loss = F.mse_loss(inp_embed, rnd_embed.detach())
 
-    #     Log.out("SAT TEST", {
-    #         'batch_count': self._sat_batch_count,
-    #         'loss_avg': loss_meter.avg,
-    #         'hit_rate': "{:.2f}".format(hit / total),
-    #     })
+                nrm_mean = torch.norm(inp_embed, dim=1).mean()
+                nrm_loss = F.mse_loss(
+                    torch.norm(inp_embed, dim=1),
+                    torch.ones(inp_embed.size(0)).to(self._device),
+                )
 
-    #     if self._tb_writer is not None:
-    #         self._tb_writer.add_scalar(
-    #             "test/sat/loss",
-    #             loss_meter.avg, self._sat_batch_count,
-    #         )
-    #         self._tb_writer.add_scalar(
-    #             "test/sat/hit_rate",
-    #             hit / total, self._sat_batch_count,
-    #         )
+                rel_simi = F.cosine_similarity(
+                    inp_embed, out_embed.detach()
+                )
+                rnd_simi = F.cosine_similarity(
+                    inp_embed, rnd_embed.detach()
+                )
 
-    #     return loss_meter.avg
+                all_loss = torch.norm(1 - rel_simi) + torch.norm(-1 - rnd_simi)
+
+                all_loss_meter.update(all_loss.item())
+                rel_loss_meter.update(rel_loss.item())
+                rel_simi_meter.update(rel_simi.mean().item())
+                rnd_loss_meter.update(rnd_loss.item())
+                rnd_simi_meter.update(rnd_simi.mean().item())
+                nrm_loss_meter.update(nrm_loss.item())
+                nrm_mean_meter.update(nrm_mean.item())
+
+        Log.out("SAT TEST", {
+            'batch_count': self._train_batch,
+            'all_loss_avg': all_loss_meter.avg,
+            'rel_loss_avg': rel_loss_meter.avg,
+            'rnd_loss_avg': rnd_loss_meter.avg,
+            'nrm_loss_avg': nrm_loss_meter.avg,
+            'rel_simi_avg': rel_simi_meter.avg,
+            'rnd_simi_avg': rnd_simi_meter.avg,
+        })
+
+        if self._tb_writer is not None:
+            self._tb_writer.add_scalar(
+                "test/th2vec/all_loss",
+                all_loss_meter.avg, self._train_batch,
+            )
+            self._tb_writer.add_scalar(
+                "test/th2vec/rel_loss",
+                rel_loss_meter.avg, self._train_batch,
+            )
+            self._tb_writer.add_scalar(
+                "test/th2vec/rel_simi",
+                rel_simi_meter.avg, self._train_batch,
+            )
+            self._tb_writer.add_scalar(
+                "test/th2vec/rnd_loss",
+                rnd_loss_meter.avg, self._train_batch,
+            )
+            self._tb_writer.add_scalar(
+                "test/th2vec/rnd_simi",
+                rnd_simi_meter.avg, self._train_batch,
+            )
+            self._tb_writer.add_scalar(
+                "test/th2vec/nrm_loss",
+                nrm_loss_meter.avg, self._train_batch,
+            )
+            self._tb_writer.add_scalar(
+                "test/th2vec/nrm_mean",
+                nrm_mean_meter.avg, self._train_batch,
+            )
 
 
 def train():
