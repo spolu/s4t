@@ -15,7 +15,8 @@ from th2vec.models.transformer import E
 from utils.config import Config
 from utils.meter import Meter
 from utils.log import Log
-from utils.str2bool import str2bool 
+from utils.str2bool import str2bool
+
 
 class Th2Vec:
     def __init__(
@@ -182,7 +183,7 @@ class Th2Vec:
                 torch.ones(inp_embed.size(0)).to(self._device),
             )
 
-            all_loss = 10 * (rel_loss - rnd_loss) + nrm_loss
+            all_loss = 100 * (rel_loss - rnd_loss) + nrm_loss
 
             self._optimizer.zero_grad()
             all_loss.backward()
