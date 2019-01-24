@@ -328,12 +328,12 @@ def train():
         )
     if args.solver_load_dir is not None:
         config.override(
-            'solver_load_dir',
+            'sat_solver_load_dir',
             os.path.expanduser(args.solver_load_dir),
         )
     if args.solver_save_dir is not None:
         config.override(
-            'solver_save_dir',
+            'sat_solver_save_dir',
             os.path.expanduser(args.solver_save_dir),
         )
 

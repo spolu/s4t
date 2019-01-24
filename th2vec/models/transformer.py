@@ -8,12 +8,13 @@ class E(nn.Module):
     def __init__(
             self,
             config,
-            token_count,
-            # theorem_length,
     ):
         super(E, self).__init__()
 
         self.device = torch.device(config.get('device'))
+
+        self.token_count = \
+            config.get('th2vec_token_count')
         self.embedding_size = \
             config.get('th2vec_transformer_embedding_size')
         self.hidden_size = \
@@ -26,11 +27,10 @@ class E(nn.Module):
             config.get('th2vec_transformer_layer_count')
 
         self.embedding = nn.Embedding(
-            token_count, self.embedding_size,
+            self.token_count, self.embedding_size,
         )
 
         layers = []
-
         layers += [
             nn.Linear(self.embedding_size, self.hidden_size),
         ]
@@ -41,17 +41,11 @@ class E(nn.Module):
                     self.hidden_size,
                     self.attention_head_count,
                     self.intermediate_size,
-                    dropout=0.00,
+                    dropout=0.1,
                 ),
             ]
 
-        head = [
-            nn.Linear(self.hidden_size, 1),
-            nn.Tanh(),
-        ]
-
         self.layers = nn.Sequential(*layers)
-        self.head = nn.Sequential(*head)
 
         self.apply(self.init_weights)
 
@@ -61,8 +55,8 @@ class E(nn.Module):
     ):
         if isinstance(module, nn.Linear):
             module.weight.data.normal_(mean=0.0, std=0.02)
-            if module.bias is not None:
-                module.bias.data.zero_()
+            # if module.bias is not None:
+            #     module.bias.data.zero_()
 
     def parameters_count(model):
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -74,4 +68,4 @@ class E(nn.Module):
         embeds = self.embedding(theorem)
         hiddens = self.layers(embeds)
 
-        return hiddens
+        return torch.tanh(torch.max(hiddens, 1)[0])
