@@ -15,8 +15,7 @@ from th2vec.models.transformer import E
 from utils.config import Config
 from utils.meter import Meter
 from utils.log import Log
-from utils.str2bool import str2bool
-
+from utils.str2bool import str2bool 
 
 class Th2Vec:
     def __init__(
@@ -160,11 +159,11 @@ class Th2Vec:
 
         self._model.train()
 
-        loss_meter = Meter()
-
+        all_loss_meter = Meter()
         rnd_loss_meter = Meter()
         rel_loss_meter = Meter()
         nrm_loss_meter = Meter()
+        nrm_mean_meter = Meter()
 
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(self._train_batch)
@@ -176,28 +175,31 @@ class Th2Vec:
 
             rel_loss = F.mse_loss(inp_embed, out_embed.detach())
             rnd_loss = F.mse_loss(inp_embed, rnd_embed.detach())
+
+            nrm_mean = torch.norm(inp_embed, dim=1).mean()
             nrm_loss = F.mse_loss(
                 torch.norm(inp_embed, dim=1),
-                torch.ones(inp_embed.size(0)).to(self._device)
+                torch.ones(inp_embed.size(0)).to(self._device),
             )
 
-            loss = 100 * (rel_loss - rnd_loss)
+            all_loss = 10 * (rel_loss - rnd_loss) + nrm_loss
 
             self._optimizer.zero_grad()
-            loss.backward()
+            all_loss.backward()
             self._optimizer.step()
 
-            loss_meter.update(loss.item())
+            all_loss_meter.update(all_loss.item())
             rel_loss_meter.update(rel_loss.item())
             rnd_loss_meter.update(rnd_loss.item())
             nrm_loss_meter.update(nrm_loss.item())
+            nrm_mean_meter.update(nrm_mean.item())
 
             self._train_batch += 1
 
             if self._train_batch % 10 == 0:
                 Log.out("TH2VEC TRAIN", {
                     'train_batch': self._train_batch,
-                    'loss_avg': loss_meter.avg,
+                    'all_loss_avg': all_loss_meter.avg,
                     'rel_loss_avg': rel_loss_meter.avg,
                     'rnd_loss_avg': rnd_loss_meter.avg,
                     'nrm_loss_avg': nrm_loss_meter.avg,
@@ -205,8 +207,8 @@ class Th2Vec:
 
                 if self._tb_writer is not None:
                     self._tb_writer.add_scalar(
-                        "train/th2vec/loss",
-                        loss_meter.avg, self._train_batch,
+                        "train/th2vec/all_loss",
+                        all_loss_meter.avg, self._train_batch,
                     )
                     self._tb_writer.add_scalar(
                         "train/th2vec/rel_loss",
@@ -220,12 +222,16 @@ class Th2Vec:
                         "train/th2vec/nrm_loss",
                         nrm_loss_meter.avg, self._train_batch,
                     )
+                    self._tb_writer.add_scalar(
+                        "train/th2vec/nrm_mean",
+                        nrm_mean_meter.avg, self._train_batch,
+                    )
 
-                loss_meter = Meter()
-
+                all_loss_meter = Meter()
                 rnd_loss_meter = Meter()
                 rel_loss_meter = Meter()
                 nrm_loss_meter = Meter()
+                nrm_mean_meter = Meter()
 
             # if self._batch_train % 100 == 0:
             #     self._model.eval()
