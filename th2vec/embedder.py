@@ -192,7 +192,7 @@ class Th2Vec:
                 inp_embed, rnd_embed.detach()
             ).mean()
 
-            all_loss = 100 * (rel_loss - rnd_loss) + nrm_loss
+            all_loss = 100 * (rel_loss - rnd_loss)
 
             self._optimizer.zero_grad()
             all_loss.backward()
