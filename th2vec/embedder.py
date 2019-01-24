@@ -208,6 +208,18 @@ class Th2Vec:
                         "train/th2vec/loss",
                         loss_meter.avg, self._train_batch,
                     )
+                    self._tb_writer.add_scalar(
+                        "train/th2vec/rel_loss",
+                        rel_loss_meter.avg, self._train_batch,
+                    )
+                    self._tb_writer.add_scalar(
+                        "train/th2vec/rnd_loss",
+                        rnd_loss_meter.avg, self._train_batch,
+                    )
+                    self._tb_writer.add_scalar(
+                        "train/th2vec/nrm_loss",
+                        nrm_loss_meter.avg, self._train_batch,
+                    )
 
                 loss_meter = Meter()
 
