@@ -6,9 +6,10 @@ import torch.utils.data.distributed
 import torch.optim as optim
 import torch.nn.functional as F
 
+from dataset.dataset import SATDataset
+
 from tensorboardX import SummaryWriter
 
-from sat.dataset.dataset import SATDataset
 from sat.solver.models.transformer import S
 
 from utils.config import Config
