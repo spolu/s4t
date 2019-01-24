@@ -187,12 +187,12 @@ class Th2Vec:
 
             rel_simi = F.cosine_similarity(
                 inp_embed, out_embed.detach()
-            ).mean()
+            )
             rnd_simi = F.cosine_similarity(
                 inp_embed, rnd_embed.detach()
-            ).mean()
+            )
 
-            all_loss = 100 * (rel_loss - rnd_loss)
+            all_loss = torch.norm(1 - rel_simi) + torch.norm(-1 - rnd_simi)
 
             self._optimizer.zero_grad()
             all_loss.backward()
@@ -200,9 +200,9 @@ class Th2Vec:
 
             all_loss_meter.update(all_loss.item())
             rel_loss_meter.update(rel_loss.item())
-            rel_simi_meter.update(rel_simi.item())
+            rel_simi_meter.update(rel_simi.mean().item())
             rnd_loss_meter.update(rnd_loss.item())
-            rnd_simi_meter.update(rnd_simi.item())
+            rnd_simi_meter.update(rnd_simi.mean().item())
             nrm_loss_meter.update(nrm_loss.item())
             nrm_mean_meter.update(nrm_mean.item())
 
