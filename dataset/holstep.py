@@ -156,7 +156,7 @@ class HolStepRelatedDataset(Dataset):
     def __len__(
             self,
     ) -> int:
-        return len(self._C)
+        return len(self._hset._C)
 
     def __getitem__(
             self,
@@ -166,6 +166,7 @@ class HolStepRelatedDataset(Dataset):
         rel_t = torch.zeros(self._theorem_length, dtype=torch.int64)
         unr_t = torch.zeros(self._theorem_length, dtype=torch.int64)
 
+        inp = self._hset._C[idx]
         rel = random.choice(self._hset._D[idx] + self._hset._P[idx])
         unr = None
         while(unr is None):
@@ -178,7 +179,7 @@ class HolStepRelatedDataset(Dataset):
                 unr = candidate
 
         for i in range(len(self._hset._formulas[idx])):
-            t = self._hset._formulas[idx][i]
+            t = self._hset._formulas[inp][i]
             assert t != 0
             inp_t[i] = t
         for i in range(len(self._hset._formulas[rel])):
