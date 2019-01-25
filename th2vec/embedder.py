@@ -192,7 +192,15 @@ class Th2Vec:
                 inp_embed, rnd_embed.detach()
             )
 
-            all_loss = -torch.mean(rel_simi - rnd_simi)
+            all_loss = \
+                F.l1_loss(
+                    rel_simi,
+                    torch.ones(rel_simi.size(0)).to(self._device)
+                ) + \
+                F.l1_loss(
+                    rnd_simi,
+                    -torch.ones(rnd_simi.size(0)).to(self._device)
+                )
             # all_loss = \
             #     (torch.norm(1 - rel_simi) + torch.norm(-1 - rnd_simi)) / \
             #     rel_simi.size(0)
@@ -308,8 +316,17 @@ class Th2Vec:
                 )
 
                 all_loss = \
-                    (torch.norm(1 - rel_simi) + torch.norm(-1 - rnd_simi)) / \
-                    rel_simi.size(0)
+                    F.l1_loss(
+                        rel_simi,
+                        torch.ones(rel_simi.size(0)).to(self._device)
+                    ) + \
+                    F.l1_loss(
+                        rnd_simi,
+                        -torch.ones(rnd_simi.size(0)).to(self._device)
+                    )
+                # all_loss = \
+                #   (torch.norm(1 - rel_simi) + torch.norm(-1 - rnd_simi)) / \
+                #   rel_simi.size(0)
                 # all_loss = 100 * (rel_loss - rnd_loss) + nrm_loss / 2
 
                 all_loss_meter.update(all_loss.item())
