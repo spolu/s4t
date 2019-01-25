@@ -152,6 +152,7 @@ class HolStepRelatedDataset(Dataset):
             hset: HolStepSet,
     ) -> None:
         self._hset = hset
+        self._theorem_length = config.get('th2vec_theorem_length')
 
     def __len__(
             self,
