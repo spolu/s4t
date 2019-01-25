@@ -37,7 +37,7 @@
   "th2vec_load_dir": null,
   "th2vec_save_dir": null,
 
-  "th2vec_transformer_layer_count": 1,
+  "th2vec_transformer_layer_count": 8,
   "th2vec_transformer_embedding_size": 128,
   "th2vec_transformer_hidden_size": 256,
   "th2vec_transformer_attention_head_count": 4,
