@@ -192,7 +192,8 @@ class Th2Vec:
                 inp_embed, rnd_embed.detach()
             )
 
-            all_loss = torch.norm(1 - rel_simi) + torch.norm(-1 - rnd_simi)
+            # all_loss = torch.norm(1 - rel_simi) + torch.norm(-1 - rnd_simi)
+            all_loss = 100 * (rel_loss - rnd_loss) + nrm_loss / 10
 
             self._optimizer.zero_grad()
             all_loss.backward()
@@ -303,7 +304,8 @@ class Th2Vec:
                     inp_embed, rnd_embed.detach()
                 )
 
-                all_loss = torch.norm(1 - rel_simi) + torch.norm(-1 - rnd_simi)
+                # all_loss = torch.norm(1 - rel_simi) + torch.norm(-1 - rnd_simi)
+                all_loss = 100 * (rel_loss - rnd_loss) + nrm_loss / 10
 
                 all_loss_meter.update(all_loss.item())
                 rel_loss_meter.update(rel_loss.item())
