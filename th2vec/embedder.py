@@ -494,10 +494,12 @@ def train():
         ),
     )
 
-    th2vec = Th2Vec(config).load(True)
+    th2vec = Th2Vec(config)
 
     th2vec.init_training(train_dataset)
     th2vec.init_testing(test_dataset)
+
+    th2vec.load()
 
     while True:
         th2vec.batch_train()

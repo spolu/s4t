@@ -117,6 +117,8 @@ class HolStepSet():
             lines = f.read().splitlines()
 
             c_idx = None
+            has_dep = False
+            has_rel = False
             for i in range(len(lines)):
                 line = lines[i]
                 if line[0] == 'T':
@@ -126,7 +128,6 @@ class HolStepSet():
                         self._formulas.append(f)
 
                         if lines[i-1][0] == 'C':
-                            self._C.append(f_idx)
                             c_idx = f_idx
                             self._D[c_idx] = []
                             self._P[c_idx] = []
@@ -136,13 +137,18 @@ class HolStepSet():
 
                         if lines[i-1][0] == 'A':
                             self._D[c_idx].append(f_idx)
+                            has_dep = True
                         if lines[i-1][0] == '+':
                             self._P[c_idx].append(f_idx)
+                            has_rel = True
                         if lines[i-1][0] == '-':
                             self._M[c_idx].append(f_idx)
 
                     elif lines[i-1][0] == 'C':
                         return
+
+            if has_dep and has_rel:
+                self._C.append(c_idx)
 
 
 class HolStepRelatedDataset(Dataset):
