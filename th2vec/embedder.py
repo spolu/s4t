@@ -377,6 +377,10 @@ class Th2Vec:
                 nrm_mean_meter.avg, self._train_batch,
             )
 
+    def embed(
+            self,
+    ):
+        self._model.eval()
 
 def train():
     parser = argparse.ArgumentParser(description="")
@@ -503,3 +507,93 @@ def train():
 
     while True:
         th2vec.batch_train()
+
+
+def test_premise():
+    parser = argparse.ArgumentParser(description="")
+
+    parser.add_argument(
+        'config_path',
+        type=str, help="path to the config file",
+    )
+    parser.add_argument(
+        '--train_dataset_dir',
+        type=str, help="train dataset directory",
+    )
+    parser.add_argument(
+        '--test_dataset_dir',
+        type=str, help="test dataset directory",
+    )
+    parser.add_argument(
+        '--save_dir',
+        type=str, help="config override",
+    )
+    parser.add_argument(
+        '--load_dir',
+        type=str, help="config override",
+    )
+
+    parser.add_argument(
+        '--device',
+        type=str, help="config override",
+    )
+
+    args = parser.parse_args()
+
+    config = Config.from_file(args.config_path)
+
+    if args.device is not None:
+        config.override('device', args.device)
+
+    if args.train_dataset_dir is not None:
+        config.override(
+            'th2vec_train_dataset_dir',
+            os.path.expanduser(args.train_dataset_dir),
+        )
+    if args.test_dataset_dir is not None:
+        config.override(
+            'th2vec_test_dataset_dir',
+            os.path.expanduser(args.test_dataset_dir),
+        )
+    if args.tensorboard_log_dir is not None:
+        config.override(
+            'tensorboard_log_dir',
+            os.path.expanduser(args.tensorboard_log_dir),
+        )
+    if args.load_dir is not None:
+        config.override(
+            'th2vec_load_dir',
+            os.path.expanduser(args.load_dir),
+        )
+    if args.save_dir is not None:
+        config.override(
+            'th2vec_save_dir',
+            os.path.expanduser(args.save_dir),
+        )
+
+    if config.get('device') != 'cpu':
+        torch.cuda.set_device(torch.device(config.get('device')))
+
+    kernel = HolStepKernel(config)
+
+    # Needed to load train tokens
+    HolStepPremiseDataset(
+        config,
+        HolStepSet(
+            config,
+            kernel,
+            os.path.expanduser(config.get('th2vec_train_dataset_dir')),
+        ),
+    )
+    test_dataset = HolStepPremiseDataset(
+        config,
+        HolStepSet(
+            config,
+            kernel,
+            os.path.expanduser(config.get('th2vec_test_dataset_dir')),
+        ),
+    )
+
+    th2vec = Th2Vec(config)
+    th2vec.init_testing(test_dataset)
+    th2vec.load()

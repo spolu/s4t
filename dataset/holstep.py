@@ -97,6 +97,7 @@ class HolStepSet():
                         'free_count': self._kernel._free_count,
                         'skip_count': self._kernel._skip_count,
                         'formula_count': len(self._formulas),
+                        'theorem_count': len(self._theorems),
                         'conjecture_count': len(self._C),
                         'processed': count,
                     })
@@ -109,6 +110,7 @@ class HolStepSet():
                 'free_count': self._kernel._free_count,
                 'skip_count': self._kernel._skip_count,
                 'formula_count': len(self._formulas),
+                'theorem_count': len(self._theorems),
                 'conjecture_count': len(self._C),
             })
 
@@ -142,8 +144,9 @@ class HolStepSet():
                             self._D[c_idx].append(f_idx)
                             has_dep = True
                             if f_idx not in self._theorems:
-                                self._theorems[f_idx] = True
+                                self._theorems[f_idx] = []
                                 self._T.append(f_idx)
+                            self._theorems[f_idx].append(c_idx)
                         if lines[i-1][0] == '+':
                             self._P[c_idx].append(f_idx)
                             has_rel = True
@@ -252,8 +255,15 @@ class HolStepPremiseDataset(Dataset):
 
         return inp_t, rel_t, unr_t
 
+    def get_premises(
+            self,
+            idx: int,
+    ):
+        inp = self._hset._C[idx]
+        return self._hset._D[inp]
 
-class HolStepClassificationDataset(Dataset):
+
+class HolStepPremisePhraseDataset(Dataset):
     def __init__(
             self,
             config: Config,
@@ -265,29 +275,65 @@ class HolStepClassificationDataset(Dataset):
     def __len__(
             self,
     ) -> int:
-        return len(self._hset._C)
+        return len(self._hset._T)
 
     def __getitem__(
             self,
             idx: int,
     ):
-        inp_t = torch.zeros(self._theorem_length, dtype=torch.int64)
-        stp_t = torch.zeros(self._theorem_length, dtype=torch.int64)
-        cls_t = torch.zeros(1)
+        thr = self._hset._T[idx]
+        cnj = random.choice(self._hset._theorems[thr])
+        rel = random.choice(self._hset._D[cnj])
 
-        inp = self._hset._C[idx]
-        stp = random.choice(self._hset._M[inp] + self._hset._P[inp])
+        thr_t = torch.zeros(self._theorem_length, dtype=torch.int64)
+        rel_t = torch.zeros(self._theorem_length, dtype=torch.int64)
 
-        if stp in self._hset._P[inp]:
-            cls_t[0] = 1.0
-
-        for i in range(len(self._hset._formulas[inp])):
-            t = self._hset._formulas[inp][i]
+        for i in range(len(self._hset._formulas[thr])):
+            t = self._hset._formulas[thr][i]
             assert t != 0
-            inp_t[i] = t
-        for i in range(len(self._hset._formulas[stp])):
-            t = self._hset._formulas[stp][i]
+            thr_t[i] = t
+        for i in range(len(self._hset._formulas[rel])):
+            t = self._hset._formulas[rel][i]
             assert t != 0
-            stp[i] = t
+            rel_t[i] = t
 
-        return inp_t, stp_t, cls_t
+        return thr_t, rel_t
+
+# class HolStepClassificationDataset(Dataset):
+#     def __init__(
+#             self,
+#             config: Config,
+#             hset: HolStepSet,
+#     ) -> None:
+#         self._hset = hset
+#         self._theorem_length = config.get('th2vec_theorem_length')
+
+#     def __len__(
+#             self,
+#     ) -> int:
+#         return len(self._hset._C)
+
+#     def __getitem__(
+#             self,
+#             idx: int,
+#     ):
+#         inp_t = torch.zeros(self._theorem_length, dtype=torch.int64)
+#         stp_t = torch.zeros(self._theorem_length, dtype=torch.int64)
+#         cls_t = torch.zeros(1)
+
+#         inp = self._hset._C[idx]
+#         stp = random.choice(self._hset._M[inp] + self._hset._P[inp])
+
+#         if stp in self._hset._P[inp]:
+#             cls_t[0] = 1.0
+
+#         for i in range(len(self._hset._formulas[inp])):
+#             t = self._hset._formulas[inp][i]
+#             assert t != 0
+#             inp_t[i] = t
+#         for i in range(len(self._hset._formulas[stp])):
+#             t = self._hset._formulas[stp][i]
+#             assert t != 0
+#             stp[i] = t
+
+#         return inp_t, stp_t, cls_t
