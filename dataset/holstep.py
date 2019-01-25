@@ -171,7 +171,7 @@ class HolStepRelatedDataset(Dataset):
         rel = random.choice(self._hset._D[inp] + self._hset._P[inp])
         unr = None
         while(unr is None):
-            candidate = random.choice(self._hset._formulas)
+            candidate = random.choice(range(len(self._hset._formulas)))
             if (
                     candidate not in self._hset._D[inp] and
                     candidate not in self._hset._P[inp] and
