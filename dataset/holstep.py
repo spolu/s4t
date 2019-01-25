@@ -168,18 +168,18 @@ class HolStepRelatedDataset(Dataset):
         unr_t = torch.zeros(self._theorem_length, dtype=torch.int64)
 
         inp = self._hset._C[idx]
-        rel = random.choice(self._hset._D[idx] + self._hset._P[idx])
+        rel = random.choice(self._hset._D[inp] + self._hset._P[inp])
         unr = None
         while(unr is None):
             candidate = random.choice(self._hset._formulas)
             if (
-                    candidate not in self._hset._D[idx] and
-                    candidate not in self._hset._P[idx] and
-                    candidate not in self._hset._M[idx]
+                    candidate not in self._hset._D[inp] and
+                    candidate not in self._hset._P[inp] and
+                    candidate not in self._hset._M[inp]
             ):
                 unr = candidate
 
-        for i in range(len(self._hset._formulas[idx])):
+        for i in range(len(self._hset._formulas[inp])):
             t = self._hset._formulas[inp][i]
             assert t != 0
             inp_t[i] = t
