@@ -60,8 +60,11 @@ class HolStepSet():
         self._kernel = kernel
 
         self._formulas = []
+        self._theorems = {}
 
         self._C = []
+        self._T = []
+
         self._D = {}
         self._P = {}
         self._M = {}
@@ -138,6 +141,9 @@ class HolStepSet():
                         if lines[i-1][0] == 'A':
                             self._D[c_idx].append(f_idx)
                             has_dep = True
+                            if f_idx not in self._theorems:
+                                self._theorems[f_idx] = True
+                                self._T.append(f_idx)
                         if lines[i-1][0] == '+':
                             self._P[c_idx].append(f_idx)
                             has_rel = True
@@ -199,3 +205,89 @@ class HolStepRelatedDataset(Dataset):
             unr_t[i] = t
 
         return inp_t, rel_t, unr_t
+
+
+class HolStepPremiseDataset(Dataset):
+    def __init__(
+            self,
+            config: Config,
+            hset: HolStepSet,
+    ) -> None:
+        self._hset = hset
+        self._theorem_length = config.get('th2vec_theorem_length')
+
+    def __len__(
+            self,
+    ) -> int:
+        return len(self._hset._C)
+
+    def __getitem__(
+            self,
+            idx: int,
+    ):
+        inp_t = torch.zeros(self._theorem_length, dtype=torch.int64)
+        rel_t = torch.zeros(self._theorem_length, dtype=torch.int64)
+        unr_t = torch.zeros(self._theorem_length, dtype=torch.int64)
+
+        inp = self._hset._C[idx]
+        rel = random.choice(self._hset._D[inp])
+        unr = None
+        while(unr is None):
+            candidate = random.choice(self._hset._T)
+            if candidate not in self._hset._D[inp]:
+                unr = candidate
+
+        for i in range(len(self._hset._formulas[inp])):
+            t = self._hset._formulas[inp][i]
+            assert t != 0
+            inp_t[i] = t
+        for i in range(len(self._hset._formulas[rel])):
+            t = self._hset._formulas[rel][i]
+            assert t != 0
+            rel_t[i] = t
+        for i in range(len(self._hset._formulas[unr])):
+            t = self._hset._formulas[unr][i]
+            assert t != 0
+            unr_t[i] = t
+
+        return inp_t, rel_t, unr_t
+
+
+class HolStepClassificationDataset(Dataset):
+    def __init__(
+            self,
+            config: Config,
+            hset: HolStepSet,
+    ) -> None:
+        self._hset = hset
+        self._theorem_length = config.get('th2vec_theorem_length')
+
+    def __len__(
+            self,
+    ) -> int:
+        return len(self._hset._C)
+
+    def __getitem__(
+            self,
+            idx: int,
+    ):
+        inp_t = torch.zeros(self._theorem_length, dtype=torch.int64)
+        stp_t = torch.zeros(self._theorem_length, dtype=torch.int64)
+        cls_t = torch.zeros(1)
+
+        inp = self._hset._C[idx]
+        stp = random.choice(self._hset._M[inp] + self._hset._P[inp])
+
+        if stp in self._hset._P[inp]:
+            cls_t[0] = 1.0
+
+        for i in range(len(self._hset._formulas[inp])):
+            t = self._hset._formulas[inp][i]
+            assert t != 0
+            inp_t[i] = t
+        for i in range(len(self._hset._formulas[stp])):
+            t = self._hset._formulas[stp][i]
+            assert t != 0
+            stp[i] = t
+
+        return inp_t, stp_t, cls_t
