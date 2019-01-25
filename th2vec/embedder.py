@@ -6,7 +6,7 @@ import torch.utils.data.distributed
 import torch.optim as optim
 import torch.nn.functional as F
 
-from dataset.holstep import HolStepKernel, HolStepSet, HolStepRelDataset
+from dataset.holstep import HolStepKernel, HolStepSet, HolStepRelatedDataset
 
 from tensorboardX import SummaryWriter
 
@@ -49,7 +49,7 @@ class Th2Vec:
 
     def init_training(
             self,
-            train_dataset: HolStepRelDataset,
+            train_dataset: HolStepRelatedDataset,
     ):
         if self._config.get('distributed_training'):
             self._model = torch.nn.parallel.DistributedDataParallel(
@@ -90,7 +90,7 @@ class Th2Vec:
 
     def init_testing(
             self,
-            test_dataset: HolStepRelDataset,
+            test_dataset: HolStepRelatedDataset,
     ):
         pin_memory = False
         if self._config.get('device') != 'cpu':
@@ -477,7 +477,7 @@ def train():
 
     kernel = HolStepKernel(config)
 
-    train_dataset = HolStepRelDataset(
+    train_dataset = HolStepRelatedDataset(
         config,
         HolStepSet(
             config,
@@ -485,7 +485,7 @@ def train():
             os.path.expanduser(config.get('th2vec_train_dataset_dir')),
         ),
     )
-    test_dataset = HolStepRelDataset(
+    test_dataset = HolStepRelatedDataset(
         config,
         HolStepSet(
             config,

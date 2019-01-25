@@ -123,23 +123,26 @@ class HolStepSet():
                     f = self._kernel.process_formula(line[2:])
                     if f is not None:
                         f_idx = len(self._formulas)
-                        self._fomulas.append(f)
+                        self._formulas.append(f)
 
                         if lines[i-1][0] == 'C':
                             self._C.append(f_idx)
                             c_idx = f_idx
-                            self._A[c_idx] = []
+                            self._D[c_idx] = []
                             self._P[c_idx] = []
                             self._M[c_idx] = []
 
                         assert c_idx is not None
 
                         if lines[i-1][0] == 'A':
-                            self._A[c_idx].append(f_idx)
+                            self._D[c_idx].append(f_idx)
                         if lines[i-1][0] == '+':
                             self._P[c_idx].append(f_idx)
                         if lines[i-1][0] == '-':
                             self._M[c_idx].append(f_idx)
+
+                    elif lines[i-1][0] == 'C':
+                        return
 
 
 class HolStepRelatedDataset(Dataset):
