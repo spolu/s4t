@@ -6,7 +6,7 @@ import torch.utils.data.distributed
 import torch.optim as optim
 import torch.nn.functional as F
 
-from dataset.holstep import HolStepRelationsDataset
+from dataset.holstep import HolStepKernel, HolStepSet, HolStepRelDataset
 
 from tensorboardX import SummaryWriter
 
@@ -49,7 +49,7 @@ class Th2Vec:
 
     def init_training(
             self,
-            train_dataset: HolStepRelationsDataset,
+            train_dataset: HolStepRelDataset,
     ):
         if self._config.get('distributed_training'):
             self._model = torch.nn.parallel.DistributedDataParallel(
@@ -90,7 +90,7 @@ class Th2Vec:
 
     def init_testing(
             self,
-            test_dataset: HolStepRelationsDataset,
+            test_dataset: HolStepRelDataset,
     ):
         pin_memory = False
         if self._config.get('device') != 'cpu':
@@ -162,22 +162,22 @@ class Th2Vec:
 
         all_loss_meter = Meter()
         rel_loss_meter = Meter()
-        rnd_loss_meter = Meter()
+        unr_loss_meter = Meter()
         nrm_loss_meter = Meter()
         nrm_mean_meter = Meter()
         rel_simi_meter = Meter()
-        rnd_simi_meter = Meter()
+        unr_simi_meter = Meter()
 
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(self._train_batch)
 
-        for it, (inp, out, rnd) in enumerate(self._train_loader):
+        for it, (inp, rel, unr) in enumerate(self._train_loader):
             inp_embed = self._model(inp.to(self._device))
-            out_embed = self._model(out.to(self._device))
-            rnd_embed = self._model(rnd.to(self._device))
+            rel_embed = self._model(rel.to(self._device))
+            unr_embed = self._model(unr.to(self._device))
 
-            rel_loss = F.mse_loss(inp_embed, out_embed.detach())
-            rnd_loss = F.mse_loss(inp_embed, rnd_embed.detach())
+            rel_loss = F.mse_loss(inp_embed, rel_embed.detach())
+            unr_loss = F.mse_loss(inp_embed, unr_embed.detach())
 
             nrm_mean = torch.norm(inp_embed, dim=1).mean()
             nrm_loss = F.mse_loss(
@@ -186,10 +186,10 @@ class Th2Vec:
             )
 
             rel_simi = F.cosine_similarity(
-                inp_embed, out_embed.detach()
+                inp_embed, rel_embed.detach()
             )
-            rnd_simi = F.cosine_similarity(
-                inp_embed, rnd_embed.detach()
+            unr_simi = F.cosine_similarity(
+                inp_embed, unr_embed.detach()
             )
 
             all_loss = \
@@ -198,13 +198,13 @@ class Th2Vec:
                     torch.ones(rel_simi.size(0)).to(self._device)
                 ) + \
                 F.l1_loss(
-                    rnd_simi,
-                    -torch.ones(rnd_simi.size(0)).to(self._device)
+                    unr_simi,
+                    -torch.ones(unr_simi.size(0)).to(self._device)
                 )
             # all_loss = \
-            #     (torch.norm(1 - rel_simi) + torch.norm(-1 - rnd_simi)) / \
+            #     (torch.norm(1 - rel_simi) + torch.norm(-1 - unr_simi)) / \
             #     rel_simi.size(0)
-            # all_loss = 100 * (rel_loss - rnd_loss) + nrm_loss / 10
+            # all_loss = 100 * (rel_loss - unr_loss) + nrm_loss / 10
 
             self._optimizer.zero_grad()
             all_loss.backward()
@@ -213,8 +213,8 @@ class Th2Vec:
             all_loss_meter.update(all_loss.item())
             rel_loss_meter.update(rel_loss.item())
             rel_simi_meter.update(rel_simi.mean().item())
-            rnd_loss_meter.update(rnd_loss.item())
-            rnd_simi_meter.update(rnd_simi.mean().item())
+            unr_loss_meter.update(unr_loss.item())
+            unr_simi_meter.update(unr_simi.mean().item())
             nrm_loss_meter.update(nrm_loss.item())
             nrm_mean_meter.update(nrm_mean.item())
 
@@ -225,10 +225,10 @@ class Th2Vec:
                     'train_batch': self._train_batch,
                     'all_loss_avg': all_loss_meter.avg,
                     'rel_loss_avg': rel_loss_meter.avg,
-                    'rnd_loss_avg': rnd_loss_meter.avg,
+                    'unr_loss_avg': unr_loss_meter.avg,
                     'nrm_loss_avg': nrm_loss_meter.avg,
                     'rel_simi_avg': rel_simi_meter.avg,
-                    'rnd_simi_avg': rnd_simi_meter.avg,
+                    'unr_simi_avg': unr_simi_meter.avg,
                 })
 
                 if self._tb_writer is not None:
@@ -245,12 +245,12 @@ class Th2Vec:
                         rel_simi_meter.avg, self._train_batch,
                     )
                     self._tb_writer.add_scalar(
-                        "train/th2vec/rnd_loss",
-                        rnd_loss_meter.avg, self._train_batch,
+                        "train/th2vec/unr_loss",
+                        unr_loss_meter.avg, self._train_batch,
                     )
                     self._tb_writer.add_scalar(
-                        "train/th2vec/rnd_simi",
-                        rnd_simi_meter.avg, self._train_batch,
+                        "train/th2vec/unr_simi",
+                        unr_simi_meter.avg, self._train_batch,
                     )
                     self._tb_writer.add_scalar(
                         "train/th2vec/nrm_loss",
@@ -262,12 +262,12 @@ class Th2Vec:
                     )
 
                 all_loss_meter = Meter()
-                rnd_loss_meter = Meter()
+                unr_loss_meter = Meter()
                 rel_loss_meter = Meter()
                 nrm_loss_meter = Meter()
                 nrm_mean_meter = Meter()
                 rel_simi_meter = Meter()
-                rnd_simi_meter = Meter()
+                unr_simi_meter = Meter()
 
             if self._train_batch % 100 == 0:
                 self._model.eval()
@@ -284,23 +284,23 @@ class Th2Vec:
 
         all_loss_meter = Meter()
         rel_loss_meter = Meter()
-        rnd_loss_meter = Meter()
+        unr_loss_meter = Meter()
         nrm_loss_meter = Meter()
         nrm_mean_meter = Meter()
         rel_simi_meter = Meter()
-        rnd_simi_meter = Meter()
+        unr_simi_meter = Meter()
 
         with torch.no_grad():
-            for it, (inp, out, rnd) in enumerate(self._test_loader):
+            for it, (inp, rel, unr) in enumerate(self._test_loader):
                 if (it+1) % 10 == 0:
                     break
 
                 inp_embed = self._model(inp.to(self._device))
-                out_embed = self._model(out.to(self._device))
-                rnd_embed = self._model(rnd.to(self._device))
+                rel_embed = self._model(rel.to(self._device))
+                unr_embed = self._model(unr.to(self._device))
 
-                rel_loss = F.mse_loss(inp_embed, out_embed.detach())
-                rnd_loss = F.mse_loss(inp_embed, rnd_embed.detach())
+                rel_loss = F.mse_loss(inp_embed, rel_embed.detach())
+                unr_loss = F.mse_loss(inp_embed, unr_embed.detach())
 
                 nrm_mean = torch.norm(inp_embed, dim=1).mean()
                 nrm_loss = F.mse_loss(
@@ -309,10 +309,10 @@ class Th2Vec:
                 )
 
                 rel_simi = F.cosine_similarity(
-                    inp_embed, out_embed.detach()
+                    inp_embed, rel_embed.detach()
                 )
-                rnd_simi = F.cosine_similarity(
-                    inp_embed, rnd_embed.detach()
+                unr_simi = F.cosine_similarity(
+                    inp_embed, unr_embed.detach()
                 )
 
                 all_loss = \
@@ -321,19 +321,19 @@ class Th2Vec:
                         torch.ones(rel_simi.size(0)).to(self._device)
                     ) + \
                     F.l1_loss(
-                        rnd_simi,
-                        -torch.ones(rnd_simi.size(0)).to(self._device)
+                        unr_simi,
+                        -torch.ones(unr_simi.size(0)).to(self._device)
                     )
                 # all_loss = \
-                #   (torch.norm(1 - rel_simi) + torch.norm(-1 - rnd_simi)) / \
+                #   (torch.norm(1 - rel_simi) + torch.norm(-1 - unr_simi)) / \
                 #   rel_simi.size(0)
-                # all_loss = 100 * (rel_loss - rnd_loss) + nrm_loss / 2
+                # all_loss = 100 * (rel_loss - unr_loss) + nrm_loss / 2
 
                 all_loss_meter.update(all_loss.item())
                 rel_loss_meter.update(rel_loss.item())
                 rel_simi_meter.update(rel_simi.mean().item())
-                rnd_loss_meter.update(rnd_loss.item())
-                rnd_simi_meter.update(rnd_simi.mean().item())
+                unr_loss_meter.update(unr_loss.item())
+                unr_simi_meter.update(unr_simi.mean().item())
                 nrm_loss_meter.update(nrm_loss.item())
                 nrm_mean_meter.update(nrm_mean.item())
 
@@ -341,10 +341,10 @@ class Th2Vec:
             'batch_count': self._train_batch,
             'all_loss_avg': all_loss_meter.avg,
             'rel_loss_avg': rel_loss_meter.avg,
-            'rnd_loss_avg': rnd_loss_meter.avg,
+            'unr_loss_avg': unr_loss_meter.avg,
             'nrm_loss_avg': nrm_loss_meter.avg,
             'rel_simi_avg': rel_simi_meter.avg,
-            'rnd_simi_avg': rnd_simi_meter.avg,
+            'unr_simi_avg': unr_simi_meter.avg,
         })
 
         if self._tb_writer is not None:
@@ -361,12 +361,12 @@ class Th2Vec:
                 rel_simi_meter.avg, self._train_batch,
             )
             self._tb_writer.add_scalar(
-                "test/th2vec/rnd_loss",
-                rnd_loss_meter.avg, self._train_batch,
+                "test/th2vec/unr_loss",
+                unr_loss_meter.avg, self._train_batch,
             )
             self._tb_writer.add_scalar(
-                "test/th2vec/rnd_simi",
-                rnd_simi_meter.avg, self._train_batch,
+                "test/th2vec/unr_simi",
+                unr_simi_meter.avg, self._train_batch,
             )
             self._tb_writer.add_scalar(
                 "test/th2vec/nrm_loss",
@@ -475,13 +475,23 @@ def train():
     if config.get('device') != 'cpu':
         torch.cuda.set_device(torch.device(config.get('device')))
 
-    train_dataset = HolStepRelationsDataset(
+    kernel = HolStepKernel(config)
+
+    train_dataset = HolStepRelDataset(
         config,
-        os.path.expanduser(config.get('th2vec_train_dataset_dir')),
+        HolStepSet(
+            config,
+            kernel,
+            os.path.expanduser(config.get('th2vec_train_dataset_dir')),
+        ),
     )
-    test_dataset = HolStepRelationsDataset(
+    test_dataset = HolStepRelDataset(
         config,
-        os.path.expanduser(config.get('th2vec_test_dataset_dir')),
+        HolStepSet(
+            config,
+            kernel,
+            os.path.expanduser(config.get('th2vec_test_dataset_dir')),
+        ),
     )
 
     th2vec = Th2Vec(config).load(True)
