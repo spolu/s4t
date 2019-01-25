@@ -47,16 +47,16 @@ class E(nn.Module):
 
         self.layers = nn.Sequential(*layers)
 
-        self.apply(self.init_weights)
+        # self.apply(self.init_weights)
 
-    def init_weights(
-            self,
-            module,
-    ):
-        if isinstance(module, nn.Linear):
-            module.weight.data.normal_(mean=0.0, std=0.02)
-            # if module.bias is not None:
-            #     module.bias.data.zero_()
+    # def init_weights(
+    #         self,
+    #         module,
+    # ):
+    #     if isinstance(module, nn.Linear):
+    #         module.weight.data.normal_(mean=0.0, std=0.02)
+    #         # if module.bias is not None:
+    #         #     module.bias.data.zero_()
 
     def parameters_count(model):
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
