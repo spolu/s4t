@@ -196,12 +196,6 @@ class Th2Vec:
 
                 loss_meter = Meter()
 
-            if self._train_batch % 200 == 0:
-                self._model.eval()
-                self.batch_test()
-                self.save()
-                self._model.train()
-
     def batch_test(
             self,
     ):
@@ -382,5 +376,12 @@ def train():
 
     th2vec.load()
 
+    epoch = 0
     while True:
         th2vec.batch_train()
+        Log.out("EPOCH DONE", {
+            'epoch': epoch,
+        })
+        th2vec.batch_test()
+        th2vec.save()
+        epoch += 1
