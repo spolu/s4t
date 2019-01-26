@@ -233,6 +233,7 @@ class HolStepPremiseDataset(Dataset):
         pre_t = torch.ones(1)
 
         cnj = self._hset._C[int(idx/2)]
+
         thr = random.choice(self._hset._D[cnj])
 
         if idx % 2 == 1:
@@ -243,6 +244,48 @@ class HolStepPremiseDataset(Dataset):
                 if candidate not in self._hset._D[cnj]:
                     unr = candidate
             thr = unr
+
+        for i in range(len(self._hset._formulas[cnj])):
+            t = self._hset._formulas[cnj][i]
+            assert t != 0
+            cnj_t[i] = t
+        for i in range(len(self._hset._formulas[thr])):
+            t = self._hset._formulas[thr][i]
+            assert t != 0
+            thr_t[i] = t
+
+        return cnj_t, thr_t, pre_t
+
+
+class HolStepClassificationDataset(Dataset):
+    def __init__(
+            self,
+            config: Config,
+            hset: HolStepSet,
+    ) -> None:
+        self._hset = hset
+        self._theorem_length = config.get('th2vec_theorem_length')
+
+    def __len__(
+            self,
+    ) -> int:
+        return 2*len(self._hset._C)
+
+    def __getitem__(
+            self,
+            idx: int,
+    ):
+        cnj_t = torch.zeros(self._theorem_length, dtype=torch.int64)
+        thr_t = torch.zeros(self._theorem_length, dtype=torch.int64)
+        pre_t = torch.ones(1)
+
+        cnj = self._hset._C[int(idx/2)]
+
+        thr = random.choice(self._hset._P[cnj])
+
+        if idx % 2 == 1:
+            pre_t = torch.zeros(1)
+            thr = random.choice(self._hset._M[cnj])
 
         for i in range(len(self._hset._formulas[cnj])):
             t = self._hset._formulas[cnj][i]

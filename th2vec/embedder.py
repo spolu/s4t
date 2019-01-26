@@ -7,7 +7,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 from dataset.holstep import HolStepKernel, HolStepSet
-from dataset.holstep import HolStepPremiseDataset
+from dataset.holstep import HolStepPremiseDataset, HolStepClassificationDataset
 
 from tensorboardX import SummaryWriter
 
@@ -50,7 +50,7 @@ class Th2Vec:
 
     def init_training(
             self,
-            train_dataset: HolStepPremiseDataset,
+            train_dataset,
     ):
         if self._config.get('distributed_training'):
             self._model = torch.nn.parallel.DistributedDataParallel(
@@ -338,22 +338,28 @@ def train():
 
     kernel = HolStepKernel(config)
 
-    train_dataset = HolStepPremiseDataset(
+    train_set = HolStepSet(
         config,
-        HolStepSet(
-            config,
-            kernel,
-            os.path.expanduser(config.get('th2vec_train_dataset_dir')),
-        ),
+        kernel,
+        os.path.expanduser(config.get('th2vec_train_dataset_dir')),
     )
-    test_dataset = HolStepPremiseDataset(
+    test_set = HolStepSet(
         config,
-        HolStepSet(
-            config,
-            kernel,
-            os.path.expanduser(config.get('th2vec_test_dataset_dir')),
-        ),
+        kernel,
+        os.path.expanduser(config.get('th2vec_test_dataset_dir')),
     )
+
+    train_dataset = None
+    test_dataset = None
+
+    if config.get('th2vec_dataset_type') == 'premise':
+        train_dataset = HolStepPremiseDataset(config, train_set)
+        test_dataset = HolStepPremiseDataset(config, test_set)
+    if config.get('th2vec_dataset_type') == 'classification':
+        train_dataset = HolStepClassificationDataset(config, train_set)
+        test_dataset = HolStepClassificationDataset(config, test_set)
+    assert train_dataset is not None
+    assert test_dataset is not None
 
     th2vec = Th2Vec(config)
 
