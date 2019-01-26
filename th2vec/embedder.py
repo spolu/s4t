@@ -169,10 +169,10 @@ class Th2Vec:
         for it, (cnj, thr, pre) in enumerate(self._train_loader):
             res = self._model(
                 cnj.to(self._device),
-                thr.to(self.device),
+                thr.to(self._device),
             )
 
-            loss = F.l1_loss(res, pre)
+            loss = F.l1_loss(res, pre.to(self._device))
 
             self._optimizer.zero_grad()
             loss.backward()
@@ -196,7 +196,7 @@ class Th2Vec:
 
                 loss_meter = Meter()
 
-            if self._train_batch % 100 == 0:
+            if self._train_batch % 200 == 0:
                 self._model.eval()
                 self.batch_test()
                 self.save()
@@ -213,15 +213,12 @@ class Th2Vec:
 
         with torch.no_grad():
             for it, (cnj, thr, pre) in enumerate(self._test_loader):
-                if (it+1) % 10 == 0:
-                    break
-
                 res = self._model(
                     cnj.to(self._device),
-                    thr.to(self.device),
+                    thr.to(self._device),
                 )
 
-                loss = F.l1_loss(res, pre)
+                loss = F.l1_loss(res, pre.to(self._device))
 
                 loss_meter.update(loss.item())
 

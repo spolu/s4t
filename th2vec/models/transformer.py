@@ -52,7 +52,16 @@ class P(nn.Module):
 
         self.layers = nn.Sequential(*layers)
 
-        self.head = nn.Sequential([
+        # self.inner_cnj = nn.Sequential(*[
+        #     nn.Linear(self.hidden_size, self.hidden_size),
+        #     nn.Sigmoid(),
+        # ])
+        # self.inner_thr = nn.Sequential(*[
+        #     nn.Linear(self.hidden_size, self.hidden_size),
+        #     nn.Sigmoid(),
+        # ])
+
+        self.head = nn.Sequential(*[
             nn.Linear(self.hidden_size, self.hidden_size),
             nn.Linear(self.hidden_size, 1),
             nn.Sigmoid(),
@@ -61,22 +70,33 @@ class P(nn.Module):
     def parameters_count(model):
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
+    def th2vec(
+            self,
+            embeds,
+    ):
+        hiddens = self.layers(embeds)
+
+        return torch.tanh(
+            torch.max(hiddens, 1)[0]
+        )
+
     def forward(
             self,
+            conjecture,
             theorem,
     ):
-        input_embeds = self.input_embedding(theorem)
-
-        position_embeds = torch.arange(
-            input_embeds.size(1), dtype=torch.long
+        pos_embeds = torch.arange(
+            self.theorem_length, dtype=torch.long
         ).to(self.device)
-        position_embeds = position_embeds.unsqueeze(0).expand(
-            input_embeds.size(0), input_embeds.size(1),
+        pos_embeds = pos_embeds.unsqueeze(0).expand(
+           conjecture.size(0), self.theorem_length,
         )
-        import pdb; pdb.set_trace();
+        pos_embeds = self.position_embedding(pos_embeds)
 
-        hiddens = self.layers(input_embeds)
+        cnj_embeds = self.input_embedding(conjecture)
+        thr_embeds = self.input_embedding(theorem)
 
-        th2vec = torch.tanh(torch.max(hiddens, 1)[0])
+        cnj_th2vec = self.th2vec(cnj_embeds + pos_embeds)
+        thr_th2vec = self.th2vec(thr_embeds + pos_embeds)
 
-        return self.head(th2vec)
+        return self.head(cnj_th2vec + thr_th2vec)

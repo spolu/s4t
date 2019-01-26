@@ -230,13 +230,13 @@ class HolStepPremiseDataset(Dataset):
     ):
         cnj_t = torch.zeros(self._theorem_length, dtype=torch.int64)
         thr_t = torch.zeros(self._theorem_length, dtype=torch.int64)
-        pre_t = torch.ones(1, dtype=torch.int64)
+        pre_t = torch.ones(1)
 
         cnj = self._hset._C[int(idx/2)]
         thr = random.choice(self._hset._D[cnj])
 
         if idx % 2 == 1:
-            pre_t = torch.zeros(1, dtype=torch.int64)
+            pre_t = torch.zeros(1)
             unr = None
             while(unr is None):
                 candidate = random.choice(self._hset._T)
