@@ -31,19 +31,19 @@
   "th2vec_token_count": 2048,
 
   "th2vec_batch_size": 32,
-  "th2vec_learning_rate": 0.00001,
+  "th2vec_learning_rate": 0.00002,
   "th2vec_adam_beta_1": 0.9,
   "th2vec_adam_beta_2": 0.999,
   "th2vec_load_dir": null,
   "th2vec_save_dir": null,
 
-  "th2vec_transformer_layer_count": 2,
-  "th2vec_transformer_embedding_size": 256,
-  "th2vec_transformer_hidden_size": 512,
-  "th2vec_transformer_attention_head_count": 8,
-  "th2vec_transformer_intermediate_size": 1024,
+  "th2vec_transformer_layer_count": 4,
+  "th2vec_transformer_embedding_size": 128,
+  "th2vec_transformer_hidden_size": 256,
+  "th2vec_transformer_attention_head_count": 4,
+  "th2vec_transformer_intermediate_size": 512,
 
-  "th2vec_train_dataset_dir": "./data/th2vec/holstep/train",
+  "th2vec_train_dataset_dir": "./data/th2vec/holstep/test",
   "th2vec_test_dataset_dir": "./data/th2vec/holstep/test",
   "th2vec_dataset_type": "classification",
 
