@@ -52,14 +52,14 @@ class P(nn.Module):
 
         self.layers = nn.Sequential(*layers)
 
-        # self.inner_cnj = nn.Sequential(*[
-        #     nn.Linear(self.hidden_size, self.hidden_size),
-        #     nn.Sigmoid(),
-        # ])
-        # self.inner_thr = nn.Sequential(*[
-        #     nn.Linear(self.hidden_size, self.hidden_size),
-        #     nn.Sigmoid(),
-        # ])
+        self.inner_cnj = nn.Sequential(*[
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.Tanh(),
+        ])
+        self.inner_thr = nn.Sequential(*[
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.Tanh(),
+        ])
 
         self.head = nn.Sequential(*[
             nn.Linear(self.hidden_size, self.hidden_size),
@@ -77,7 +77,8 @@ class P(nn.Module):
         hiddens = self.layers(embeds)
 
         return torch.tanh(
-            torch.max(hiddens, 1)[0]
+            torch.mean(hiddens, 1)[0]
+            # torch.max(hiddens, 1)[0]
         )
 
     def forward(
@@ -99,4 +100,6 @@ class P(nn.Module):
         cnj_th2vec = self.th2vec(cnj_embeds + pos_embeds)
         thr_th2vec = self.th2vec(thr_embeds + pos_embeds)
 
-        return self.head(cnj_th2vec + thr_th2vec)
+        return self.head(
+            self.inner_cnj(cnj_th2vec) + self.inner_thr(thr_th2vec)
+        )

@@ -210,6 +210,8 @@ class Th2Vec:
         self._model.eval()
 
         loss_meter = Meter()
+        hit = 0
+        total = 0
 
         with torch.no_grad():
             for it, (cnj, thr, pre) in enumerate(self._test_loader):
@@ -222,15 +224,27 @@ class Th2Vec:
 
                 loss_meter.update(loss.item())
 
-        Log.out("SAT TEST", {
+                for i in range(res.size(0)):
+                    if res[i].item() >= 0.5 and pre[i].item() >= 0.5:
+                        hit += 1
+                    if res[i].item() < 0.5 and pre[i].item() < 0.5:
+                        hit += 1
+                    total += 1
+
+        Log.out("TH2VEC TEST", {
             'batch_count': self._train_batch,
             'loss_avg': loss_meter.avg,
+            'hit_rate': "{:.3f}".format(hit / total),
         })
 
         if self._tb_writer is not None:
             self._tb_writer.add_scalar(
                 "test/th2vec/loss",
                 loss_meter.avg, self._train_batch,
+            )
+            self._tb_writer.add_scalar(
+                "test/th2vec/hit_rate",
+                hit / total, self._train_batch,
             )
 
     def embed(
