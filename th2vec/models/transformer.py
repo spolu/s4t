@@ -77,7 +77,7 @@ class P(nn.Module):
         hiddens = self.layers(embeds)
 
         return torch.tanh(
-            torch.mean(hiddens, 1)[0]
+            torch.mean(hiddens, 1)
             # torch.max(hiddens, 1)[0]
         )
 
