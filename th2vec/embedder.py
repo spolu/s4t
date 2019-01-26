@@ -7,11 +7,11 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 from dataset.holstep import HolStepKernel, HolStepSet
-from dataset.holstep import HolStepPremisePhraseDataset
+from dataset.holstep import HolStepPremiseDataset
 
 from tensorboardX import SummaryWriter
 
-from th2vec.models.transformer import E
+from th2vec.models.transformer import P
 
 from utils.config import Config
 from utils.meter import Meter
@@ -38,7 +38,7 @@ class Th2Vec:
                     self._config.get('tensorboard_log_dir'),
                 )
 
-        self._inner_model = E(self._config).to(self._device)
+        self._inner_model = P(self._config).to(self._device)
 
         Log.out(
             "Initializing th2vec", {
@@ -50,7 +50,7 @@ class Th2Vec:
 
     def init_training(
             self,
-            train_dataset: HolStepPremisePhraseDataset,
+            train_dataset: HolStepPremiseDataset,
     ):
         if self._config.get('distributed_training'):
             self._model = torch.nn.parallel.DistributedDataParallel(
@@ -161,85 +161,40 @@ class Th2Vec:
 
         self._model.train()
 
-        all_loss_meter = Meter()
-        rel_loss_meter = Meter()
-        nrm_loss_meter = Meter()
-        nrm_mean_meter = Meter()
-        rel_simi_meter = Meter()
+        loss_meter = Meter()
 
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(self._train_batch)
 
-        for it, (thr, rel) in enumerate(self._train_loader):
-            thr_embed = self._model(thr.to(self._device))
-            rel_embed = self._model(rel.to(self._device))
-
-            rel_loss = F.mse_loss(thr_embed, rel_embed.detach())
-
-            nrm_mean = torch.norm(thr_embed, dim=1).mean()
-            nrm_loss = F.mse_loss(
-                torch.norm(thr_embed, dim=1),
-                torch.ones(thr_embed.size(0)).to(self._device),
+        for it, (cnj, thr, pre) in enumerate(self._train_loader):
+            res = self._model(
+                cnj.to(self._device),
+                thr.to(self.device),
             )
 
-            rel_simi = F.cosine_similarity(
-                thr_embed, rel_embed.detach()
-            )
-
-            all_loss = \
-                F.l1_loss(
-                    rel_simi,
-                    torch.ones(rel_simi.size(0)).to(self._device)
-                )
+            loss = F.l1_loss(res, pre)
 
             self._optimizer.zero_grad()
-            all_loss.backward()
+            loss.backward()
             self._optimizer.step()
 
-            all_loss_meter.update(all_loss.item())
-            rel_loss_meter.update(rel_loss.item())
-            rel_simi_meter.update(rel_simi.mean().item())
-            nrm_loss_meter.update(nrm_loss.item())
-            nrm_mean_meter.update(nrm_mean.item())
+            loss_meter.update(loss.item())
 
             self._train_batch += 1
 
             if self._train_batch % 10 == 0:
                 Log.out("TH2VEC TRAIN", {
                     'train_batch': self._train_batch,
-                    'all_loss_avg': all_loss_meter.avg,
-                    'rel_loss_avg': rel_loss_meter.avg,
-                    'rel_simi_avg': rel_simi_meter.avg,
-                    'nrm_loss_avg': nrm_loss_meter.avg,
+                    'loss_avg': loss_meter.avg,
                 })
 
                 if self._tb_writer is not None:
                     self._tb_writer.add_scalar(
-                        "train/th2vec/all_loss",
-                        all_loss_meter.avg, self._train_batch,
-                    )
-                    self._tb_writer.add_scalar(
-                        "train/th2vec/rel_loss",
-                        rel_loss_meter.avg, self._train_batch,
-                    )
-                    self._tb_writer.add_scalar(
-                        "train/th2vec/rel_simi",
-                        rel_simi_meter.avg, self._train_batch,
-                    )
-                    self._tb_writer.add_scalar(
-                        "train/th2vec/nrm_loss",
-                        nrm_loss_meter.avg, self._train_batch,
-                    )
-                    self._tb_writer.add_scalar(
-                        "train/th2vec/nrm_mean",
-                        nrm_mean_meter.avg, self._train_batch,
+                        "train/th2vec/loss",
+                        loss_meter.avg, self._train_batch,
                     )
 
-                all_loss_meter = Meter()
-                rel_loss_meter = Meter()
-                nrm_loss_meter = Meter()
-                nrm_mean_meter = Meter()
-                rel_simi_meter = Meter()
+                loss_meter = Meter()
 
             if self._train_batch % 100 == 0:
                 self._model.eval()
@@ -254,72 +209,31 @@ class Th2Vec:
 
         self._model.eval()
 
-        all_loss_meter = Meter()
-        rel_loss_meter = Meter()
-        nrm_loss_meter = Meter()
-        nrm_mean_meter = Meter()
-        rel_simi_meter = Meter()
+        loss_meter = Meter()
 
         with torch.no_grad():
-            for it, (thr, rel) in enumerate(self._test_loader):
+            for it, (cnj, thr, pre) in enumerate(self._test_loader):
                 if (it+1) % 10 == 0:
                     break
 
-                thr_embed = self._model(thr.to(self._device))
-                rel_embed = self._model(rel.to(self._device))
-
-                rel_loss = F.mse_loss(thr_embed, rel_embed.detach())
-
-                nrm_mean = torch.norm(thr_embed, dim=1).mean()
-                nrm_loss = F.mse_loss(
-                    torch.norm(thr_embed, dim=1),
-                    torch.ones(thr_embed.size(0)).to(self._device),
+                res = self._model(
+                    cnj.to(self._device),
+                    thr.to(self.device),
                 )
 
-                rel_simi = F.cosine_similarity(
-                    thr_embed, rel_embed.detach()
-                )
+                loss = F.l1_loss(res, pre)
 
-                all_loss = \
-                    F.l1_loss(
-                        rel_simi,
-                        torch.ones(rel_simi.size(0)).to(self._device)
-                    )
-
-                all_loss_meter.update(all_loss.item())
-                rel_loss_meter.update(rel_loss.item())
-                rel_simi_meter.update(rel_simi.mean().item())
-                nrm_loss_meter.update(nrm_loss.item())
-                nrm_mean_meter.update(nrm_mean.item())
+                loss_meter.update(loss.item())
 
         Log.out("SAT TEST", {
             'batch_count': self._train_batch,
-            'all_loss_avg': all_loss_meter.avg,
-            'rel_loss_avg': rel_loss_meter.avg,
-            'nrm_loss_avg': nrm_loss_meter.avg,
-            'rel_simi_avg': rel_simi_meter.avg,
+            'loss_avg': loss_meter.avg,
         })
 
         if self._tb_writer is not None:
             self._tb_writer.add_scalar(
-                "test/th2vec/all_loss",
-                all_loss_meter.avg, self._train_batch,
-            )
-            self._tb_writer.add_scalar(
-                "test/th2vec/rel_loss",
-                rel_loss_meter.avg, self._train_batch,
-            )
-            self._tb_writer.add_scalar(
-                "test/th2vec/rel_simi",
-                rel_simi_meter.avg, self._train_batch,
-            )
-            self._tb_writer.add_scalar(
-                "test/th2vec/nrm_loss",
-                nrm_loss_meter.avg, self._train_batch,
-            )
-            self._tb_writer.add_scalar(
-                "test/th2vec/nrm_mean",
-                nrm_mean_meter.avg, self._train_batch,
+                "test/th2vec/loss",
+                loss_meter.avg, self._train_batch,
             )
 
     def embed(
@@ -427,7 +341,7 @@ def train():
 
     kernel = HolStepKernel(config)
 
-    train_dataset = HolStepPremisePhraseDataset(
+    train_dataset = HolStepPremiseDataset(
         config,
         HolStepSet(
             config,
@@ -435,7 +349,7 @@ def train():
             os.path.expanduser(config.get('th2vec_train_dataset_dir')),
         ),
     )
-    test_dataset = HolStepPremisePhraseDataset(
+    test_dataset = HolStepPremiseDataset(
         config,
         HolStepSet(
             config,
@@ -453,93 +367,3 @@ def train():
 
     while True:
         th2vec.batch_train()
-
-
-def test_premise():
-    parser = argparse.ArgumentParser(description="")
-
-    parser.add_argument(
-        'config_path',
-        type=str, help="path to the config file",
-    )
-    parser.add_argument(
-        '--train_dataset_dir',
-        type=str, help="train dataset directory",
-    )
-    parser.add_argument(
-        '--test_dataset_dir',
-        type=str, help="test dataset directory",
-    )
-    parser.add_argument(
-        '--save_dir',
-        type=str, help="config override",
-    )
-    parser.add_argument(
-        '--load_dir',
-        type=str, help="config override",
-    )
-
-    parser.add_argument(
-        '--device',
-        type=str, help="config override",
-    )
-
-    args = parser.parse_args()
-
-    config = Config.from_file(args.config_path)
-
-    if args.device is not None:
-        config.override('device', args.device)
-
-    if args.train_dataset_dir is not None:
-        config.override(
-            'th2vec_train_dataset_dir',
-            os.path.expanduser(args.train_dataset_dir),
-        )
-    if args.test_dataset_dir is not None:
-        config.override(
-            'th2vec_test_dataset_dir',
-            os.path.expanduser(args.test_dataset_dir),
-        )
-    if args.tensorboard_log_dir is not None:
-        config.override(
-            'tensorboard_log_dir',
-            os.path.expanduser(args.tensorboard_log_dir),
-        )
-    if args.load_dir is not None:
-        config.override(
-            'th2vec_load_dir',
-            os.path.expanduser(args.load_dir),
-        )
-    if args.save_dir is not None:
-        config.override(
-            'th2vec_save_dir',
-            os.path.expanduser(args.save_dir),
-        )
-
-    if config.get('device') != 'cpu':
-        torch.cuda.set_device(torch.device(config.get('device')))
-
-    kernel = HolStepKernel(config)
-
-    # Needed to load train tokens
-    HolStepPremisePhraseDataset(
-        config,
-        HolStepSet(
-            config,
-            kernel,
-            os.path.expanduser(config.get('th2vec_train_dataset_dir')),
-        ),
-    )
-    test_dataset = HolStepPremisePhraseDataset(
-        config,
-        HolStepSet(
-            config,
-            kernel,
-            os.path.expanduser(config.get('th2vec_test_dataset_dir')),
-        ),
-    )
-
-    th2vec = Th2Vec(config)
-    th2vec.init_testing(test_dataset)
-    th2vec.load()
