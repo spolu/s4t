@@ -172,7 +172,7 @@ class Th2Vec:
                 thr.to(self._device),
             )
 
-            loss = F.l1_loss(res, pre.to(self._device))
+            loss = F.binary_cross_entropy(res, pre.to(self._device))
 
             self._optimizer.zero_grad()
             loss.backward()
@@ -220,7 +220,7 @@ class Th2Vec:
                     thr.to(self._device),
                 )
 
-                loss = F.l1_loss(res, pre.to(self._device))
+                loss = F.binary_cross_entropy(res, pre.to(self._device))
 
                 loss_meter.update(loss.item())
 
