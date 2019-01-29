@@ -61,7 +61,7 @@ class Th2Vec:
         self._optimizer = optim.SGD(
             self._model.parameters(),
             lr=self._config.get('th2vec_learning_rate'),
-            momemtum=self._config.get('th2vec_sgd_momentum'),
+            momentum=self._config.get('th2vec_sgd_momentum'),
         )
 
         self._train_sampler = None
