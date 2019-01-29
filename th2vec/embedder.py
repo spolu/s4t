@@ -58,11 +58,16 @@ class Th2Vec:
                 device_ids=[self._device],
             )
 
-        self._optimizer = optim.SGD(
+        self._optimizer = optim.Adam(
             self._model.parameters(),
             lr=self._config.get('th2vec_learning_rate'),
-            momentum=self._config.get('th2vec_sgd_momentum'),
         )
+        self._scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            self._optimizer,
+            100,
+        )
+        for i in range(100):
+            self._scheduler.step()
 
         self._train_sampler = None
         if self._config.get('distributed_training'):
@@ -130,6 +135,13 @@ class Th2Vec:
                             map_location=self._device,
                         ),
                     )
+                    self._scheduler.load_state_dict(
+                        torch.load(
+                            self._load_dir +
+                            "/scheduler_{}.pt".format(rank),
+                            map_location=self._device,
+                        ),
+                    )
 
         return self
 
@@ -152,8 +164,15 @@ class Th2Vec:
                 self._optimizer.state_dict(),
                 self._save_dir + "/optimizer_{}.pt".format(rank),
             )
+            torch.save(
+                self._scheduler.state_dict(),
+                self._save_dir + "/scheduler_{}.pt".format(rank),
+            )
 
-    def batch_train(self):
+    def batch_train(
+            self,
+            epoch,
+    ):
         assert self._train_loader is not None
 
         self._model.train()
@@ -161,7 +180,8 @@ class Th2Vec:
         loss_meter = Meter()
 
         if self._config.get('distributed_training'):
-            self._train_sampler.set_epoch(self._train_batch)
+            self._train_sampler.set_epoch(epoch)
+        self._scheduler.step()
 
         for it, (cnj, thr, pre) in enumerate(self._train_loader):
             res = self._model(
@@ -192,6 +212,11 @@ class Th2Vec:
                     )
 
                 loss_meter = Meter()
+
+        Log.out("EPOCH DONE", {
+            'epoch': epoch,
+            'learning_rate': self._scheduler.get_lr(),
+        })
 
     def batch_test(
             self,
@@ -375,10 +400,7 @@ def train():
 
     epoch = 0
     while True:
-        th2vec.batch_train()
-        Log.out("EPOCH DONE", {
-            'epoch': epoch,
-        })
+        th2vec.batch_train(epoch)
         th2vec.batch_test()
         th2vec.save()
         epoch += 1
