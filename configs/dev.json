@@ -31,9 +31,8 @@
   "th2vec_token_count": 2048,
 
   "th2vec_batch_size": 32,
-  "th2vec_learning_rate": 0.00002,
-  "th2vec_adam_beta_1": 0.9,
-  "th2vec_adam_beta_2": 0.999,
+  "th2vec_learning_rate": 0.0002,
+  "th2vec_sgd_momentum": 0.9,
   "th2vec_load_dir": null,
   "th2vec_save_dir": null,
 

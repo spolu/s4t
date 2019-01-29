@@ -58,13 +58,10 @@ class Th2Vec:
                 device_ids=[self._device],
             )
 
-        self._optimizer = optim.Adam(
+        self._optimizer = optim.SGD(
             self._model.parameters(),
             lr=self._config.get('th2vec_learning_rate'),
-            betas=(
-                self._config.get('th2vec_adam_beta_1'),
-                self._config.get('th2vec_adam_beta_2'),
-            ),
+            momemtum=self._config.get('th2vec_sgd_momentum'),
         )
 
         self._train_sampler = None
