@@ -54,18 +54,21 @@ class P(nn.Module):
 
         self.inner_cnj = nn.Sequential(*[
             nn.Linear(self.hidden_size, self.hidden_size, bias=False),
-            nn.BatchNorm1d(self.hidden_size),
+            # nn.BatchNorm1d(self.hidden_size),
+            nn.Dropout(0.1),
             nn.ReLU(),
         ])
         self.inner_thr = nn.Sequential(*[
             nn.Linear(self.hidden_size, self.hidden_size, bias=False),
-            nn.BatchNorm1d(self.hidden_size),
+            # nn.BatchNorm1d(self.hidden_size),
+            nn.Dropout(0.1),
             nn.ReLU(),
         ])
 
         self.head = nn.Sequential(*[
             nn.Linear(2*self.hidden_size, self.hidden_size, bias=False),
-            nn.BatchNorm1d(self.hidden_size),
+            # nn.BatchNorm1d(self.hidden_size),
+            nn.Dropout(0.1),
             nn.ReLU(),
             nn.Linear(self.hidden_size, 1),
             nn.Sigmoid(),
