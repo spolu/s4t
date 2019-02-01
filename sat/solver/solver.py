@@ -160,7 +160,7 @@ class Solver:
                 cl_pos.to(self._device),
                 cl_neg.to(self._device),
             )
-            loss = F.mse_loss(generated, sats.to(self._device))
+            loss = F.bce_loss(generated, sats.to(self._device))
 
             self._sat_optimizer.zero_grad()
             (10 * loss).backward()
@@ -221,7 +221,7 @@ class Solver:
                     cl_pos.to(self._device),
                     cl_neg.to(self._device),
                 )
-                loss = F.mse_loss(generated, sats.to(self._device))
+                loss = F.bce_loss(generated, sats.to(self._device))
 
                 loss_meter.update(loss.item())
 

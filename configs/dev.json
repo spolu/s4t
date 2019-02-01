@@ -11,7 +11,7 @@
   "sat_dataset_clause_count": 256,
 
   "sat_solver_batch_size": 100,
-  "sat_solver_learning_rate": 0.00002,
+  "sat_solver_learning_rate": 0.0002,
   "sat_solver_adam_beta_1": 0.9,
   "sat_solver_adam_beta_2": 0.999,
   "sat_solver_load_dir": null,
@@ -30,10 +30,8 @@
   "th2vec_theorem_length": 512,
   "th2vec_token_count": 2048,
 
-  "th2vec_batch_size": 42,
-  "th2vec_learning_rate": 0.00005,
-  "th2vec_adam_beta_1": 0.9,
-  "th2vec_adam_beta_2": 0.999,
+  "th2vec_batch_size": 48,
+  "th2vec_learning_rate": 0.0001,
   "th2vec_load_dir": null,
   "th2vec_save_dir": null,
 
@@ -45,6 +43,7 @@
 
   "th2vec_train_dataset_dir": "./data/th2vec/holstep/train",
   "th2vec_test_dataset_dir": "./data/th2vec/holstep/test",
+  "th2vec_dataset_type": "classification",
 
   "tensorboard_log_dir": null
 }
