@@ -1,7 +1,9 @@
 import torch
 import torch.nn as nn
 
-from generic.transformer import Transformer, LayerNorm
+from generic.gelu import GeLU
+from generic.layer_norm import LayerNorm
+from generic.transformer import Transformer
 
 
 class P(nn.Module):
@@ -54,14 +56,14 @@ class P(nn.Module):
 
         self.inner_cnj = nn.Sequential(*[
             nn.Linear(self.hidden_size, self.hidden_size),
-            nn.ReLU(),
+            GeLU(),
             nn.Dropout(0.1),
             LayerNorm(self.hidden_size),
             # nn.BatchNorm1d(self.hidden_size),
         ])
         self.inner_thr = nn.Sequential(*[
             nn.Linear(self.hidden_size, self.hidden_size),
-            nn.ReLU(),
+            GeLU(),
             nn.Dropout(0.1),
             LayerNorm(self.hidden_size),
             # nn.BatchNorm1d(self.hidden_size),
@@ -69,7 +71,7 @@ class P(nn.Module):
 
         self.head = nn.Sequential(*[
             nn.Linear(2*self.hidden_size, self.hidden_size),
-            nn.ReLU(),
+            GeLU(),
             nn.Dropout(0.1),
             LayerNorm(self.hidden_size),
             # nn.BatchNorm1d(self.hidden_size),

@@ -2,36 +2,8 @@ import math
 import torch
 import torch.nn as nn
 
-
-def gelu(
-        x,
-):
-    return 0.5 * x * (1 + torch.tanh(
-        math.sqrt(2 / math.pi) * (x + 0.044715 * torch.pow(x, 3))
-    ))
-
-
-class LayerNorm(nn.Module):
-    def __init__(
-            self,
-            hidden_size,
-            variance_epsilon=1e-12,
-    ):
-        super(LayerNorm, self).__init__()
-
-        self.gamma = nn.Parameter(torch.ones(hidden_size))
-        self.beta = nn.Parameter(torch.zeros(hidden_size))
-
-        self.variance_epsilon = variance_epsilon
-
-    def forward(
-            self,
-            x,
-    ):
-        u = x.mean(-1, keepdim=True)
-        s = (x - u).pow(2).mean(-1, keepdim=True)
-        x = (x - u) / torch.sqrt(s + self.variance_epsilon)
-        return self.gamma * x + self.beta
+from generic.layer_norm import LayerNorm
+from generic.gelu import GeLU
 
 
 class SelfAttention(nn.Module):
@@ -156,6 +128,7 @@ class Transformer(nn.Module):
 
         self.layer_norm = LayerNorm(hidden_size)
         self.dropout = nn.Dropout(dropout)
+        self.gelu = GeLU()
 
         self.apply(self.init_weights)
 
@@ -176,7 +149,7 @@ class Transformer(nn.Module):
             input_tensor,
     ):
         attention_output = self.attention(input_tensor)
-        intermediate_output = gelu(self.intermediate(attention_output))
+        intermediate_output = self.gelu(self.intermediate(attention_output))
         block_output = self.layer_norm(
             attention_output + self.dropout(self.dense(intermediate_output))
         )
