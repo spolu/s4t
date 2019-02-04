@@ -6,7 +6,7 @@ import torch.utils.data.distributed
 import torch.optim as optim
 import torch.nn.functional as F
 
-from dataset.dataset import SATDataset
+from dataset.sat import SATDataset
 
 from generic.lr_scheduler import LRScheduler
 
@@ -39,11 +39,7 @@ class Solver:
                     self._config.get('tensorboard_log_dir'),
                 )
 
-        self._inner_model = S(
-            self._config,
-            self._train_dataset.variable_count(),
-            self._train_dataset.clause_count(),
-        ).to(self._device)
+        self._inner_model = S(self._config).to(self._device)
 
         Log.out(
             "Initializing solver", {
@@ -65,7 +61,7 @@ class Solver:
         else:
             self._model = self._inner_model
 
-        self._sat_optimizer = optim.Adam(
+        self._optimizer = optim.Adam(
             self._model.parameters(),
             lr=self._config.get('sat_solver_learning_rate'),
         )
@@ -88,7 +84,7 @@ class Solver:
             pin_memory = True
 
         self._train_loader = torch.utils.data.DataLoader(
-            self._train_dataset,
+            train_dataset,
             batch_size=self._config.get('sat_solver_batch_size'),
             shuffle=(self._train_sampler is None),
             pin_memory=pin_memory,
@@ -135,7 +131,7 @@ class Solver:
                     ),
                 )
                 if training:
-                    self._sat_optimizer.load_state_dict(
+                    self._optimizer.load_state_dict(
                         torch.load(
                             self._load_dir +
                             "/optimizer_{}.pt".format(rank),
@@ -166,7 +162,7 @@ class Solver:
                 self._save_dir + "/model_{}.pt".format(rank),
             )
             torch.save(
-                self._sat_optimizer.state_dict(),
+                self._optimizer.state_dict(),
                 self._save_dir + "/sat_optimizer_{}.pt".format(rank),
             )
             torch.save(
@@ -195,9 +191,9 @@ class Solver:
 
             loss = F.binary_cross_entropy(generated, sats.to(self._device))
 
-            self._sat_optimizer.zero_grad()
+            self._optimizer.zero_grad()
             loss.backward()
-            self._sat_optimizer.step()
+            self._optimizer.step()
 
             loss_meter.update(loss.item())
 
@@ -268,7 +264,7 @@ class Solver:
                     total += 1
 
         Log.out("SAT TEST", {
-            'batch_count': self._batch_count,
+            'batch_count': self._train_batch,
             'loss_avg': loss_meter.avg,
             'hit_rate': "{:.2f}".format(hit / total),
         })
@@ -276,11 +272,11 @@ class Solver:
         if self._tb_writer is not None:
             self._tb_writer.add_scalar(
                 "test/sat/loss",
-                loss_meter.avg, self._batch_count,
+                loss_meter.avg, self._train_batch,
             )
             self._tb_writer.add_scalar(
                 "test/sat/hit_rate",
-                hit / total, self._batch_count,
+                hit / total, self._train_batch,
             )
 
         return loss_meter.avg
@@ -401,7 +397,7 @@ def train():
 
     epoch = 0
     while True:
-        solver.batch_train()
+        solver.batch_train(epoch)
         solver.batch_test()
         solver.save()
         epoch += 1

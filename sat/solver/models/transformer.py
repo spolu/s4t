@@ -10,12 +10,13 @@ class S(nn.Module):
     def __init__(
             self,
             config,
-            variable_count,
-            clause_count,
     ):
         super(S, self).__init__()
 
         self.device = torch.device(config.get('device'))
+
+        self.variable_count = \
+            config.get('sat_dataset_variable_count')
         self.embedding_size = \
             config.get('sat_solver_transformer_embedding_size')
         self.hidden_size = \
@@ -28,7 +29,7 @@ class S(nn.Module):
             config.get('sat_solver_transformer_layer_count')
 
         self.embedding = nn.Embedding(
-            variable_count+1, self.embedding_size,
+            self.variable_count+1, self.embedding_size,
         )
 
         layers = []
