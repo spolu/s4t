@@ -8,7 +8,7 @@ import torch.nn.functional as F
 
 from dataset.sat import SATDataset
 
-from generic.lr_scheduler import LRScheduler
+# from generic.lr_scheduler import LRScheduler
 
 from tensorboardX import SummaryWriter
 
@@ -65,12 +65,12 @@ class Solver:
             self._model.parameters(),
             lr=self._config.get('sat_solver_learning_rate'),
         )
-        self._scheduler = LRScheduler(
-            self._optimizer,
-            40,
-            10,
-            self._config.get('sat_solver_learning_rate_annealing'),
-        )
+        # self._scheduler = LRScheduler(
+        #     self._optimizer,
+        #     40,
+        #     10,
+        #     self._config.get('sat_solver_learning_rate_annealing'),
+        # )
 
         self._train_sampler = None
         if self._config.get('distributed_training'):
@@ -138,13 +138,13 @@ class Solver:
                             map_location=self._device,
                         ),
                     )
-                    self._scheduler.load_state_dict(
-                        torch.load(
-                            self._load_dir +
-                            "/scheduler_{}.pt".format(rank),
-                            map_location=self._device,
-                        ),
-                    )
+                    # self._scheduler.load_state_dict(
+                    #     torch.load(
+                    #         self._load_dir +
+                    #         "/scheduler_{}.pt".format(rank),
+                    #         map_location=self._device,
+                    #     ),
+                    # )
 
     def save(
             self,
@@ -165,10 +165,10 @@ class Solver:
                 self._optimizer.state_dict(),
                 self._save_dir + "/sat_optimizer_{}.pt".format(rank),
             )
-            torch.save(
-                self._scheduler.state_dict(),
-                self._save_dir + "/scheduler_{}.pt".format(rank),
-            )
+            # torch.save(
+            #     self._scheduler.state_dict(),
+            #     self._save_dir + "/scheduler_{}.pt".format(rank),
+            # )
 
     def batch_train(
             self,
@@ -181,7 +181,7 @@ class Solver:
 
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(epoch)
-        self._scheduler.step()
+        # self._scheduler.step()
 
         for it, (cl_pos, cl_neg, sats) in enumerate(self._train_loader):
             generated = self._model(
@@ -231,7 +231,7 @@ class Solver:
 
         Log.out("EPOCH DONE", {
             'epoch': epoch,
-            'learning_rate': self._scheduler.get_lr(),
+            # 'learning_rate': self._scheduler.get_lr(),
         })
 
     def batch_test(

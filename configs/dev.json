@@ -11,7 +11,7 @@
   "sat_dataset_clause_count": 256,
 
   "sat_solver_batch_size": 100,
-  "sat_solver_learning_rate": 0.00025,
+  "sat_solver_learning_rate": 0.00002,
   "sat_solver_learning_rate_annealing": 0.00001,
   "sat_solver_load_dir": null,
   "sat_solver_save_dir": null,
