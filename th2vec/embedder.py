@@ -70,8 +70,6 @@ class Th2Vec:
             400,
             self._config.get('sat_solver_learning_rate_annealing'),
         )
-        for i in range(100):
-            self._scheduler.step()
 
         self._train_sampler = None
         if self._config.get('distributed_training'):
