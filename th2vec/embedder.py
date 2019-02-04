@@ -9,6 +9,8 @@ import torch.nn.functional as F
 from dataset.holstep import HolStepKernel, HolStepSet
 from dataset.holstep import HolStepPremiseDataset, HolStepClassificationDataset
 
+from generic.lr_scheduler import LRScheduler
+
 from tensorboardX import SummaryWriter
 
 from th2vec.models.transformer import P
@@ -62,9 +64,11 @@ class Th2Vec:
             self._model.parameters(),
             lr=self._config.get('th2vec_learning_rate'),
         )
-        self._scheduler = optim.lr_scheduler.CosineAnnealingLR(
+        self._scheduler = LRScheduler(
             self._optimizer,
-            100,
+            2000,
+            400,
+            self._config.get('sat_solver_learning_rate_annealing'),
         )
         for i in range(100):
             self._scheduler.step()
