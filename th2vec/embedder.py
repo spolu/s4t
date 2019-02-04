@@ -66,7 +66,7 @@ class Th2Vec:
         )
         self._scheduler = LRScheduler(
             self._optimizer,
-            2000,
+            1000,
             400,
             self._config.get('th2vec_learning_rate_annealing'),
         )
