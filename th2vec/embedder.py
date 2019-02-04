@@ -68,7 +68,7 @@ class Th2Vec:
             self._optimizer,
             2000,
             400,
-            self._config.get('sat_solver_learning_rate_annealing'),
+            self._config.get('th2vec_learning_rate_annealing'),
         )
 
         self._train_sampler = None
@@ -178,7 +178,6 @@ class Th2Vec:
         assert self._train_loader is not None
 
         self._model.train()
-
         loss_meter = Meter()
 
         if self._config.get('distributed_training'):
@@ -226,8 +225,8 @@ class Th2Vec:
         assert self._test_loader is not None
 
         self._model.eval()
-
         loss_meter = Meter()
+
         hit = 0
         total = 0
 
@@ -398,7 +397,7 @@ def train():
     th2vec.init_training(train_dataset)
     th2vec.init_testing(test_dataset)
 
-    th2vec.load()
+    th2vec.load(True)
 
     epoch = 0
     while True:

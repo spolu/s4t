@@ -59,14 +59,12 @@ class P(nn.Module):
             GeLU(),
             nn.Dropout(0.1),
             LayerNorm(self.hidden_size),
-            # nn.BatchNorm1d(self.hidden_size),
         ])
         self.inner_thr = nn.Sequential(*[
             nn.Linear(self.hidden_size, self.hidden_size),
             GeLU(),
             nn.Dropout(0.1),
             LayerNorm(self.hidden_size),
-            # nn.BatchNorm1d(self.hidden_size),
         ])
 
         self.head = nn.Sequential(*[
@@ -74,7 +72,6 @@ class P(nn.Module):
             GeLU(),
             nn.Dropout(0.1),
             LayerNorm(self.hidden_size),
-            # nn.BatchNorm1d(self.hidden_size),
             nn.Linear(self.hidden_size, 1),
             nn.Sigmoid(),
         ])

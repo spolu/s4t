@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+from generic.gelu import GeLU
+from generic.layer_norm import LayerNorm
 from generic.transformer import Transformer
 
 
@@ -30,11 +32,8 @@ class S(nn.Module):
         )
 
         layers = []
-
         layers += [
             nn.Linear(self.embedding_size, self.hidden_size),
-            nn.Linear(self.hidden_size, self.hidden_size),
-            nn.Tanh(),
         ]
 
         for _ in range(self.layer_count):
@@ -43,34 +42,21 @@ class S(nn.Module):
                     self.hidden_size,
                     self.attention_head_count,
                     self.intermediate_size,
-                    dropout=0.00,
-                ),
-                Transformer(
-                    self.hidden_size,
-                    self.attention_head_count,
-                    self.intermediate_size,
-                    dropout=0.00,
+                    dropout=0.1,
                 ),
             ]
 
         head = [
+            nn.Linear(self.hidden_size, self.hidden_size),
+            GeLU(),
+            nn.Dropout(0.1),
+            LayerNorm(self.hidden_size),
             nn.Linear(self.hidden_size, 1),
-            nn.Tanh(),
+            nn.Sigmoid(),
         ]
 
         self.layers = nn.Sequential(*layers)
         self.head = nn.Sequential(*head)
-
-        self.apply(self.init_weights)
-
-    def init_weights(
-            self,
-            module,
-    ):
-        if isinstance(module, nn.Linear):
-            module.weight.data.normal_(mean=0.0, std=0.02)
-            if module.bias is not None:
-                module.bias.data.zero_()
 
     def parameters_count(model):
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -83,4 +69,9 @@ class S(nn.Module):
         embeds = self.embedding(cl_pos).sum(2) - self.embedding(cl_neg).sum(2)
         hiddens = self.layers(embeds)
 
-        return 0.5 + 0.5 * self.head(hiddens.mean(1))
+        pool = torch.tanh(
+            # torch.mean(hiddens, 1)
+            torch.max(hiddens, 1)[0]
+        )
+
+        return self.head(pool)

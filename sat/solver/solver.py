@@ -8,6 +8,8 @@ import torch.nn.functional as F
 
 from dataset.dataset import SATDataset
 
+from generic.lr_scheduler import LRScheduler
+
 from tensorboardX import SummaryWriter
 
 from sat.solver.models.transformer import S
@@ -22,12 +24,8 @@ class Solver:
     def __init__(
             self,
             config: Config,
-            train_dataset: SATDataset,
-            test_dataset: SATDataset,
     ):
         self._config = config
-        self._train_dataset = train_dataset
-        self._test_dataset = test_dataset
 
         self._device = torch.device(config.get('device'))
 
@@ -41,7 +39,7 @@ class Solver:
                     self._config.get('tensorboard_log_dir'),
                 )
 
-        self._inner_sat_policy = S(
+        self._inner_model = S(
             self._config,
             self._train_dataset.variable_count(),
             self._train_dataset.clause_count(),
@@ -49,36 +47,44 @@ class Solver:
 
         Log.out(
             "Initializing solver", {
-                'parameter_count': self._inner_sat_policy.parameters_count()
+                'parameter_count': self._inner_model.parameters_count()
             },
         )
 
+        self._model = self._inner_model
+
+    def init_training(
+            self,
+            train_dataset,
+    ):
         if self._config.get('distributed_training'):
-            self._sat_policy = torch.nn.parallel.DistributedDataParallel(
-                self._inner_sat_policy,
+            self._model = torch.nn.parallel.DistributedDataParallel(
+                self._inner_model,
                 device_ids=[self._device],
             )
         else:
-            self._sat_policy = self._inner_sat_policy
+            self._model = self._inner_model
 
         self._sat_optimizer = optim.Adam(
-            self._sat_policy.parameters(),
+            self._model.parameters(),
             lr=self._config.get('sat_solver_learning_rate'),
-            betas=(
-                self._config.get('sat_solver_adam_beta_1'),
-                self._config.get('sat_solver_adam_beta_2'),
-            ),
+        )
+        self._scheduler = LRScheduler(
+            self._optimizer,
+            40,
+            10,
+            self._config.get('sat_solver_learning_rate_annealing'),
         )
 
         self._train_sampler = None
         if self._config.get('distributed_training'):
             self._train_sampler = \
                 torch.utils.data.distributed.DistributedSampler(
-                    self._train_dataset,
+                    train_dataset,
                 )
 
         pin_memory = False
-        if config.get('device') != 'cpu':
+        if self._config.get('device') != 'cpu':
             pin_memory = True
 
         self._train_loader = torch.utils.data.DataLoader(
@@ -89,17 +95,26 @@ class Solver:
             num_workers=8,
             sampler=self._train_sampler,
         )
+
+        self._train_batch = 0
+
+    def init_testing(
+            self,
+            test_dataset,
+    ):
+        pin_memory = False
+        if self._config.get('device') != 'cpu':
+            pin_memory = True
+
         self._test_loader = torch.utils.data.DataLoader(
-            self._test_dataset,
+            test_dataset,
             batch_size=self._config.get('sat_solver_batch_size'),
             shuffle=False,
             num_workers=8,
             pin_memory=pin_memory,
         )
 
-        self._sat_batch_count = 0
-
-    def load_sat(
+    def load(
             self,
             training=True,
     ):
@@ -107,15 +122,15 @@ class Solver:
 
         if self._load_dir:
             if os.path.isfile(
-                    self._load_dir + "/sat_policy_{}.pt".format(rank)
+                    self._load_dir + "/model_{}.pt".format(rank)
             ):
                 Log.out(
                     "Loading sat models", {
                         'save_dir': self._load_dir,
                     })
-                self._inner_sat_policy.load_state_dict(
+                self._inner_model.load_state_dict(
                     torch.load(
-                        self._load_dir + "/sat_policy_{}.pt".format(rank),
+                        self._load_dir + "/model_{}.pt".format(rank),
                         map_location=self._device,
                     ),
                 )
@@ -123,12 +138,19 @@ class Solver:
                     self._sat_optimizer.load_state_dict(
                         torch.load(
                             self._load_dir +
-                            "/sat_optimizer_{}.pt".format(rank),
+                            "/optimizer_{}.pt".format(rank),
+                            map_location=self._device,
+                        ),
+                    )
+                    self._scheduler.load_state_dict(
+                        torch.load(
+                            self._load_dir +
+                            "/scheduler_{}.pt".format(rank),
                             map_location=self._device,
                         ),
                     )
 
-    def save_sat(
+    def save(
             self,
     ):
         rank = self._config.get('distributed_rank')
@@ -140,37 +162,48 @@ class Solver:
                 })
 
             torch.save(
-                self._inner_sat_policy.state_dict(),
-                self._save_dir + "/sat_policy_{}.pt".format(rank),
+                self._inner_model.state_dict(),
+                self._save_dir + "/model_{}.pt".format(rank),
             )
             torch.save(
                 self._sat_optimizer.state_dict(),
                 self._save_dir + "/sat_optimizer_{}.pt".format(rank),
             )
+            torch.save(
+                self._scheduler.state_dict(),
+                self._save_dir + "/scheduler_{}.pt".format(rank),
+            )
 
-    def batch_train_sat(self):
-        self._sat_policy.train()
+    def batch_train(
+            self,
+            epoch,
+    ):
+        assert self._train_loader is not None
+
+        self._model.train()
         loss_meter = Meter()
 
         if self._config.get('distributed_training'):
-            self._train_sampler.set_epoch(self._sat_batch_count)
+            self._train_sampler.set_epoch(epoch)
+        self._scheduler.step()
 
         for it, (cl_pos, cl_neg, sats) in enumerate(self._train_loader):
-            generated = self._sat_policy(
+            generated = self._model(
                 cl_pos.to(self._device),
                 cl_neg.to(self._device),
             )
-            loss = F.bce_loss(generated, sats.to(self._device))
+
+            loss = F.binary_cross_entropy(generated, sats.to(self._device))
 
             self._sat_optimizer.zero_grad()
-            (10 * loss).backward()
+            loss.backward()
             self._sat_optimizer.step()
 
             loss_meter.update(loss.item())
 
-            self._sat_batch_count += 1
+            self._train_batch += 1
 
-            if self._sat_batch_count % 10 == 0:
+            if self._train_batch % 10 == 0:
 
                 hit = 0
                 total = 0
@@ -183,7 +216,7 @@ class Solver:
                     total += 1
 
                 Log.out("SAT TRAIN", {
-                    'batch_count': self._sat_batch_count,
+                    'train_batch': self._train_batch,
                     'loss_avg': loss_meter.avg,
                     'hit_rate': "{:.2f}".format(hit / total),
                 })
@@ -191,25 +224,26 @@ class Solver:
                 if self._tb_writer is not None:
                     self._tb_writer.add_scalar(
                         "train/sat/loss",
-                        loss_meter.avg, self._sat_batch_count,
+                        loss_meter.avg, self._train_batch,
                     )
                     self._tb_writer.add_scalar(
                         "train/sat/hit_rate",
-                        hit / total, self._sat_batch_count,
+                        hit / total, self._train_batch,
                     )
 
                 loss_meter = Meter()
 
-            if self._sat_batch_count % 320 == 0:
-                self._sat_policy.eval()
-                self.batch_test_sat()
-                self._sat_policy.train()
-                self.save_sat()
+        Log.out("EPOCH DONE", {
+            'epoch': epoch,
+            'learning_rate': self._scheduler.get_lr(),
+        })
 
-    def batch_test_sat(
+    def batch_test(
             self,
     ):
-        self._sat_policy.eval()
+        assert self._test_loader is not None
+
+        self._model.eval()
         loss_meter = Meter()
 
         hit = 0
@@ -217,11 +251,12 @@ class Solver:
 
         with torch.no_grad():
             for it, (cl_pos, cl_neg, sats) in enumerate(self._test_loader):
-                generated = self._sat_policy(
+                generated = self._model(
                     cl_pos.to(self._device),
                     cl_neg.to(self._device),
                 )
-                loss = F.bce_loss(generated, sats.to(self._device))
+
+                loss = F.binary_cross_entropy(generated, sats.to(self._device))
 
                 loss_meter.update(loss.item())
 
@@ -233,7 +268,7 @@ class Solver:
                     total += 1
 
         Log.out("SAT TEST", {
-            'batch_count': self._sat_batch_count,
+            'batch_count': self._batch_count,
             'loss_avg': loss_meter.avg,
             'hit_rate': "{:.2f}".format(hit / total),
         })
@@ -241,11 +276,11 @@ class Solver:
         if self._tb_writer is not None:
             self._tb_writer.add_scalar(
                 "test/sat/loss",
-                loss_meter.avg, self._sat_batch_count,
+                loss_meter.avg, self._batch_count,
             )
             self._tb_writer.add_scalar(
                 "test/sat/hit_rate",
-                hit / total, self._sat_batch_count,
+                hit / total, self._batch_count,
             )
 
         return loss_meter.avg
@@ -267,11 +302,11 @@ def train():
         type=str, help="test dataset directory",
     )
     parser.add_argument(
-        '--solver_save_dir',
+        '--save_dir',
         type=str, help="config override",
     )
     parser.add_argument(
-        '--solver_load_dir',
+        '--load_dir',
         type=str, help="config override",
     )
     parser.add_argument(
@@ -313,12 +348,12 @@ def train():
 
     if args.train_dataset_dir is not None:
         config.override(
-            'solver_train_dataset_dir',
+            'sat_solver_train_dataset_dir',
             os.path.expanduser(args.train_dataset_dir),
         )
     if args.test_dataset_dir is not None:
         config.override(
-            'solver_test_dataset_dir',
+            'sat_solver_test_dataset_dir',
             os.path.expanduser(args.test_dataset_dir),
         )
     if args.tensorboard_log_dir is not None:
@@ -326,15 +361,15 @@ def train():
             'tensorboard_log_dir',
             os.path.expanduser(args.tensorboard_log_dir),
         )
-    if args.solver_load_dir is not None:
+    if args.load_dir is not None:
         config.override(
             'sat_solver_load_dir',
-            os.path.expanduser(args.solver_load_dir),
+            os.path.expanduser(args.load_dir),
         )
-    if args.solver_save_dir is not None:
+    if args.save_dir is not None:
         config.override(
             'sat_solver_save_dir',
-            os.path.expanduser(args.solver_save_dir),
+            os.path.expanduser(args.save_dir),
         )
 
     if config.get('distributed_training'):
@@ -357,11 +392,19 @@ def train():
         os.path.expanduser(config.get('sat_solver_test_dataset_dir')),
     )
 
-    solver = Solver(config, train_dataset, test_dataset)
-    solver.load_sat(True)
+    solver = Solver(config)
 
+    solver.init_training(train_dataset)
+    solver.init_testing(test_dataset)
+
+    solver.load(True)
+
+    epoch = 0
     while True:
-        solver.batch_train_sat()
+        solver.batch_train()
+        solver.batch_test()
+        solver.save()
+        epoch += 1
 
 
 def test():
@@ -376,7 +419,7 @@ def test():
         type=str, help="test dataset directory",
     )
     parser.add_argument(
-        '--solver_load_dir',
+        '--load_dir',
         type=str, help="config override",
     )
 
@@ -412,10 +455,10 @@ def test():
     if args.distributed_world_size is not None:
         config.override('distributed_world_size', args.distributed_world_size)
 
-    if args.solver_load_dir is not None:
+    if args.load_dir is not None:
         config.override(
             'solver_load_dir',
-            os.path.expanduser(args.solver_load_dir),
+            os.path.expanduser(args.load_dir),
         )
 
     if config.get('device') != 'cpu':
@@ -426,7 +469,10 @@ def test():
         os.path.expanduser(args.test_dataset_dir),
     )
 
-    solver = Solver(config, test_dataset, test_dataset)
-    solver.load_sat(False)
+    solver = Solver(config)
 
-    solver.batch_test_sat()
+    solver.init_testing(test_dataset)
+
+    solver.load(True)
+
+    solver.batch_test()
