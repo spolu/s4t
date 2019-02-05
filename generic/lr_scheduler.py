@@ -23,7 +23,7 @@ class RampUpStepLR(_LRScheduler):
             ]
         else:
             [
-                base_lr * self.gamma ** (
+                base_lr * self._gamma ** (
                     (self.last_epoch - self._ramp_up) // self.step_size
                 )
                 for base_lr in self.base_lrs
