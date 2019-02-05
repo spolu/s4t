@@ -12,7 +12,6 @@
 
   "sat_solver_batch_size": 100,
   "sat_solver_learning_rate": 0.00002,
-  "sat_solver_learning_rate_annealing": 0.00001,
   "sat_solver_load_dir": null,
   "sat_solver_save_dir": null,
 
@@ -31,7 +30,6 @@
 
   "th2vec_batch_size": 108,
   "th2vec_learning_rate": 0.0004,
-  "th2vec_learning_rate_annealing": 0.00001,
   "th2vec_load_dir": null,
   "th2vec_save_dir": null,
 
