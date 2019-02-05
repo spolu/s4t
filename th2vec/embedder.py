@@ -66,9 +66,9 @@ class Th2Vec:
         )
         self._scheduler = RampUpStepLR(
             self._optimizer,
-            500,
-            1000,
-            0.75,
+            450,
+            900,
+            0.6,
         )
 
         self._train_sampler = None
