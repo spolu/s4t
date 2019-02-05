@@ -116,9 +116,9 @@ class HolStepSet():
         self._T = []
         # Premises for a conjecture in `self._C_premise`.
         self._D = {}
-        # Positive proof steps for a conjecture in `self._C_steps`.
+        # Positive proof steps for a conjecture in `self._C_step`.
         self._P = {}
-        # Negative proof steps for a conjecture in `self._C_steps`.
+        # Negative proof steps for a conjecture in `self._C_step`.
         self._N = {}
 
         dataset_dir = os.path.abspath(dataset_dir)
@@ -315,7 +315,7 @@ class HolStepClassificationDataset(Dataset):
     def __len__(
             self,
     ) -> int:
-        return 2*len(self._hset._C_steps)
+        return 2*len(self._hset._C_step)
 
     def __getitem__(
             self,
@@ -325,7 +325,7 @@ class HolStepClassificationDataset(Dataset):
         thr_t = torch.zeros(self._theorem_length, dtype=torch.int64)
         pre_t = torch.ones(1)
 
-        cnj = self._hset._C_steps[int(idx/2)]
+        cnj = self._hset._C_step[int(idx/2)]
 
         thr = random.choice(self._hset._P[cnj])
 
