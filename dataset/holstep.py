@@ -2,7 +2,6 @@ import os
 import random
 import torch
 
-from utils.config import Config
 from utils.log import Log
 
 from torch.utils.data import Dataset
@@ -13,24 +12,21 @@ class HolStepKernel():
             self,
             theorem_length: int,
     ) -> None:
+        self._compression = {}
+
         self._tokens = {}
         self._token_count = 1
         self._theorem_length = theorem_length
 
         self._bound_count = 0
         self._free_count = 0
-        self._skip_count = 0
 
     def process_formula(
             self,
             f: str,
-    ) -> None:
+    ):
         formula = []
         tokens = f.split(' ')
-
-        if len(tokens) > self._theorem_length:
-            self._skip_count += 1
-            return None
 
         for t in tokens:
             if t[0] == 'b':
@@ -41,10 +37,59 @@ class HolStepKernel():
                 f = int(t[1:])
                 if f > self._free_count:
                     self._free_count = f
+
             if t not in self._tokens:
                 self._tokens[t] = self._token_count
                 self._token_count += 1
+
             formula.append(self._tokens[t])
+
+        for i in range(len(formula)):
+            for j in range(1, 3):
+                if i + j < len(formula):
+                    ngram = str(formula[i:i+j+1])
+                    if ngram not in self._compression:
+                        self._compression[ngram] = 0
+                        self._token_count += 1
+                    self._compression[ngram] += j
+
+        return formula
+
+    def postprocess_compression(
+            self,
+            size: int,
+    ) -> None:
+        best = sorted(
+            self._compression.keys(),
+            key=lambda ngram: self._compression[ngram],
+            reverse=True,
+        )
+
+        for i in range(size):
+            # Should not be any collision on `str(formula[i:i+j+1])`
+            self._tokens[best[i]] = self._token_count
+            self._token_count += 1
+
+    def postprocess_formula(
+            self,
+            f,
+    ):
+        formula = []
+
+        i = 0
+        while i < len(f):
+            done = False
+            for j in reversed(range(1, 3)):
+                if i + j < len(f):
+                    ngram = str(f[i:i+j+1])
+                    if ngram in self._tokens:
+                        formula.append(self._tokens[ngram])
+                        i += j+1
+                        done = True
+                        break
+            if not done:
+                formula.append(f[i])
+                i += 1
 
         return formula
 
@@ -57,15 +102,24 @@ class HolStepSet():
     ) -> None:
         self._kernel = kernel
 
+        # The actual tokenized formulas.
         self._formulas = []
-        self._theorems = {}
+        self._max_length = 0
 
+        # All conjectures.
         self._C = []
+        # Conjectures with premises (should be all).
+        self._C_premise = []
+        # Conjectures with proof steps.
+        self._C_step = []
+        # All premises to conjectures.
         self._T = []
-
+        # Premises for a conjecture in `self._C_premise`.
         self._D = {}
+        # Positive proof steps for a conjecture in `self._C_steps`.
         self._P = {}
-        self._M = {}
+        # Negative proof steps for a conjecture in `self._C_steps`.
+        self._N = {}
 
         dataset_dir = os.path.abspath(dataset_dir)
 
@@ -88,17 +142,19 @@ class HolStepSet():
 
             if count % 100 == 0:
                 Log.out(
-                    "Processing HolStep dataset", {
+                    "PreProcessing HolStep dataset", {
                         'dataset_dir': dataset_dir,
                         'token_count': self._kernel._token_count,
                         'bound_count': self._kernel._bound_count,
                         'free_count': self._kernel._free_count,
-                        'skip_count': self._kernel._skip_count,
+                        'max_length': self._max_length,
                         'formula_count': len(self._formulas),
-                        'theorem_count': len(self._theorems),
+                        'theorem_count': len(self._T),
                         'conjecture_count': len(self._C),
                         'processed': count,
                     })
+
+        self.postprocess()
 
         Log.out(
             "Loaded HolStep dataset", {
@@ -106,9 +162,9 @@ class HolStepSet():
                 'token_count': self._kernel._token_count,
                 'bound_count': self._kernel._bound_count,
                 'free_count': self._kernel._free_count,
-                'skip_count': self._kernel._skip_count,
+                'max_length': self._max_length,
                 'formula_count': len(self._formulas),
-                'theorem_count': len(self._theorems),
+                'theorem_count': len(self._T),
                 'conjecture_count': len(self._C),
             })
 
@@ -120,42 +176,82 @@ class HolStepSet():
             lines = f.read().splitlines()
 
             c_idx = None
-            has_dep = False
-            has_rel = False
+            has_premise = False
+            has_step = False
+
             for i in range(len(lines)):
                 line = lines[i]
                 if line[0] == 'T':
                     f = self._kernel.process_formula(line[2:])
-                    if f is not None:
-                        f_idx = len(self._formulas)
-                        self._formulas.append(f)
+                    assert f is not None
 
-                        if lines[i-1][0] == 'C':
-                            c_idx = f_idx
-                            self._D[c_idx] = []
-                            self._P[c_idx] = []
-                            self._M[c_idx] = []
+                    f_idx = len(self._formulas)
+                    self._formulas.append(f)
 
-                        assert c_idx is not None
+                    self._max_length = max(self._max_length, len(f))
+                    # if len(f) > self._kernel._theorem_length:
+                    #     Log.out("Excessive length formula", {
+                    #         'length': len(f),
+                    #     })
 
-                        if lines[i-1][0] == 'A':
-                            self._D[c_idx].append(f_idx)
-                            has_dep = True
-                            if f_idx not in self._theorems:
-                                self._theorems[f_idx] = []
-                                self._T.append(f_idx)
-                            self._theorems[f_idx].append(c_idx)
-                        if lines[i-1][0] == '+':
-                            self._P[c_idx].append(f_idx)
-                            has_rel = True
-                        if lines[i-1][0] == '-':
-                            self._M[c_idx].append(f_idx)
+                    if lines[i-1][0] == 'C':
+                        c_idx = f_idx
+                        self._C.append(c_idx)
+                        self._D[c_idx] = []
+                        self._P[c_idx] = []
+                        self._N[c_idx] = []
 
-                    elif lines[i-1][0] == 'C':
-                        return
+                    assert c_idx is not None
 
-            if has_dep and has_rel:
-                self._C.append(c_idx)
+                    if lines[i-1][0] == 'A':
+                        self._D[c_idx].append(f_idx)
+                        has_premise = True
+                        self._T.append(f_idx)
+                    if lines[i-1][0] == '+':
+                        self._P[c_idx].append(f_idx)
+                        has_step = True
+                    if lines[i-1][0] == '-':
+                        self._N[c_idx].append(f_idx)
+
+            if has_step:
+                self._C_step.append(c_idx)
+                assert len(self._P[c_idx]) > 0
+                assert len(self._N[c_idx]) > 0
+            if has_premise:
+                self._C_premise.append(c_idx)
+
+            assert has_premise
+
+    def postprocess(
+            self,
+    ) -> None:
+        Log.out("Postprocessing HolStep dataset", {})
+
+        self._kernel.postprocess_compression(4096)
+
+        self._max_length = 0
+        for i in range(len(self._formulas)):
+            self._formulas[i] = self._kernel.postprocess_formula(
+                self._formulas[i],
+            )
+            if len(self._formulas[i]) > self._max_length:
+                self._max_length = len(self._formulas[i])
+            if len(self._formulas[i]) > self._kernel._theorem_length:
+                Log.out("Excessive length formula", {
+                    'length': len(self._formulas[i]),
+                })
+
+            if i % 100000 == 0:
+                Log.out("Postprocessing HolStep dataset", {
+                    'token_count': self._kernel._token_count,
+                    'max_length': self._max_length,
+                    'formula_count': len(self._formulas),
+                    'postprocessed': i,
+                })
+
+        Log.out("Postprocessed HolStep dataset", {
+            'max_length': self._max_length,
+        })
 
 
 class HolStepPremiseDataset(Dataset):
@@ -169,7 +265,7 @@ class HolStepPremiseDataset(Dataset):
     def __len__(
             self,
     ) -> int:
-        return 2*len(self._hset._C)
+        return 2*len(self._hset._C_premise)
 
     def __getitem__(
             self,
@@ -179,7 +275,7 @@ class HolStepPremiseDataset(Dataset):
         thr_t = torch.zeros(self._theorem_length, dtype=torch.int64)
         pre_t = torch.ones(1)
 
-        cnj = self._hset._C[int(idx/2)]
+        cnj = self._hset._C_premise[int(idx/2)]
 
         thr = random.choice(self._hset._D[cnj])
 
@@ -192,11 +288,15 @@ class HolStepPremiseDataset(Dataset):
                     unr = candidate
             thr = unr
 
-        for i in range(len(self._hset._formulas[cnj])):
+        for i in range(
+                min(self._theorem_length, len(self._hset._formulas[cnj]))
+        ):
             t = self._hset._formulas[cnj][i]
             assert t != 0
             cnj_t[i] = t
-        for i in range(len(self._hset._formulas[thr])):
+        for i in range(
+                min(self._theorem_length, len(self._hset._formulas[thr]))
+        ):
             t = self._hset._formulas[thr][i]
             assert t != 0
             thr_t[i] = t
@@ -215,7 +315,7 @@ class HolStepClassificationDataset(Dataset):
     def __len__(
             self,
     ) -> int:
-        return 2*len(self._hset._C)
+        return 2*len(self._hset._C_steps)
 
     def __getitem__(
             self,
@@ -225,19 +325,23 @@ class HolStepClassificationDataset(Dataset):
         thr_t = torch.zeros(self._theorem_length, dtype=torch.int64)
         pre_t = torch.ones(1)
 
-        cnj = self._hset._C[int(idx/2)]
+        cnj = self._hset._C_steps[int(idx/2)]
 
         thr = random.choice(self._hset._P[cnj])
 
         if idx % 2 == 1:
             pre_t = torch.zeros(1)
-            thr = random.choice(self._hset._M[cnj])
+            thr = random.choice(self._hset._N[cnj])
 
-        for i in range(len(self._hset._formulas[cnj])):
+        for i in range(
+                min(self._theorem_length, len(self._hset._formulas[cnj]))
+        ):
             t = self._hset._formulas[cnj][i]
             assert t != 0
             cnj_t[i] = t
-        for i in range(len(self._hset._formulas[thr])):
+        for i in range(
+                min(self._theorem_length, len(self._hset._formulas[thr]))
+        ):
             t = self._hset._formulas[thr][i]
             assert t != 0
             thr_t[i] = t
@@ -245,9 +349,11 @@ class HolStepClassificationDataset(Dataset):
         return cnj_t, thr_t, pre_t
 
 
-# def preprocess():
-#     kernel = HolStepKernel(512)
-#     test_set = HolStepSet(
-#         kernel,
-#         os.path.expanduser("./data/th2vec/holstep/test"),
-#     )
+def preprocess():
+
+    kernel = HolStepKernel(512)
+
+    HolStepSet(
+        kernel,
+        os.path.expanduser("./data/th2vec/holstep/train"),
+    )
