@@ -50,7 +50,6 @@ class HolStepKernel():
                     ngram = str(formula[i:i+j+1])
                     if ngram not in self._compression:
                         self._compression[ngram] = 0
-                        self._token_count += 1
                     self._compression[ngram] += j
 
         return formula
@@ -154,8 +153,6 @@ class HolStepSet():
                         'processed': count,
                     })
 
-        self.postprocess()
-
         Log.out(
             "Loaded HolStep dataset", {
                 'dataset_dir': dataset_dir,
@@ -226,8 +223,6 @@ class HolStepSet():
             self,
     ) -> None:
         Log.out("Postprocessing HolStep dataset", {})
-
-        self._kernel.postprocess_compression(4096)
 
         self._max_length = 0
         for i in range(len(self._formulas)):
@@ -353,7 +348,10 @@ def preprocess():
 
     kernel = HolStepKernel(512)
 
-    HolStepSet(
+    dataset = HolStepSet(
         kernel,
-        os.path.expanduser("./data/th2vec/holstep/train"),
+        os.path.expanduser("./data/th2vec/holstep/test"),
     )
+
+    kernel.postprocess_compression(4096)
+    dataset.postprocess()

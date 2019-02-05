@@ -378,6 +378,11 @@ def train():
         os.path.expanduser(config.get('th2vec_test_dataset_dir')),
     )
 
+    kernel.postprocess_compression(4096)
+
+    train_set.postprocess()
+    test_set.postprocess()
+
     train_dataset = None
     test_dataset = None
 
