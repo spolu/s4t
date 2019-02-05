@@ -382,11 +382,11 @@ def train():
     test_dataset = None
 
     if config.get('th2vec_dataset_type') == 'premise':
-        train_dataset = HolStepPremiseDataset(config, train_set)
-        test_dataset = HolStepPremiseDataset(config, test_set)
+        train_dataset = HolStepPremiseDataset(train_set)
+        test_dataset = HolStepPremiseDataset(test_set)
     if config.get('th2vec_dataset_type') == 'classification':
-        train_dataset = HolStepClassificationDataset(config, train_set)
-        test_dataset = HolStepClassificationDataset(config, test_set)
+        train_dataset = HolStepClassificationDataset(train_set)
+        test_dataset = HolStepClassificationDataset(test_set)
     assert train_dataset is not None
     assert test_dataset is not None
 
