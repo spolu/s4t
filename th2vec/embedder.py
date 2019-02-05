@@ -367,15 +367,13 @@ def train():
     if config.get('device') != 'cpu':
         torch.cuda.set_device(torch.device(config.get('device')))
 
-    kernel = HolStepKernel(config)
+    kernel = HolStepKernel(config.get('th2vec_theorem_length'))
 
     train_set = HolStepSet(
-        config,
         kernel,
         os.path.expanduser(config.get('th2vec_train_dataset_dir')),
     )
     test_set = HolStepSet(
-        config,
         kernel,
         os.path.expanduser(config.get('th2vec_test_dataset_dir')),
     )

@@ -18,7 +18,7 @@ class RampUpStepLR(_LRScheduler):
         if self.last_epoch < self._ramp_up:
             alpha = self.last_epoch / self._ramp_up
             return [
-                (1 - alpha) * self._lr_min + alpha * base_lr
+                alpha * base_lr
                 for base_lr in self.base_lrs
             ]
         else:
