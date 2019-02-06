@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from dataset.holstep import HolStepKernel, HolStepSet
 from dataset.holstep import HolStepPremiseDataset, HolStepClassificationDataset
 
-from generic.lr_scheduler import RampUpStepLR
+# from generic.lr_scheduler import RampUpStepLR
 
 from tensorboardX import SummaryWriter
 
@@ -64,12 +64,12 @@ class Th2Vec:
             self._model.parameters(),
             lr=self._config.get('th2vec_learning_rate'),
         )
-        self._scheduler = RampUpStepLR(
-            self._optimizer,
-            450,
-            900,
-            0.6,
-        )
+        # self._scheduler = RampUpStepLR(
+        #     self._optimizer,
+        #     450,
+        #     900,
+        #     0.6,
+        # )
 
         self._train_sampler = None
         if self._config.get('distributed_training'):
@@ -137,13 +137,13 @@ class Th2Vec:
                             map_location=self._device,
                         ),
                     )
-                    self._scheduler.load_state_dict(
-                        torch.load(
-                            self._load_dir +
-                            "/scheduler_{}.pt".format(rank),
-                            map_location=self._device,
-                        ),
-                    )
+                    # self._scheduler.load_state_dict(
+                    #     torch.load(
+                    #         self._load_dir +
+                    #         "/scheduler_{}.pt".format(rank),
+                    #         map_location=self._device,
+                    #     ),
+                    # )
 
         return self
 
@@ -166,10 +166,10 @@ class Th2Vec:
                 self._optimizer.state_dict(),
                 self._save_dir + "/optimizer_{}.pt".format(rank),
             )
-            torch.save(
-                self._scheduler.state_dict(),
-                self._save_dir + "/scheduler_{}.pt".format(rank),
-            )
+            # torch.save(
+            #     self._scheduler.state_dict(),
+            #     self._save_dir + "/scheduler_{}.pt".format(rank),
+            # )
 
     def batch_train(
             self,
@@ -182,7 +182,7 @@ class Th2Vec:
 
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(epoch)
-        self._scheduler.step()
+        # self._scheduler.step()
 
         for it, (cnj, thr, pre) in enumerate(self._train_loader):
             res = self._model(
@@ -216,7 +216,7 @@ class Th2Vec:
 
         Log.out("EPOCH DONE", {
             'epoch': epoch,
-            'learning_rate': self._scheduler.get_lr(),
+            # 'learning_rate': self._scheduler.get_lr(),
         })
 
     def batch_test(

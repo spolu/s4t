@@ -29,7 +29,7 @@
   "th2vec_token_count": 6144,
 
   "th2vec_batch_size": 108,
-  "th2vec_learning_rate": 0.0004,
+  "th2vec_learning_rate": 0.00007,
   "th2vec_load_dir": null,
   "th2vec_save_dir": null,
 
@@ -41,7 +41,7 @@
 
   "th2vec_train_dataset_dir": "./data/th2vec/holstep/embed",
   "th2vec_test_dataset_dir": "./data/th2vec/holstep/test",
-  "th2vec_dataset_type": "premise",
+  "th2vec_dataset_type": "classification",
 
   "tensorboard_log_dir": null
 }
