@@ -249,6 +249,9 @@ class HolStepSet():
         })
 
 
+# PREMISER
+
+
 class HolStepPremiseDataset(Dataset):
     def __init__(
             self,
@@ -271,7 +274,6 @@ class HolStepPremiseDataset(Dataset):
         pre_t = torch.ones(1)
 
         cnj = self._hset._C_premise[int(idx/2)]
-
         thr = random.choice(self._hset._D[cnj])
 
         if idx % 2 == 1:
@@ -321,7 +323,6 @@ class HolStepClassificationDataset(Dataset):
         pre_t = torch.ones(1)
 
         cnj = self._hset._C_step[int(idx/2)]
-
         thr = random.choice(self._hset._P[cnj])
 
         if idx % 2 == 1:
@@ -342,6 +343,77 @@ class HolStepClassificationDataset(Dataset):
             thr_t[i] = t
 
         return cnj_t, thr_t, pre_t
+
+
+# EMBEDDER
+
+
+class HolStepDirectPremiseDataset(Dataset):
+    def __init__(
+            self,
+            hset: HolStepSet,
+    ) -> None:
+        self._hset = hset
+        self._theorem_length = hset._kernel._theorem_length
+
+    def __len__(
+            self,
+    ) -> int:
+        return len(self._hset._C_premise)
+
+    def __getitem__(
+            self,
+            idx: int,
+    ):
+        cnj_t = torch.zeros(self._theorem_length, dtype=torch.int64)
+        thr_t = torch.zeros(self._theorem_length, dtype=torch.int64)
+
+        cnj = self._hset._C_premise[int(idx/2)]
+        thr = random.choice(self._hset._D[cnj])
+
+        for i in range(
+                min(self._theorem_length, len(self._hset._formulas[cnj]))
+        ):
+            t = self._hset._formulas[cnj][i]
+            assert t != 0
+            cnj_t[i] = t
+        for i in range(
+                min(self._theorem_length, len(self._hset._formulas[thr]))
+        ):
+            t = self._hset._formulas[thr][i]
+            assert t != 0
+            thr_t[i] = t
+
+        return cnj_t, thr_t
+
+
+class HolStepTermDataset(Dataset):
+    def __init__(
+            self,
+            hset: HolStepSet,
+    ) -> None:
+        self._hset = hset
+        self._theorem_length = hset._kernel._theorem_length
+
+    def __len__(
+            self,
+    ) -> int:
+        return len(self._hset._formulas)
+
+    def __getitem__(
+            self,
+            idx: int,
+    ):
+        trm_t = torch.zeros(self._theorem_length, dtype=torch.int64)
+
+        for i in range(
+                min(self._theorem_length, len(self._hset._formulas[idx]))
+        ):
+            t = self._hset._formulas[idx][i]
+            assert t != 0
+            trm_t[i] = t
+
+        return trm_t
 
 
 def preprocess():

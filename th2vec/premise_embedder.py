@@ -7,13 +7,13 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 from dataset.holstep import HolStepKernel, HolStepSet
-from dataset.holstep import HolStepPremiseDataset, HolStepClassificationDataset
+from dataset.holstep import HolStepDirectPremiseDataset
 
 from generic.lr_scheduler import RampUpCosineLR
 
 from tensorboardX import SummaryWriter
 
-from th2vec.models.transformer import P
+from th2vec.models.transformer import E
 
 from utils.config import Config
 from utils.meter import Meter
@@ -21,7 +21,7 @@ from utils.log import Log
 from utils.str2bool import str2bool
 
 
-class Th2VecPremiser:
+class Th2VecPremiseEmbedder:
     def __init__(
             self,
             config: Config,
@@ -40,7 +40,7 @@ class Th2VecPremiser:
                     self._config.get('tensorboard_log_dir'),
                 )
 
-        self._inner_model = P(self._config).to(self._device)
+        self._inner_model = E(self._config).to(self._device)
 
         Log.out(
             "Initializing th2vec", {
@@ -184,13 +184,11 @@ class Th2VecPremiser:
             self._train_sampler.set_epoch(epoch)
         self._scheduler.step()
 
-        for it, (cnj, thr, pre) in enumerate(self._train_loader):
-            res = self._model(
-                cnj.to(self._device),
-                thr.to(self._device),
-            )
+        for it, (cnj, thr) in enumerate(self._train_loader):
+            cnj_emd = self._mode(cnj.to(self._device))
+            thr_emd = self._mode(thr.to(self._device))
 
-            loss = F.binary_cross_entropy(res, pre.to(self._device))
+            loss = F.mse_loss(cnj_emd, thr_emd)
 
             self._optimizer.zero_grad()
             loss.backward()
@@ -201,14 +199,14 @@ class Th2VecPremiser:
             self._train_batch += 1
 
             if self._train_batch % 10 == 0:
-                Log.out("TH2VEC TRAIN", {
+                Log.out("TH2VEC PREMISE_EMBEDDER TRAIN", {
                     'train_batch': self._train_batch,
                     'loss_avg': loss_meter.avg,
                 })
 
                 if self._tb_writer is not None:
                     self._tb_writer.add_scalar(
-                        "train/th2vec/premiser/loss",
+                        "train/th2vec/premise_embedder/loss",
                         loss_meter.avg, self._train_batch,
                     )
 
@@ -227,47 +225,25 @@ class Th2VecPremiser:
         self._model.eval()
         loss_meter = Meter()
 
-        hit = 0
-        total = 0
-
         with torch.no_grad():
             for it, (cnj, thr, pre) in enumerate(self._test_loader):
-                res = self._model(
-                    cnj.to(self._device),
-                    thr.to(self._device),
-                )
+                cnj_emd = self._mode(cnj.to(self._device))
+                thr_emd = self._mode(thr.to(self._device))
 
-                loss = F.binary_cross_entropy(res, pre.to(self._device))
+                loss = F.mse_loss(cnj_emd, thr_emd)
 
                 loss_meter.update(loss.item())
-
-                for i in range(res.size(0)):
-                    if res[i].item() >= 0.5 and pre[i].item() >= 0.5:
-                        hit += 1
-                    if res[i].item() < 0.5 and pre[i].item() < 0.5:
-                        hit += 1
-                    total += 1
 
         Log.out("TH2VEC TEST", {
             'batch_count': self._train_batch,
             'loss_avg': loss_meter.avg,
-            'hit_rate': "{:.3f}".format(hit / total),
         })
 
         if self._tb_writer is not None:
             self._tb_writer.add_scalar(
-                "test/th2vec/premiser/loss",
+                "test/th2vec/premise_embedder/loss",
                 loss_meter.avg, self._train_batch,
             )
-            self._tb_writer.add_scalar(
-                "test/th2vec/premiser/hit_rate",
-                hit / total, self._train_batch,
-            )
-
-    def embed(
-            self,
-    ):
-        self._model.eval()
 
 
 def train():
@@ -383,19 +359,10 @@ def train():
     train_set.postprocess()
     test_set.postprocess()
 
-    train_dataset = None
-    test_dataset = None
+    train_dataset = HolStepDirectPremiseDataset(train_set)
+    test_dataset = HolStepDirectPremiseDataset(test_set)
 
-    if config.get('th2vec_premiser_dataset_type') == 'premise':
-        train_dataset = HolStepPremiseDataset(train_set)
-        test_dataset = HolStepPremiseDataset(test_set)
-    if config.get('th2vec_premiser_dataset_type') == 'classification':
-        train_dataset = HolStepClassificationDataset(train_set)
-        test_dataset = HolStepClassificationDataset(test_set)
-    assert train_dataset is not None
-    assert test_dataset is not None
-
-    th2vec = Th2VecPremiser(config)
+    th2vec = Th2VecPremiseEmbedder(config)
 
     th2vec.init_training(train_dataset)
     th2vec.init_testing(test_dataset)

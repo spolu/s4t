@@ -115,3 +115,87 @@ class P(nn.Module):
                 dim=1,
             )
         )
+
+
+class E(nn.Module):
+    def __init__(
+            self,
+            config,
+    ):
+        super(P, self).__init__()
+
+        self.device = torch.device(config.get('device'))
+
+        self.token_count = \
+            config.get('th2vec_token_count')
+        self.theorem_length = \
+            config.get('th2vec_theorem_length')
+        self.embedding_size = \
+            config.get('th2vec_transformer_embedding_size')
+        self.hidden_size = \
+            config.get('th2vec_transformer_hidden_size')
+        self.intermediate_size = \
+            config.get('th2vec_transformer_intermediate_size')
+        self.attention_head_count = \
+            config.get('th2vec_transformer_attention_head_count')
+        self.layer_count = \
+            config.get('th2vec_transformer_layer_count')
+
+        self.input_embedding = nn.Embedding(
+            self.token_count, self.embedding_size,
+        )
+        self.position_embedding = nn.Embedding(
+            self.theorem_length, self.embedding_size
+        )
+
+        layers = []
+        layers += [
+            LayerNorm(self.embedding_size),
+            nn.Linear(self.embedding_size, self.hidden_size),
+        ]
+
+        for _ in range(self.layer_count):
+            layers += [
+                Transformer(
+                    self.hidden_size,
+                    self.attention_head_count,
+                    self.intermediate_size,
+                    dropout=0.1,
+                ),
+            ]
+
+        n = self.theorem_length
+        while n > 1:
+            layers += [
+                nn.Conv1d(
+                    self.hidden_size, self.hidden_size,
+                    4, 2,
+                ),
+                GeLU(),
+                nn.Dropout(0.1),
+                LayerNorm(self.embedding_size),
+            ]
+            n = n // 2
+
+        self.layers = nn.Sequential(*layers)
+
+    def parameters_count(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    def forward(
+            self,
+            term,
+    ):
+        pos_embeds = torch.arange(
+            self.theorem_length, dtype=torch.long
+        ).to(self.device)
+        pos_embeds = pos_embeds.unsqueeze(0).expand(
+           term.size(0), self.theorem_length,
+        )
+        pos_embeds = self.position_embedding(pos_embeds)
+
+        trm_embeds = self.input_embedding(term)
+
+        return torch.tanh(
+            self.layers(trm_embeds + pos_embeds)
+        )
