@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from dataset.holstep import HolStepKernel, HolStepSet
 from dataset.holstep import HolStepPremiseDataset, HolStepClassificationDataset
 
-from generic.lr_scheduler import RampUpStepLR
+from generic.lr_scheduler import RampUpCosineLR
 
 from tensorboardX import SummaryWriter
 
@@ -64,11 +64,11 @@ class Th2Vec:
             self._model.parameters(),
             lr=self._config.get('th2vec_learning_rate'),
         )
-        self._scheduler = RampUpStepLR(
+        self._scheduler = RampUpCosineLR(
             self._optimizer,
-            450,
-            900,
-            0.6,
+            self._config.get('th2vec_learning_rate_ramp_up'),
+            self._config.get('th2vec_learning_rate_period'),
+            self._config.get('th2vec_learning_rate_annealing'),
         )
 
         self._train_sampler = None
