@@ -190,7 +190,7 @@ class Th2VecPremiseEmbedder:
             unr_emd = self._model(unr.to(self._device))
 
             loss = \
-                F.mse_loss(cnj_emd, thr_emd) - F.mse_loss(cnj_emd, unr_emd)
+                F.l1_loss(cnj_emd, thr_emd) - F.l1_loss(cnj_emd, unr_emd)
 
             self._optimizer.zero_grad()
             loss.backward()
@@ -234,7 +234,7 @@ class Th2VecPremiseEmbedder:
                 unr_emd = self._model(unr.to(self._device))
 
                 loss = \
-                    F.mse_loss(cnj_emd, thr_emd) - F.mse_loss(cnj_emd, unr_emd)
+                    F.l1_loss(cnj_emd, thr_emd) - F.l1_loss(cnj_emd, unr_emd)
 
                 loss_meter.update(loss.item())
 
