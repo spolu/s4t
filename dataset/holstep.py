@@ -345,10 +345,7 @@ class HolStepClassificationDataset(Dataset):
         return cnj_t, thr_t, pre_t
 
 
-# EMBEDDER
-
-
-class HolStepDirectPremiseDataset(Dataset):
+class HolStepPremisePairDataset(Dataset):
     def __init__(
             self,
             hset: HolStepSet,
@@ -367,9 +364,17 @@ class HolStepDirectPremiseDataset(Dataset):
     ):
         cnj_t = torch.zeros(self._theorem_length, dtype=torch.int64)
         thr_t = torch.zeros(self._theorem_length, dtype=torch.int64)
+        unr_t = torch.zeros(self._theorem_length, dtype=torch.int64)
 
         cnj = self._hset._C_premise[int(idx/2)]
         thr = random.choice(self._hset._D[cnj])
+
+        unr = None
+        while(unr is None):
+            candidate = random.choice(self._hset._T)
+            if candidate not in self._hset._D[cnj]:
+                unr = candidate
+        thr = unr
 
         for i in range(
                 min(self._theorem_length, len(self._hset._formulas[cnj]))
@@ -383,8 +388,14 @@ class HolStepDirectPremiseDataset(Dataset):
             t = self._hset._formulas[thr][i]
             assert t != 0
             thr_t[i] = t
+        for i in range(
+                min(self._theorem_length, len(self._hset._formulas[unr]))
+        ):
+            t = self._hset._formulas[unr][i]
+            assert t != 0
+            unr_t[i] = t
 
-        return cnj_t, thr_t
+        return cnj_t, thr_t, unr_t
 
 
 class HolStepTermDataset(Dataset):

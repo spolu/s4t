@@ -7,7 +7,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 from dataset.holstep import HolStepKernel, HolStepSet
-from dataset.holstep import HolStepDirectPremiseDataset
+from dataset.holstep import HolStepPremisePairDataset
 
 from generic.lr_scheduler import RampUpCosineLR
 
@@ -184,11 +184,13 @@ class Th2VecPremiseEmbedder:
             self._train_sampler.set_epoch(epoch)
         self._scheduler.step()
 
-        for it, (cnj, thr) in enumerate(self._train_loader):
+        for it, (cnj, thr, unr) in enumerate(self._train_loader):
             cnj_emd = self._model(cnj.to(self._device))
             thr_emd = self._model(thr.to(self._device))
+            unr_emd = self._model(unr.to(self._device))
 
-            loss = F.mse_loss(cnj_emd, thr_emd)
+            loss = \
+                F.mse_loss(cnj_emd, thr_emd) - F.mse_loss(cnj_emd, unr_emd)
 
             self._optimizer.zero_grad()
             loss.backward()
@@ -226,11 +228,13 @@ class Th2VecPremiseEmbedder:
         loss_meter = Meter()
 
         with torch.no_grad():
-            for it, (cnj, thr) in enumerate(self._test_loader):
+            for it, (cnj, thr, unr) in enumerate(self._test_loader):
                 cnj_emd = self._model(cnj.to(self._device))
                 thr_emd = self._model(thr.to(self._device))
+                unr_emd = self._model(unr.to(self._device))
 
-                loss = F.mse_loss(cnj_emd, thr_emd)
+                loss = \
+                    F.mse_loss(cnj_emd, thr_emd) - F.mse_loss(cnj_emd, unr_emd)
 
                 loss_meter.update(loss.item())
 
@@ -359,8 +363,8 @@ def train():
     train_set.postprocess()
     test_set.postprocess()
 
-    train_dataset = HolStepDirectPremiseDataset(train_set)
-    test_dataset = HolStepDirectPremiseDataset(test_set)
+    train_dataset = HolStepPremisePairDataset(train_set)
+    test_dataset = HolStepPremisePairDataset(test_set)
 
     th2vec = Th2VecPremiseEmbedder(config)
 
