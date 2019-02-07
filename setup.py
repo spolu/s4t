@@ -16,8 +16,9 @@ setup(
             'sat_generate_dataset=sat.generator:generate',
             'sat_train_solver=sat.solver.solver:train',
             'sat_test_solver=sat.solver.solver:test',
-            'th2vec_train_premiser=th2vec.premiser:train',
             'holstep_preprocess=dataset.holstep:preprocess',
+            'th2vec_train_premiser=th2vec.premiser:train',
+            'th2vec_train_premise_embedder=th2vec.premise_embedder:train',
         ],
     },
 )

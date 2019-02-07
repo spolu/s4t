@@ -4,6 +4,7 @@ import torch.nn as nn
 from generic.gelu import GeLU
 from generic.layer_norm import LayerNorm
 from generic.transformer import Transformer
+from generic.up_down_sample import Downsample
 
 
 class P(nn.Module):
@@ -122,7 +123,7 @@ class E(nn.Module):
             self,
             config,
     ):
-        super(P, self).__init__()
+        super(E, self).__init__()
 
         self.device = torch.device(config.get('device'))
 
@@ -165,15 +166,12 @@ class E(nn.Module):
             ]
 
         n = self.theorem_length
-        while n > 1:
+        while n > 2:
             layers += [
-                nn.Conv1d(
-                    self.hidden_size, self.hidden_size,
-                    4, 2,
-                ),
+                Downsample(self.hidden_size, min(4, n // 2), 2),
                 GeLU(),
                 nn.Dropout(0.1),
-                LayerNorm(self.embedding_size),
+                LayerNorm(self.hidden_size),
             ]
             n = n // 2
 

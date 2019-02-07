@@ -185,8 +185,8 @@ class Th2VecPremiseEmbedder:
         self._scheduler.step()
 
         for it, (cnj, thr) in enumerate(self._train_loader):
-            cnj_emd = self._mode(cnj.to(self._device))
-            thr_emd = self._mode(thr.to(self._device))
+            cnj_emd = self._model(cnj.to(self._device))
+            thr_emd = self._model(thr.to(self._device))
 
             loss = F.mse_loss(cnj_emd, thr_emd)
 
@@ -226,9 +226,9 @@ class Th2VecPremiseEmbedder:
         loss_meter = Meter()
 
         with torch.no_grad():
-            for it, (cnj, thr, pre) in enumerate(self._test_loader):
-                cnj_emd = self._mode(cnj.to(self._device))
-                thr_emd = self._mode(thr.to(self._device))
+            for it, (cnj, thr) in enumerate(self._test_loader):
+                cnj_emd = self._model(cnj.to(self._device))
+                thr_emd = self._model(thr.to(self._device))
 
                 loss = F.mse_loss(cnj_emd, thr_emd)
 
