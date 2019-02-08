@@ -266,10 +266,14 @@ class Th2VecAutoEncoderEmbedder:
                     'loss_avg': all_loss_meter.avg,
                 })
                 Log.out("<<<", {
-                    'term': self._kernel.detokenize(trm[0].data.numpy()),
+                    'term': self._kernel.detokenize(
+                        trm[0].data.numpy(),
+                    ),
                 })
                 Log.out(">>>", {
-                    'term': self._kernel.detokenize(trm_smp[0].data.numpy()),
+                    'term': self._kernel.detokenize(
+                        trm_smp[0].cpu().data.numpy(),
+                    ),
                 })
 
                 if self._tb_writer is not None:
