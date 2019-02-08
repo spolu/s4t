@@ -15,6 +15,7 @@ class HolStepKernel():
         self._compression = {}
 
         self._tokens = {}
+        self._invert = {}
         self._token_count = 1
         self._theorem_length = theorem_length
 
@@ -40,6 +41,7 @@ class HolStepKernel():
 
             if t not in self._tokens:
                 self._tokens[t] = self._token_count
+                self._invert[self._token_count] = t
                 self._token_count += 1
 
             formula.append(self._tokens[t])
@@ -47,7 +49,7 @@ class HolStepKernel():
         for i in range(len(formula)):
             for j in range(1, 3):
                 if i + j < len(formula):
-                    ngram = str(formula[i:i+j+1])
+                    ngram = self.detokenize(formula[i:i+j+1])
                     if ngram not in self._compression:
                         self._compression[ngram] = 0
                     self._compression[ngram] += j
@@ -65,8 +67,9 @@ class HolStepKernel():
         )
 
         for i in range(size):
-            # Should not be any collision on `str(formula[i:i+j+1])`
+            # Should not be any collision on `detokenize(formula[i:i+j+1])`
             self._tokens[best[i]] = self._token_count
+            self._invert[self._token_count] = best[i]
             self._token_count += 1
 
     def postprocess_formula(
@@ -91,6 +94,26 @@ class HolStepKernel():
                 i += 1
 
         return formula
+
+    def detokenize(
+            self,
+            tokenized,
+    ):
+        term = ""
+
+        for i in range(len(tokenized)):
+            v = tokenized[i]
+            if v == 0:
+                break
+            if v not in self._invert:
+                term += " #?#"
+            else:
+                term += " " + self._invert[v]
+
+        if len(term) > 0:
+            term = term[1:]
+
+        return term
 
 
 class HolStepSet():

@@ -25,8 +25,10 @@ class Th2VecAutoEncoderEmbedder:
     def __init__(
             self,
             config: Config,
+            kernel: HolStepKernel,
     ):
         self._config = config
+        self._kernel = kernel
 
         self._device = torch.device(config.get('device'))
 
@@ -257,9 +259,17 @@ class Th2VecAutoEncoderEmbedder:
             self._train_batch += 1
 
             if self._train_batch % 10 == 0:
+                trm_smp = self._inner_model_G.sample(trm_rec)
+
                 Log.out("TH2VEC AUTOENCODER_EMBEDDER TRAIN", {
                     'train_batch': self._train_batch,
                     'loss_avg': all_loss_meter.avg,
+                })
+                Log.out("<<<", {
+                    'term': self._kernel.detokenize(trm[0].data.numpy()),
+                })
+                Log.out(">>>", {
+                    'term': self._kernel.detokenize(trm_smp[0]),
                 })
 
                 if self._tb_writer is not None:
@@ -429,7 +439,7 @@ def train():
     train_dataset = HolStepTermDataset(train_set)
     test_dataset = HolStepTermDataset(test_set)
 
-    th2vec = Th2VecAutoEncoderEmbedder(config)
+    th2vec = Th2VecAutoEncoderEmbedder(config, kernel)
 
     th2vec.init_training(train_dataset)
     th2vec.init_testing(test_dataset)

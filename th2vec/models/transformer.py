@@ -5,6 +5,8 @@ from generic.gelu import GeLU
 from generic.layer_norm import LayerNorm
 from generic.transformer import Transformer, Downsample, Upsample
 
+from torch.distributions.categorical import Categorical
+
 
 class P(nn.Module):
     """ Direct Premiser
@@ -269,6 +271,13 @@ class G(nn.Module):
     ):
         return self.layers(hidden.unsqueeze(1))
 
+    def sample(
+            self,
+            reconstruct,
+    ):
+        m = Categorical(torch.exp(reconstruct))
+        return m.sample()
+
 
 class D(nn.Module):
     """ Discriminator
@@ -361,3 +370,4 @@ class D(nn.Module):
             self.layers(trm_embeds + pos_embeds).squeeze(1),
             # torch.max(self.layers(trm_embeds + pos_embeds), 1)[0],
         )
+
