@@ -150,7 +150,7 @@ class Th2VecPremiser:
                         ),
                     )
 
-            if os.path.isfile(
+            if self._embedder_load_dir and os.path.isfile(
                     self._embedder_load_dir + "/model_{}.pt".format(rank)
             ):
                 Log.out(
