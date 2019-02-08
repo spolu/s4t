@@ -2,6 +2,7 @@ import argparse
 import os
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.distributed as distributed
 import torch.utils.data.distributed
 import torch.optim as optim
@@ -15,13 +16,15 @@ from tensorboardX import SummaryWriter
 
 from th2vec.models.transformer import E, D
 
+from torch.distributions.categorical import Categorical
+
 from utils.config import Config
 from utils.meter import Meter
 from utils.log import Log
 from utils.str2bool import str2bool
 
 
-class Th2VecAutoEncoderEmbedder:
+class Th2VecGenerator:
     def __init__(
             self,
             config: Config,
@@ -230,7 +233,8 @@ class Th2VecAutoEncoderEmbedder:
         self._model_G.train()
         self._model_D.train()
 
-        all_loss_meter = Meter()
+        dis_loss_meter = Meter()
+        gen_reward_meter = Meter()
 
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(epoch)
@@ -238,37 +242,66 @@ class Th2VecAutoEncoderEmbedder:
         self._scheduler_D.step()
 
         for it, trm in enumerate(self._train_loader):
-            trm_emd = self._model_G(trm.to(self._device))
-            trm_rec = self._model_D(trm_emd)
+            nse = torch.randn(
+                trm.size(0),
+                self._config.get('th2vec_transformer_hidden_size'),
+            ).to(self._device)
 
-            all_loss = self._loss(
-                trm_rec.view(-1, trm_rec.size(2)),
-                trm.to(self._device).view(-1),
-            )
+            trm_rel = trm.to(self._device)
+            trm_gen = self._model_G(nse)
 
-            self._optimizer_G.zero_grad()
+            m = Categorical(torch.exp(trm_gen))
+            trm_smp = m.sample()
+
+            dis_rel = self._model_D(trm_rel)
+            dis_gen = self._model_D(trm_smp)
+
+            dis_loss = \
+                F.bce_loss(
+                    torch.ones(*dis_rel.size()).to(self._device),
+                    dis_rel,
+                ) + \
+                F.bce_loss(
+                    torch.zeros(*dis_gen.size()).to(self._device),
+                    dis_gen,
+                )
+
             self._optimizer_D.zero_grad()
-            all_loss.backward()
-            self._optimizer_G.step()
+            dis_loss.backward()
             self._optimizer_D.step()
 
-            all_loss_meter.update(all_loss.item())
+            # REINFORCE
+            gen_reward = dis_gen
+
+            gen_loss = -m.log_prob(torch.exp(trm_gen)).mean(1) * gen_reward
+            gen_loss = loss.mean()
+
+
+            dis_loss_meter.update(dis_loss.item())
+            gen_reward_meter.update(gen_reward.mean().item())
 
             self._train_batch += 1
 
             if self._train_batch % 10 == 0:
                 Log.out("TH2VEC GENERATOR TRAIN", {
                     'train_batch': self._train_batch,
-                    'loss_avg': all_loss_meter.avg,
+                    'dis_loss_avg': dis_loss_meter.avg,
+                    'gen_reward_avg': gen_reward_meter.avg,
+                    'gen_loss': gen_loss_meter.avg,
                 })
 
                 if self._tb_writer is not None:
                     self._tb_writer.add_scalar(
-                        "train/th2vec/generator/all_loss",
-                        all_loss_meter.avg, self._train_batch,
+                        "train/th2vec/generator/dis_loss",
+                        dis_loss_meter.avg, self._train_batch,
+                    )
+                    self._tb_writer.add_scalar(
+                        "train/th2vec/generator/gen_reward",
+                        gen_reward_meter.avg, self._train_batch,
                     )
 
-                all_loss_meter = Meter()
+                dis_loss_meter = Meter()
+                gen_reward_meter = Meter()
 
         Log.out("EPOCH DONE", {
             'epoch': epoch,
@@ -283,32 +316,61 @@ class Th2VecAutoEncoderEmbedder:
         self._model_G.eval()
         self._model_D.eval()
 
-        all_loss_meter = Meter()
+        dis_loss_meter = Meter()
+        gen_reward_meter = Meter()
 
         with torch.no_grad():
             for it, trm in enumerate(self._test_loader):
-                trm_emd = self._model_G(trm.to(self._device))
-                trm_rec = self._model_D(trm_emd)
+                nse = torch.randn(
+                    trm.size(0),
+                    self._config.get('th2vec_transformer_hidden_size'),
+                ).to(self._device)
 
-                all_loss = self._loss(
-                    trm_rec.view(-1, trm_rec.size(2)),
-                    trm.to(self._device).view(-1),
-                )
+                trm_rel = trm.to(self._device)
+                trm_gen = self._model_G(nse)
 
-                all_loss_meter.update(all_loss.item())
+                dis_rel = self._model_D(trm_rel)
+                dis_gen = self._model_D(trm_gen)
 
-        Log.out("TH2VEC TEST", {
+                # gen_loss = \
+                #     F.bce_loss(
+                #         torch.ones(*dis_rel.size()).to(self._device),
+                #         dis_gen,
+                #     )
+
+                dis_loss = \
+                    F.bce_loss(
+                        torch.ones(*dis_rel.size()).to(self._device),
+                        dis_rel,
+                    ) + \
+                    F.bce_loss(
+                        torch.zeros(*dis_gen.size()).to(self._device),
+                        dis_gen,
+                    )
+
+                gen_reward = dis_gen
+
+                dis_loss_meter.update(dis_loss.item())
+                gen_reward_meter.update(gen_reward.mean().item())
+
+        Log.out("TH2VEC GENERATOR TEST", {
             'batch_count': self._train_batch,
-            'loss_avg': all_loss_meter.avg,
+            'dis_loss_avg': dis_loss_meter.avg,
+            'gen_reward_avg': gen_reward_meter.avg,
         })
 
         if self._tb_writer is not None:
             self._tb_writer.add_scalar(
-                "test/th2vec/generator/all_loss",
-                all_loss_meter.avg, self._train_batch,
+                "test/th2vec/generator/dis_loss",
+                dis_loss_meter.avg, self._train_batch,
+            )
+            self._tb_writer.add_scalar(
+                "test/th2vec/generator/gen_reward",
+                gen_reward_meter.avg, self._train_batch,
             )
 
-        all_loss_meter = Meter()
+        dis_loss_meter = Meter()
+        gen_reward_meter = Meter()
 
 
 def train():
@@ -429,7 +491,7 @@ def train():
     train_dataset = HolStepTermDataset(train_set)
     test_dataset = HolStepTermDataset(test_set)
 
-    th2vec = Th2VecAutoEncoderEmbedder(config)
+    th2vec = Th2VecGenerator(config)
 
     th2vec.init_training(train_dataset)
     th2vec.init_testing(test_dataset)
