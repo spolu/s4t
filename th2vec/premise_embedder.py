@@ -352,10 +352,12 @@ def train():
     train_set = HolStepSet(
         kernel,
         os.path.expanduser(config.get('th2vec_train_dataset_dir')),
+        premise_only=True,
     )
     test_set = HolStepSet(
         kernel,
         os.path.expanduser(config.get('th2vec_test_dataset_dir')),
+        premise_only=True,
     )
 
     kernel.postprocess_compression(4096)

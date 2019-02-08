@@ -316,6 +316,7 @@ class HolStepClassificationDataset(Dataset):
     ) -> None:
         self._hset = hset
         self._theorem_length = hset._kernel._theorem_length
+        assert hset._premise_only is False
 
     def __len__(
             self,
@@ -382,7 +383,6 @@ class HolStepPremisePairDataset(Dataset):
             candidate = random.choice(self._hset._T)
             if candidate not in self._hset._D[cnj]:
                 unr = candidate
-        thr = unr
 
         for i in range(
                 min(self._theorem_length, len(self._hset._formulas[cnj]))
