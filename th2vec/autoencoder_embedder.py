@@ -272,7 +272,7 @@ class Th2VecAutoEncoderEmbedder:
 
         Log.out("EPOCH DONE", {
             'epoch': epoch,
-            'learning_rate': self._scheduler.get_lr(),
+            'learning_rate': self._scheduler_E.get_lr(),
         })
 
     def batch_test(
