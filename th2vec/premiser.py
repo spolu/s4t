@@ -157,6 +157,12 @@ class Th2VecPremiser:
                     "Loading th2vec embbeder", {
                         'save_dir': self._embedder_load_dir,
                     })
+                self._embedder.load_state_dict(
+                    torch.load(
+                        self._emebedder_load_dir + "/model_{}.pt".format(rank),
+                        map_location=self._device,
+                    ),
+                )
 
         return self
 
@@ -198,10 +204,11 @@ class Th2VecPremiser:
         self._scheduler.step()
 
         for it, (cnj, thr, pre) in enumerate(self._train_loader):
-            cnj_emd = self._embedder(cnj.to(self._device))
-            thr_emd = self._embedder(thr.to(self._device))
+            with torch.no_grad():
+                cnj_emd = self._embedder(cnj.to(self._device))
+                thr_emd = self._embedder(thr.to(self._device))
 
-            res = self._model(cnj_emd, thr_emd)
+            res = self._model(cnj_emd.detach(), thr_emd.detach())
 
             loss = F.binary_cross_entropy(res, pre.to(self._device))
 
@@ -245,10 +252,11 @@ class Th2VecPremiser:
 
         with torch.no_grad():
             for it, (cnj, thr, pre) in enumerate(self._test_loader):
-                cnj_emd = self._embedder(cnj.to(self._device))
-                thr_emd = self._embedder(thr.to(self._device))
+                with torch.no_grad():
+                    cnj_emd = self._embedder(cnj.to(self._device))
+                    thr_emd = self._embedder(thr.to(self._device))
 
-                res = self._model(cnj_emd, thr_emd)
+                res = self._model(cnj_emd.detach(), thr_emd.detach())
 
                 loss = F.binary_cross_entropy(res, pre.to(self._device))
 
