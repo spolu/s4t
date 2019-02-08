@@ -98,8 +98,10 @@ class HolStepSet():
             self,
             kernel: HolStepKernel,
             dataset_dir: str,
+            premise_only: bool = False,
     ) -> None:
         self._kernel = kernel
+        self._premise_only = premise_only
 
         # The actual tokenized formulas.
         self._formulas = []
@@ -179,6 +181,12 @@ class HolStepSet():
             for i in range(len(lines)):
                 line = lines[i]
                 if line[0] == 'T':
+                    if self._premise_only and (
+                            lines[i-1][0] != 'C' and
+                            lines[i-1][0] != 'A'
+                    ):
+                        continue
+
                     f = self._kernel.process_formula(line[2:])
                     assert f is not None
 
