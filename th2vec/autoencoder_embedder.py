@@ -269,7 +269,7 @@ class Th2VecAutoEncoderEmbedder:
                     'term': self._kernel.detokenize(trm[0].data.numpy()),
                 })
                 Log.out(">>>", {
-                    'term': self._kernel.detokenize(trm_smp[0]),
+                    'term': self._kernel.detokenize(trm_smp[0].data.numpy()),
                 })
 
                 if self._tb_writer is not None:
