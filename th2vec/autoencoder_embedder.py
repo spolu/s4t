@@ -59,8 +59,12 @@ class Th2VecAutoEncoderEmbedder:
             train_dataset,
     ):
         if self._config.get('distributed_training'):
-            self._model = torch.nn.parallel.DistributedDataParallel(
-                self._inner_model,
+            self._model_E = torch.nn.parallel.DistributedDataParallel(
+                self._inner_model_E,
+                device_ids=[self._device],
+            )
+            self._model_D = torch.nn.parallel.DistributedDataParallel(
+                self._inner_model_D,
                 device_ids=[self._device],
             )
 
