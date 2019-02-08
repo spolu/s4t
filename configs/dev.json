@@ -42,8 +42,8 @@
   "th2vec_transformer_attention_head_count": 4,
   "th2vec_transformer_intermediate_size": 512,
 
-  "th2vec_train_dataset_dir": "./data/th2vec/holstep/test",
-  "th2vec_test_dataset_dir": "./data/th2vec/holstep/toy",
+  "th2vec_train_dataset_dir": "./data/th2vec/holstep/train",
+  "th2vec_test_dataset_dir": "./data/th2vec/holstep/test",
 
   "th2vec_premiser_dataset_type": "premise",
   "th2vec_premiser_embedder_load_dir": null,
