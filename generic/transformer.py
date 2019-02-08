@@ -161,12 +161,14 @@ class Upsample(nn.Module):
     def __init__(
             self,
             hidden_size,
+            kernel_size=4,
+            stride=2,
     ):
         super(Upsample, self).__init__()
 
         self.conv_transpose = nn.ConvTranspose1d(
             hidden_size, hidden_size,
-            2, 2,
+            kernel_size, stride,
         )
 
     def forward(
@@ -182,12 +184,14 @@ class Downsample(nn.Module):
     def __init__(
             self,
             hidden_size,
+            kernel_size=4,
+            stride=2,
     ):
         super(Downsample, self).__init__()
 
         self.conv = nn.Conv1d(
             hidden_size, hidden_size,
-            2, 2,
+            kernel_size, stride,
         )
 
     def forward(
