@@ -178,7 +178,12 @@ class Th2VecPremiseEmbedder:
         assert self._train_loader is not None
 
         self._model.train()
-        loss_meter = Meter()
+
+        all_loss_meter = Meter()
+        thr_loss_meter = Meter()
+        unr_loss_meter = Meter()
+        thr_simi_meter = Meter()
+        unr_simi_meter = Meter()
 
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(epoch)
@@ -189,30 +194,59 @@ class Th2VecPremiseEmbedder:
             thr_emd = self._model(thr.to(self._device))
             unr_emd = self._model(unr.to(self._device))
 
-            loss = \
-                F.l1_loss(cnj_emd, thr_emd) - F.l1_loss(cnj_emd, unr_emd)
+            thr_loss = F.mse_loss(cnj_emd, thr_emd)
+            unr_loss = F.mse_loss(cnj_emd, unr_emd)
+
+            all_loss = thr_loss - unr_loss
+
+            thr_simi = F.cosine_similarity(cnj_emd, thr_emd).mean()
+            unr_simi = F.cosine_similarity(cnj_emd, unr_emd).mean()
 
             self._optimizer.zero_grad()
-            loss.backward()
+            all_loss.backward()
             self._optimizer.step()
 
-            loss_meter.update(loss.item())
+            all_loss_meter.update(all_loss.item())
+            thr_loss_meter.update(thr_loss.item())
+            unr_loss_meter.update(unr_loss.item())
+            thr_simi_meter.update(thr_simi.item())
+            unr_simi_meter.update(unr_simi.item())
 
             self._train_batch += 1
 
             if self._train_batch % 10 == 0:
                 Log.out("TH2VEC PREMISE_EMBEDDER TRAIN", {
                     'train_batch': self._train_batch,
-                    'loss_avg': loss_meter.avg,
+                    'loss_avg': all_loss_meter.avg,
                 })
 
                 if self._tb_writer is not None:
                     self._tb_writer.add_scalar(
-                        "train/th2vec/premise_embedder/loss",
-                        loss_meter.avg, self._train_batch,
+                        "train/th2vec/premise_embedder/all_loss",
+                        all_loss_meter.avg, self._train_batch,
+                    )
+                    self._tb_writer.add_scalar(
+                        "train/th2vec/premise_embedder/thr_loss",
+                        thr_loss_meter.avg, self._train_batch,
+                    )
+                    self._tb_writer.add_scalar(
+                        "train/th2vec/premise_embedder/unr_loss",
+                        unr_loss_meter.avg, self._train_batch,
+                    )
+                    self._tb_writer.add_scalar(
+                        "train/th2vec/premise_embedder/thr_simi",
+                        thr_simi_meter.avg, self._train_batch,
+                    )
+                    self._tb_writer.add_scalar(
+                        "train/th2vec/premise_embedder/unr_simi",
+                        unr_simi_meter.avg, self._train_batch,
                     )
 
-                loss_meter = Meter()
+                all_loss_meter = Meter()
+                thr_loss_meter = Meter()
+                unr_loss_meter = Meter()
+                thr_simi_meter = Meter()
+                unr_simi_meter = Meter()
 
         Log.out("EPOCH DONE", {
             'epoch': epoch,
@@ -225,7 +259,12 @@ class Th2VecPremiseEmbedder:
         assert self._test_loader is not None
 
         self._model.eval()
-        loss_meter = Meter()
+
+        all_loss_meter = Meter()
+        thr_loss_meter = Meter()
+        unr_loss_meter = Meter()
+        thr_simi_meter = Meter()
+        unr_simi_meter = Meter()
 
         with torch.no_grad():
             for it, (cnj, thr, unr) in enumerate(self._test_loader):
@@ -233,21 +272,52 @@ class Th2VecPremiseEmbedder:
                 thr_emd = self._model(thr.to(self._device))
                 unr_emd = self._model(unr.to(self._device))
 
-                loss = \
-                    F.l1_loss(cnj_emd, thr_emd) - F.l1_loss(cnj_emd, unr_emd)
+                thr_loss = F.mse_loss(cnj_emd, thr_emd)
+                unr_loss = F.mse_loss(cnj_emd, unr_emd)
 
-                loss_meter.update(loss.item())
+                all_loss = thr_loss - unr_loss
+
+                thr_simi = F.cosine_similarity(cnj_emd, thr_emd).mean()
+                unr_simi = F.cosine_similarity(cnj_emd, unr_emd).mean()
+
+                all_loss_meter.update(all_loss.item())
+                thr_loss_meter.update(thr_loss.item())
+                unr_loss_meter.update(unr_loss.item())
+                thr_simi_meter.update(thr_simi.item())
+                unr_simi_meter.update(unr_simi.item())
 
         Log.out("TH2VEC TEST", {
             'batch_count': self._train_batch,
-            'loss_avg': loss_meter.avg,
+            'loss_avg': all_loss_meter.avg,
         })
 
         if self._tb_writer is not None:
             self._tb_writer.add_scalar(
-                "test/th2vec/premise_embedder/loss",
-                loss_meter.avg, self._train_batch,
+                "test/th2vec/premise_embedder/all_loss",
+                all_loss_meter.avg, self._train_batch,
             )
+            self._tb_writer.add_scalar(
+                "test/th2vec/premise_embedder/thr_loss",
+                thr_loss_meter.avg, self._train_batch,
+            )
+            self._tb_writer.add_scalar(
+                "test/th2vec/premise_embedder/unr_loss",
+                unr_loss_meter.avg, self._train_batch,
+            )
+            self._tb_writer.add_scalar(
+                "test/th2vec/premise_embedder/thr_simi",
+                thr_simi_meter.avg, self._train_batch,
+            )
+            self._tb_writer.add_scalar(
+                "test/th2vec/premise_embedder/unr_simi",
+                unr_simi_meter.avg, self._train_batch,
+            )
+
+        all_loss_meter = Meter()
+        thr_loss_meter = Meter()
+        unr_loss_meter = Meter()
+        thr_simi_meter = Meter()
+        unr_simi_meter = Meter()
 
 
 def train():
