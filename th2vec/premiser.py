@@ -159,7 +159,7 @@ class Th2VecPremiser:
                     })
                 self._embedder.load_state_dict(
                     torch.load(
-                        self._emebedder_load_dir + "/model_{}.pt".format(rank),
+                        self._embedder_load_dir + "/model_{}.pt".format(rank),
                         map_location=self._device,
                     ),
                 )
