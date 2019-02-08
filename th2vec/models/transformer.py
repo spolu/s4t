@@ -169,7 +169,7 @@ class E(nn.Module):
             ]
 
         n = self.theorem_length
-        while n > 2:
+        while n > 1:
             layers += [
                 Downsample(self.hidden_size, 2, 2),
                 GeLU(),
@@ -234,7 +234,7 @@ class G(nn.Module):
         ]
 
         n = self.theorem_length
-        while n > 2:
+        while n > 1:
             layers += [
                 Upsample(self.hidden_size, 2, 2),
                 GeLU(),
@@ -267,9 +267,7 @@ class G(nn.Module):
             self,
             hidden,
     ):
-        reconstruct = self.layers(hidden)
-
-        return reconstruct
+        return self.layers(hidden.unsqueeze(1))
 
 
 class D(nn.Module):
