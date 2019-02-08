@@ -149,7 +149,7 @@ class Th2VecAutoEncoderEmbedder:
                 )
                 self._inner_model_D.load_state_dict(
                     torch.load(
-                        self._load_dir + "/model_D{}.pt".format(rank),
+                        self._load_dir + "/model_D_{}.pt".format(rank),
                         map_location=self._device,
                     ),
                 )

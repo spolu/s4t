@@ -83,7 +83,7 @@ class HolStepKernel():
             done = False
             for j in reversed(range(1, 3)):
                 if i + j < len(f):
-                    ngram = str(f[i:i+j+1])
+                    ngram = self.detokenize(f[i:i+j+1])
                     if ngram in self._tokens:
                         formula.append(self._tokens[ngram])
                         i += j+1
