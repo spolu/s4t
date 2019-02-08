@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from generic.gelu import GeLU
 from generic.layer_norm import LayerNorm
-from generic.transformer import Transformer
+from generic.transformer import Transformer, Downsample, Upsample
 
 
 class P(nn.Module):
@@ -164,15 +164,15 @@ class E(nn.Module):
                 ),
             ]
 
-        # n = self.theorem_length
-        # while n > 2:
-        #     layers += [
-        #         Downsample(self.hidden_size, min(4, n // 2), 2),
-        #         GeLU(),
-        #         nn.Dropout(0.1),
-        #         LayerNorm(self.hidden_size),
-        #     ]
-        #     n = n // 2
+        n = self.theorem_length
+        while n > 2:
+            layers += [
+                Downsample(self.hidden_size, 2, 2),
+                GeLU(),
+                nn.Dropout(0.1),
+                LayerNorm(self.hidden_size),
+            ]
+            n = n // 2
 
         self.layers = nn.Sequential(*layers)
 
@@ -194,6 +194,73 @@ class E(nn.Module):
         trm_embeds = self.input_embedding(term)
 
         return torch.tanh(
-            # self.layers(trm_embeds + pos_embeds).squeeze(1),
-            torch.max(self.layers(trm_embeds + pos_embeds), 1)[0],
+            self.layers(trm_embeds + pos_embeds).squeeze(1),
+            # torch.max(self.layers(trm_embeds + pos_embeds), 1)[0],
         )
+
+
+class D(nn.Module):
+    def __init__(
+            self,
+            config,
+    ):
+        super(D, self).__init__()
+
+        self.device = torch.device(config.get('device'))
+
+        self.token_count = \
+            config.get('th2vec_token_count')
+        self.theorem_length = \
+            config.get('th2vec_theorem_length')
+        self.embedding_size = \
+            config.get('th2vec_transformer_embedding_size')
+        self.hidden_size = \
+            config.get('th2vec_transformer_hidden_size')
+        self.intermediate_size = \
+            config.get('th2vec_transformer_intermediate_size')
+        self.attention_head_count = \
+            config.get('th2vec_transformer_attention_head_count')
+        self.layer_count = \
+            config.get('th2vec_transformer_layer_count')
+
+        layers = []
+        layers += [
+        ]
+
+        n = self.theorem_length
+        while n > 2:
+            layers += [
+                Upsample(self.hidden_size, 2, 2),
+                GeLU(),
+                nn.Dropout(0.1),
+                LayerNorm(self.hidden_size),
+            ]
+            n = n // 2
+
+        for _ in range(self.layer_count):
+            layers += [
+                Transformer(
+                    self.hidden_size,
+                    self.attention_head_count,
+                    self.intermediate_size,
+                    dropout=0.1,
+                ),
+            ]
+
+        layers += [
+            nn.Linear(self.hidden_size, self.token_count),
+            nn.LogSoftmax(dim=2),
+        ]
+
+        self.layers = nn.Sequential(*layers)
+
+    def parameters_count(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    def forward(
+            self,
+            hidden,
+    ):
+        reconstruct = self.layers(hidden)
+
+        return reconstruct
