@@ -13,7 +13,7 @@ from generic.lr_scheduler import RampUpCosineLR
 
 from tensorboardX import SummaryWriter
 
-from th2vec.models.transformer import E, G
+from th2vec.models.transformer import E, D
 
 from utils.config import Config
 from utils.meter import Meter
@@ -40,18 +40,18 @@ class Th2VecAutoEncoderEmbedder:
                     self._config.get('tensorboard_log_dir'),
                 )
 
-        self._inner_model_E = E(self._config).to(self._device)
-        self._inner_model_G = G(self._config).to(self._device)
+        self._inner_model_G = E(self._config).to(self._device)
+        self._inner_model_D = D(self._config).to(self._device)
 
         Log.out(
             "Initializing th2vec", {
-                'E_parameter_count': self._inner_model_E.parameters_count(),
                 'G_parameter_count': self._inner_model_G.parameters_count(),
+                'D_parameter_count': self._inner_model_D.parameters_count(),
             },
         )
 
-        self._model_E = self._inner_model_E
         self._model_G = self._inner_model_G
+        self._model_D = self._inner_model_D
         self._loss = nn.NLLLoss()
 
     def init_training(
@@ -59,31 +59,31 @@ class Th2VecAutoEncoderEmbedder:
             train_dataset,
     ):
         if self._config.get('distributed_training'):
-            self._model_E = torch.nn.parallel.DistributedDataParallel(
-                self._inner_model_E,
-                device_ids=[self._device],
-            )
             self._model_G = torch.nn.parallel.DistributedDataParallel(
                 self._inner_model_G,
                 device_ids=[self._device],
             )
+            self._model_D = torch.nn.parallel.DistributedDataParallel(
+                self._inner_model_D,
+                device_ids=[self._device],
+            )
 
-        self._optimizer_E = optim.Adam(
-            self._model_E.parameters(),
-            lr=self._config.get('th2vec_learning_rate'),
-        )
-        self._scheduler_E = RampUpCosineLR(
-            self._optimizer_E,
-            self._config.get('th2vec_learning_rate_ramp_up'),
-            self._config.get('th2vec_learning_rate_period'),
-            self._config.get('th2vec_learning_rate_annealing'),
-        )
         self._optimizer_G = optim.Adam(
             self._model_G.parameters(),
             lr=self._config.get('th2vec_learning_rate'),
         )
         self._scheduler_G = RampUpCosineLR(
             self._optimizer_G,
+            self._config.get('th2vec_learning_rate_ramp_up'),
+            self._config.get('th2vec_learning_rate_period'),
+            self._config.get('th2vec_learning_rate_annealing'),
+        )
+        self._optimizer_D = optim.Adam(
+            self._model_D.parameters(),
+            lr=self._config.get('th2vec_learning_rate'),
+        )
+        self._scheduler_D = RampUpCosineLR(
+            self._optimizer_D,
             self._config.get('th2vec_learning_rate_ramp_up'),
             self._config.get('th2vec_learning_rate_period'),
             self._config.get('th2vec_learning_rate_annealing'),
@@ -141,33 +141,19 @@ class Th2VecAutoEncoderEmbedder:
                     "Loading th2vec models", {
                         'save_dir': self._load_dir,
                     })
-                self._inner_model_E.load_state_dict(
+                self._inner_model_G.load_state_dict(
                     torch.load(
-                        self._load_dir + "/model_{}.pt".format(rank),
+                        self._load_dir + "/model_G_{}.pt".format(rank),
                         map_location=self._device,
                     ),
                 )
-                self._inner_model_G.load_state_dict(
+                self._inner_model_D.load_state_dict(
                     torch.load(
-                        self._load_dir + "/model_G{}.pt".format(rank),
+                        self._load_dir + "/model_D{}.pt".format(rank),
                         map_location=self._device,
                     ),
                 )
                 if training:
-                    self._optimizer_E.load_state_dict(
-                        torch.load(
-                            self._load_dir +
-                            "/optimizer_{}.pt".format(rank),
-                            map_location=self._device,
-                        ),
-                    )
-                    self._scheduler_E.load_state_dict(
-                        torch.load(
-                            self._load_dir +
-                            "/scheduler_{}.pt".format(rank),
-                            map_location=self._device,
-                        ),
-                    )
                     self._optimizer_G.load_state_dict(
                         torch.load(
                             self._load_dir +
@@ -179,6 +165,20 @@ class Th2VecAutoEncoderEmbedder:
                         torch.load(
                             self._load_dir +
                             "/scheduler_G_{}.pt".format(rank),
+                            map_location=self._device,
+                        ),
+                    )
+                    self._optimizer_D.load_state_dict(
+                        torch.load(
+                            self._load_dir +
+                            "/optimizer_D_{}.pt".format(rank),
+                            map_location=self._device,
+                        ),
+                    )
+                    self._scheduler_D.load_state_dict(
+                        torch.load(
+                            self._load_dir +
+                            "/scheduler_D_{}.pt".format(rank),
                             map_location=self._device,
                         ),
                     )
@@ -197,18 +197,6 @@ class Th2VecAutoEncoderEmbedder:
                 })
 
             torch.save(
-                self._inner_model_E.state_dict(),
-                self._save_dir + "/model_{}.pt".format(rank),
-            )
-            torch.save(
-                self._optimizer_E.state_dict(),
-                self._save_dir + "/optimizer_{}.pt".format(rank),
-            )
-            torch.save(
-                self._scheduler_E.state_dict(),
-                self._save_dir + "/scheduler_{}.pt".format(rank),
-            )
-            torch.save(
                 self._inner_model_G.state_dict(),
                 self._save_dir + "/model_G_{}.pt".format(rank),
             )
@@ -220,6 +208,18 @@ class Th2VecAutoEncoderEmbedder:
                 self._scheduler_G.state_dict(),
                 self._save_dir + "/scheduler_G_{}.pt".format(rank),
             )
+            torch.save(
+                self._inner_model_D.state_dict(),
+                self._save_dir + "/model_D_{}.pt".format(rank),
+            )
+            torch.save(
+                self._optimizer_D.state_dict(),
+                self._save_dir + "/optimizer_D_{}.pt".format(rank),
+            )
+            torch.save(
+                self._scheduler_D.state_dict(),
+                self._save_dir + "/scheduler_D_{}.pt".format(rank),
+            )
 
     def batch_train(
             self,
@@ -227,44 +227,44 @@ class Th2VecAutoEncoderEmbedder:
     ):
         assert self._train_loader is not None
 
-        self._model_E.train()
         self._model_G.train()
+        self._model_D.train()
 
         all_loss_meter = Meter()
 
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(epoch)
-        self._scheduler_E.step()
         self._scheduler_G.step()
+        self._scheduler_D.step()
 
         for it, trm in enumerate(self._train_loader):
-            trm_emd = self._model_E(trm.to(self._device))
-            trm_rec = self._model_G(trm_emd)
+            trm_emd = self._model_G(trm.to(self._device))
+            trm_rec = self._model_D(trm_emd)
 
             all_loss = self._loss(
                 trm_rec.view(-1, trm_rec.size(2)),
                 trm.to(self._device).view(-1),
             )
 
-            self._optimizer_E.zero_grad()
             self._optimizer_G.zero_grad()
+            self._optimizer_D.zero_grad()
             all_loss.backward()
-            self._optimizer_E.step()
             self._optimizer_G.step()
+            self._optimizer_D.step()
 
             all_loss_meter.update(all_loss.item())
 
             self._train_batch += 1
 
             if self._train_batch % 10 == 0:
-                Log.out("TH2VEC AUTOENCODER_EMBEDDER TRAIN", {
+                Log.out("TH2VEC GENERATOR TRAIN", {
                     'train_batch': self._train_batch,
                     'loss_avg': all_loss_meter.avg,
                 })
 
                 if self._tb_writer is not None:
                     self._tb_writer.add_scalar(
-                        "train/th2vec/autoencoder_embedder/all_loss",
+                        "train/th2vec/generator/all_loss",
                         all_loss_meter.avg, self._train_batch,
                     )
 
@@ -272,7 +272,7 @@ class Th2VecAutoEncoderEmbedder:
 
         Log.out("EPOCH DONE", {
             'epoch': epoch,
-            'learning_rate': self._scheduler_E.get_lr(),
+            'learning_rate': self._scheduler_G.get_lr(),
         })
 
     def batch_test(
@@ -280,15 +280,15 @@ class Th2VecAutoEncoderEmbedder:
     ):
         assert self._test_loader is not None
 
-        self._model_E.eval()
         self._model_G.eval()
+        self._model_D.eval()
 
         all_loss_meter = Meter()
 
         with torch.no_grad():
             for it, trm in enumerate(self._test_loader):
-                trm_emd = self._model_E(trm.to(self._device))
-                trm_rec = self._model_G(trm_emd)
+                trm_emd = self._model_G(trm.to(self._device))
+                trm_rec = self._model_D(trm_emd)
 
                 all_loss = self._loss(
                     trm_rec.view(-1, trm_rec.size(2)),
@@ -304,7 +304,7 @@ class Th2VecAutoEncoderEmbedder:
 
         if self._tb_writer is not None:
             self._tb_writer.add_scalar(
-                "test/th2vec/autoencoder_embedder/all_loss",
+                "test/th2vec/generator/all_loss",
                 all_loss_meter.avg, self._train_batch,
             )
 

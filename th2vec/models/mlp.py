@@ -26,7 +26,7 @@ class P(nn.Module):
             LayerNorm(self.hidden_size),
         ]
 
-        for _ in range(0):
+        for _ in range(1):
             layers += [
                 nn.Linear(self.hidden_size, self.hidden_size),
                 GeLU(),
