@@ -208,7 +208,7 @@ class Th2VecDirectPremiser:
 
                 if self._tb_writer is not None:
                     self._tb_writer.add_scalar(
-                        "train/th2vec/premiser/loss",
+                        "train/th2vec/direct_premiser/loss",
                         loss_meter.avg, self._train_batch,
                     )
 
@@ -256,11 +256,11 @@ class Th2VecDirectPremiser:
 
         if self._tb_writer is not None:
             self._tb_writer.add_scalar(
-                "test/th2vec/premiser/loss",
+                "test/th2vec/direct_premiser/loss",
                 loss_meter.avg, self._train_batch,
             )
             self._tb_writer.add_scalar(
-                "test/th2vec/premiser/hit_rate",
+                "test/th2vec/direct_premiser/hit_rate",
                 hit / total, self._train_batch,
             )
 
