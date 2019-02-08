@@ -17,8 +17,9 @@ setup(
             'sat_train_solver=sat.solver.solver:train',
             'sat_test_solver=sat.solver.solver:test',
             'holstep_preprocess=dataset.holstep:preprocess',
-            'th2vec_train_premiser=th2vec.premiser:train',
+            'th2vec_train_diret_premiser=th2vec.direct_premiser:train',
             'th2vec_train_premise_embedder=th2vec.premise_embedder:train',
+            'th2vec_train_premiser=th2vec.premiser:train',
         ],
     },
 )

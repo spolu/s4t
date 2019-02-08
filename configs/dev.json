@@ -46,6 +46,7 @@
   "th2vec_test_dataset_dir": "./data/th2vec/holstep/test",
 
   "th2vec_premiser_dataset_type": "premise",
+  "th2vec_premiser_embedder_load_dir": null,
 
   "tensorboard_log_dir": null
 }

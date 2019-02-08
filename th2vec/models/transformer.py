@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from generic.gelu import GeLU
 from generic.layer_norm import LayerNorm
-from generic.transformer import Transformer, Downsample
+from generic.transformer import Transformer
 
 
 class P(nn.Module):
@@ -164,15 +164,15 @@ class E(nn.Module):
                 ),
             ]
 
-        n = self.theorem_length
-        while n > 2:
-            layers += [
-                Downsample(self.hidden_size, min(4, n // 2), 2),
-                GeLU(),
-                nn.Dropout(0.1),
-                LayerNorm(self.hidden_size),
-            ]
-            n = n // 2
+        # n = self.theorem_length
+        # while n > 2:
+        #     layers += [
+        #         Downsample(self.hidden_size, min(4, n // 2), 2),
+        #         GeLU(),
+        #         nn.Dropout(0.1),
+        #         LayerNorm(self.hidden_size),
+        #     ]
+        #     n = n // 2
 
         self.layers = nn.Sequential(*layers)
 
@@ -194,6 +194,6 @@ class E(nn.Module):
         trm_embeds = self.input_embedding(term)
 
         return torch.tanh(
-            self.layers(trm_embeds + pos_embeds).squeeze(1),
-            # torch.max(self.layers(trm_embeds + pos_embeds), 1)[0],
+            # self.layers(trm_embeds + pos_embeds).squeeze(1),
+            torch.max(self.layers(trm_embeds + pos_embeds), 1)[0],
         )

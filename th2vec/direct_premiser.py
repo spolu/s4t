@@ -13,8 +13,7 @@ from generic.lr_scheduler import RampUpCosineLR
 
 from tensorboardX import SummaryWriter
 
-from th2vec.models.mlp import P
-from th2vec.models.transformer import E
+from th2vec.models.transformer import P
 
 from utils.config import Config
 from utils.meter import Meter
@@ -22,7 +21,7 @@ from utils.log import Log
 from utils.str2bool import str2bool
 
 
-class Th2VecPremiser:
+class Th2VecDirectPremiser:
     def __init__(
             self,
             config: Config,
@@ -33,8 +32,6 @@ class Th2VecPremiser:
 
         self._save_dir = config.get('th2vec_save_dir')
         self._load_dir = config.get('th2vec_load_dir')
-        self._embedder_load_dir = \
-            config.get('th2vec_premiser_embedder_load_dir')
 
         self._tb_writer = None
         if self._config.get('tensorboard_log_dir'):
@@ -44,12 +41,10 @@ class Th2VecPremiser:
                 )
 
         self._inner_model = P(self._config).to(self._device)
-        self._embedder = E(self._config).to(self._device)
 
         Log.out(
             "Initializing th2vec", {
-                'model_parameter_count': self._inner_model.parameters_count(),
-                'embvedder_parameter_count': self._embedder.parameters_count(),
+                'parameter_count': self._inner_model.parameters_count()
             },
         )
 
@@ -150,14 +145,6 @@ class Th2VecPremiser:
                         ),
                     )
 
-            if os.path.isfile(
-                    self._embedder_load_dir + "/model_{}.pt".format(rank)
-            ):
-                Log.out(
-                    "Loading th2vec embbeder", {
-                        'save_dir': self._embedder_load_dir,
-                    })
-
         return self
 
     def save(
@@ -198,10 +185,10 @@ class Th2VecPremiser:
         self._scheduler.step()
 
         for it, (cnj, thr, pre) in enumerate(self._train_loader):
-            cnj_emd = self._embedder(cnj.to(self._device))
-            thr_emd = self._embedder(thr.to(self._device))
-
-            res = self._model(cnj_emd, thr_emd)
+            res = self._model(
+                cnj.to(self._device),
+                thr.to(self._device),
+            )
 
             loss = F.binary_cross_entropy(res, pre.to(self._device))
 
@@ -245,10 +232,10 @@ class Th2VecPremiser:
 
         with torch.no_grad():
             for it, (cnj, thr, pre) in enumerate(self._test_loader):
-                cnj_emd = self._embedder(cnj.to(self._device))
-                thr_emd = self._embedder(thr.to(self._device))
-
-                res = self._model(cnj_emd, thr_emd)
+                res = self._model(
+                    cnj.to(self._device),
+                    thr.to(self._device),
+                )
 
                 loss = F.binary_cross_entropy(res, pre.to(self._device))
 
@@ -329,11 +316,6 @@ def train():
         type=int, help="config override",
     )
 
-    parser.add_argument(
-        '--embedder_load_dir',
-        type=str, help="config override",
-    )
-
     args = parser.parse_args()
 
     config = Config.from_file(args.config_path)
@@ -374,12 +356,6 @@ def train():
             os.path.expanduser(args.save_dir),
         )
 
-    if args.embedder_load_dir is not None:
-        config.override(
-            'th2vec_premiser_embedder_load_dir',
-            os.path.expanduser(args.embedder_load_dir),
-        )
-
     if config.get('distributed_training'):
         distributed.init_process_group(
             backend=config.get('distributed_backend'),
@@ -396,12 +372,10 @@ def train():
     train_set = HolStepSet(
         kernel,
         os.path.expanduser(config.get('th2vec_train_dataset_dir')),
-        premise_only=True,
     )
     test_set = HolStepSet(
         kernel,
         os.path.expanduser(config.get('th2vec_test_dataset_dir')),
-        premise_only=True,
     )
 
     kernel.postprocess_compression(4096)
@@ -421,7 +395,7 @@ def train():
     assert train_dataset is not None
     assert test_dataset is not None
 
-    th2vec = Th2VecPremiser(config)
+    th2vec = Th2VecDirectPremiser(config)
 
     th2vec.init_training(train_dataset)
     th2vec.init_testing(test_dataset)
