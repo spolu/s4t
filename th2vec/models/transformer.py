@@ -329,7 +329,7 @@ class D(nn.Module):
             ]
 
         n = self.theorem_length
-        while n > 2:
+        while n > 1:
             layers += [
                 Downsample(self.hidden_size, 2, 2),
                 GeLU(),
@@ -366,8 +366,4 @@ class D(nn.Module):
 
         trm_embeds = self.input_embedding(term)
 
-        return torch.tanh(
-            self.layers(trm_embeds + pos_embeds).squeeze(1),
-            # torch.max(self.layers(trm_embeds + pos_embeds), 1)[0],
-        )
-
+        return self.layers(trm_embeds + pos_embeds).squeeze(1)
