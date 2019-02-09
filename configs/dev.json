@@ -28,8 +28,8 @@
   "th2vec_theorem_length": 512,
   "th2vec_token_count": 6144,
 
-  "th2vec_batch_size": 32,
-  "th2vec_learning_rate": 0.00025,
+  "th2vec_batch_size": 64,
+  "th2vec_learning_rate": 0.0005,
   "th2vec_learning_rate_annealing": 0.00001,
   "th2vec_learning_rate_ramp_up": 50,
   "th2vec_learning_rate_period": 50,
