@@ -9,7 +9,7 @@ import torch.optim as optim
 from dataset.holstep import HolStepKernel, HolStepSet
 from dataset.holstep import HolStepTermDataset
 
-from generic.lr_scheduler import RampUpCosineLR
+# from generic.lr_scheduler import RampUpCosineLR
 
 from tensorboardX import SummaryWriter
 
@@ -74,22 +74,22 @@ class Th2VecAutoEncoderEmbedder:
             self._model_E.parameters(),
             lr=self._config.get('th2vec_learning_rate'),
         )
-        self._scheduler_E = RampUpCosineLR(
-            self._optimizer_E,
-            self._config.get('th2vec_learning_rate_ramp_up'),
-            self._config.get('th2vec_learning_rate_period'),
-            self._config.get('th2vec_learning_rate_annealing'),
-        )
+        # self._scheduler_E = RampUpCosineLR(
+        #     self._optimizer_E,
+        #     self._config.get('th2vec_learning_rate_ramp_up'),
+        #     self._config.get('th2vec_learning_rate_period'),
+        #     self._config.get('th2vec_learning_rate_annealing'),
+        # )
         self._optimizer_G = optim.Adam(
             self._model_G.parameters(),
             lr=self._config.get('th2vec_learning_rate'),
         )
-        self._scheduler_G = RampUpCosineLR(
-            self._optimizer_G,
-            self._config.get('th2vec_learning_rate_ramp_up'),
-            self._config.get('th2vec_learning_rate_period'),
-            self._config.get('th2vec_learning_rate_annealing'),
-        )
+        # self._scheduler_G = RampUpCosineLR(
+        #     self._optimizer_G,
+        #     self._config.get('th2vec_learning_rate_ramp_up'),
+        #     self._config.get('th2vec_learning_rate_period'),
+        #     self._config.get('th2vec_learning_rate_annealing'),
+        # )
 
         self._train_sampler = None
         if self._config.get('distributed_training'):
@@ -163,13 +163,13 @@ class Th2VecAutoEncoderEmbedder:
                             map_location=self._device,
                         ),
                     )
-                    self._scheduler_E.load_state_dict(
-                        torch.load(
-                            self._load_dir +
-                            "/scheduler_{}.pt".format(rank),
-                            map_location=self._device,
-                        ),
-                    )
+                    # self._scheduler_E.load_state_dict(
+                    #     torch.load(
+                    #         self._load_dir +
+                    #         "/scheduler_{}.pt".format(rank),
+                    #         map_location=self._device,
+                    #     ),
+                    # )
                     self._optimizer_G.load_state_dict(
                         torch.load(
                             self._load_dir +
@@ -177,13 +177,13 @@ class Th2VecAutoEncoderEmbedder:
                             map_location=self._device,
                         ),
                     )
-                    self._scheduler_G.load_state_dict(
-                        torch.load(
-                            self._load_dir +
-                            "/scheduler_G_{}.pt".format(rank),
-                            map_location=self._device,
-                        ),
-                    )
+                    # self._scheduler_G.load_state_dict(
+                    #     torch.load(
+                    #         self._load_dir +
+                    #         "/scheduler_G_{}.pt".format(rank),
+                    #         map_location=self._device,
+                    #     ),
+                    # )
 
         return self
 
@@ -206,10 +206,10 @@ class Th2VecAutoEncoderEmbedder:
                 self._optimizer_E.state_dict(),
                 self._save_dir + "/optimizer_{}.pt".format(rank),
             )
-            torch.save(
-                self._scheduler_E.state_dict(),
-                self._save_dir + "/scheduler_{}.pt".format(rank),
-            )
+            # torch.save(
+            #     self._scheduler_E.state_dict(),
+            #     self._save_dir + "/scheduler_{}.pt".format(rank),
+            # )
             torch.save(
                 self._inner_model_G.state_dict(),
                 self._save_dir + "/model_G_{}.pt".format(rank),
@@ -218,10 +218,10 @@ class Th2VecAutoEncoderEmbedder:
                 self._optimizer_G.state_dict(),
                 self._save_dir + "/optimizer_G_{}.pt".format(rank),
             )
-            torch.save(
-                self._scheduler_G.state_dict(),
-                self._save_dir + "/scheduler_G_{}.pt".format(rank),
-            )
+            # torch.save(
+            #     self._scheduler_G.state_dict(),
+            #     self._save_dir + "/scheduler_G_{}.pt".format(rank),
+            # )
 
     def batch_train(
             self,
@@ -236,8 +236,8 @@ class Th2VecAutoEncoderEmbedder:
 
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(epoch)
-        self._scheduler_E.step()
-        self._scheduler_G.step()
+        # self._scheduler_E.step()
+        # self._scheduler_G.step()
 
         for it, trm in enumerate(self._train_loader):
             trm_emd = self._model_E(trm.to(self._device))
@@ -286,7 +286,7 @@ class Th2VecAutoEncoderEmbedder:
 
         Log.out("EPOCH DONE", {
             'epoch': epoch,
-            'learning_rate': self._scheduler_E.get_lr(),
+            # 'learning_rate': self._scheduler_E.get_lr(),
         })
 
     def batch_test(
@@ -427,12 +427,12 @@ def train():
     train_set = HolStepSet(
         kernel,
         os.path.expanduser(config.get('th2vec_train_dataset_dir')),
-        premise_only=True,
+        # premise_only=True,
     )
     test_set = HolStepSet(
         kernel,
         os.path.expanduser(config.get('th2vec_test_dataset_dir')),
-        premise_only=True,
+        # premise_only=True,
     )
 
     kernel.postprocess_compression(4096)

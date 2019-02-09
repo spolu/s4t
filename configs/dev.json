@@ -28,8 +28,8 @@
   "th2vec_theorem_length": 512,
   "th2vec_token_count": 6144,
 
-  "th2vec_batch_size": 64,
-  "th2vec_learning_rate": 0.0005,
+  "th2vec_batch_size": 32,
+  "th2vec_learning_rate": 0.00025,
   "th2vec_learning_rate_annealing": 0.00001,
   "th2vec_learning_rate_ramp_up": 50,
   "th2vec_learning_rate_period": 50,
@@ -38,14 +38,14 @@
 
   "th2vec_transformer_layer_count": 2,
   "th2vec_transformer_embedding_size": 128,
-  "th2vec_transformer_hidden_size": 256,
-  "th2vec_transformer_attention_head_count": 4,
-  "th2vec_transformer_intermediate_size": 512,
+  "th2vec_transformer_hidden_size": 512,
+  "th2vec_transformer_attention_head_count": 8,
+  "th2vec_transformer_intermediate_size": 1024,
 
-  "th2vec_train_dataset_dir": "./data/th2vec/holstep/train",
+  "th2vec_train_dataset_dir": "./data/th2vec/holstep/embed",
   "th2vec_test_dataset_dir": "./data/th2vec/holstep/test",
 
-  "th2vec_premiser_dataset_type": "classification",
+  "th2vec_premiser_dataset_type": "premise",
   "th2vec_premiser_embedder_load_dir": null,
 
   "tensorboard_log_dir": null
