@@ -201,7 +201,6 @@ class Th2VecGenerator:
 
         dis_loss_meter = Meter()
         gen_loss_meter = Meter()
-        gen_reward_meter = Meter()
 
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(epoch)
@@ -282,93 +281,13 @@ class Th2VecGenerator:
                         "train/th2vec/generator/gen_loss",
                         gen_loss_meter.avg, self._train_batch,
                     )
-                    self._tb_writer.add_scalar(
-                        "train/th2vec/generator/gen_reward",
-                        gen_reward_meter.avg, self._train_batch,
-                    )
 
                 dis_loss_meter = Meter()
                 gen_loss_meter = Meter()
-                gen_reward_meter = Meter()
 
         Log.out("EPOCH DONE", {
             'epoch': epoch,
         })
-
-    def batch_test(
-            self,
-    ):
-        assert self._test_loader is not None
-
-        self._model_G.eval()
-        self._model_D.eval()
-
-        dis_loss_meter = Meter()
-        gen_loss_meter = Meter()
-        gen_reward_meter = Meter()
-
-        with torch.no_grad():
-            for it, trm in enumerate(self._test_loader):
-                nse = torch.randn(
-                    trm.size(0),
-                    self._config.get('th2vec_transformer_hidden_size'),
-                ).to(self._device)
-
-                trm_rel = trm.to(self._device)
-                trm_gen = self._model_G(nse)
-
-                m = Categorical(torch.exp(trm_gen))
-                trm_smp = m.sample()
-
-                dis_rel = self._model_D(trm_rel)
-                dis_gen = self._model_D(trm_smp)
-
-                dis_loss = \
-                    F.binary_cross_entropy(
-                        dis_rel,
-                        torch.ones(*dis_rel.size()).to(self._device),
-                    ) + \
-                    F.binary_cross_entropy(
-                        dis_gen,
-                        torch.zeros(*dis_gen.size()).to(self._device),
-                    )
-
-                gen_reward = dis_gen
-                gen_reward_meter.update(gen_reward.max().item())
-
-                gen_reward -= gen_reward.mean()
-                gen_reward /= torch.std(gen_reward)
-
-                gen_loss = -m.log_prob(trm_smp).mean(1) * gen_reward
-                gen_loss = gen_loss.mean()
-
-                dis_loss_meter.update(dis_loss.item())
-                gen_loss_meter.update(gen_loss.item())
-
-        Log.out("TH2VEC GENERATOR TEST", {
-            'batch_count': self._train_batch,
-            'dis_loss_avg': dis_loss_meter.avg,
-            'gen_loss_avg': gen_loss_meter.avg,
-            'gen_reward_avg': gen_reward_meter.avg,
-        })
-
-        if self._tb_writer is not None:
-            self._tb_writer.add_scalar(
-                "test/th2vec/generator/dis_loss",
-                dis_loss_meter.avg, self._train_batch,
-            )
-            self._tb_writer.add_scalar(
-                "test/th2vec/generator/gen_loss",
-                gen_loss_meter.avg, self._train_batch,
-            )
-            self._tb_writer.add_scalar(
-                "test/th2vec/generator/gen_reward",
-                gen_reward_meter.avg, self._train_batch,
-            )
-
-        dis_loss_meter = Meter()
-        gen_loss_meter = Meter()
-        gen_reward_meter = Meter()
 
 
 def train():
@@ -499,6 +418,5 @@ def train():
     epoch = 0
     while True:
         th2vec.batch_train(epoch)
-        th2vec.batch_test()
         th2vec.save()
         epoch += 1
