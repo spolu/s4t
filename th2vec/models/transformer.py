@@ -60,6 +60,12 @@ class E(nn.Module):
         n = self.theorem_length
         while n > 1:
             layers += [
+                Transformer(
+                    self.hidden_size,
+                    self.attention_head_count,
+                    self.intermediate_size,
+                    dropout=0.1,
+                ),
                 Downsample(self.hidden_size, 2, 2),
                 GeLU(),
                 nn.Dropout(0.1),
@@ -131,6 +137,12 @@ class G(nn.Module):
                 GeLU(),
                 nn.Dropout(0.1),
                 LayerNorm(self.hidden_size),
+                Transformer(
+                    self.hidden_size,
+                    self.attention_head_count,
+                    self.intermediate_size,
+                    dropout=0.1,
+                ),
             ]
             n = n // 2
 
