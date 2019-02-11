@@ -47,15 +47,15 @@ class E(nn.Module):
             nn.Linear(self.embedding_size, self.hidden_size),
         ]
 
-        for _ in range(self.layer_count):
-            layers += [
-                Transformer(
-                    self.hidden_size,
-                    self.attention_head_count,
-                    self.intermediate_size,
-                    dropout=0.1,
-                ),
-            ]
+        # for _ in range(self.layer_count):
+        #     layers += [
+        #         Transformer(
+        #             self.hidden_size,
+        #             self.attention_head_count,
+        #             self.intermediate_size,
+        #             dropout=0.1,
+        #         ),
+        #     ]
 
         n = self.theorem_length
         while n > 1:
@@ -146,15 +146,15 @@ class G(nn.Module):
             ]
             n = n // 2
 
-        for _ in range(self.layer_count):
-            layers += [
-                Transformer(
-                    self.hidden_size,
-                    self.attention_head_count,
-                    self.intermediate_size,
-                    dropout=0.1,
-                ),
-            ]
+        # for _ in range(self.layer_count):
+        #     layers += [
+        #         Transformer(
+        #             self.hidden_size,
+        #             self.attention_head_count,
+        #             self.intermediate_size,
+        #             dropout=0.1,
+        #         ),
+        #     ]
 
         layers += [
             nn.Linear(self.hidden_size, self.token_count),
