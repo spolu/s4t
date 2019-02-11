@@ -381,10 +381,10 @@ def train():
         # premise_only=True,
     )
 
-    kernel.postprocess_compression(4096)
+    # kernel.postprocess_compression(4096)
 
-    train_set.postprocess()
-    test_set.postprocess()
+    # train_set.postprocess()
+    # test_set.postprocess()
 
     train_dataset = HolStepTermDataset(train_set)
     test_dataset = HolStepTermDataset(test_set)
