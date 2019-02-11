@@ -218,8 +218,12 @@ class Th2VecGenerator:
             m = Categorical(torch.exp(trm_gen))
             trm_smp = m.sample()
 
-            dis_rel = self._model_D(trm_rel)
-            dis_gen = self._model_D(trm_smp)
+            onh_rel = self._model_D.one_hot(trm_rel)
+            onh_gen = self._model_D.one_hot(trm_smp)
+            onh_gen.requires_grad = True
+
+            dis_rel = self._model_D(onh_rel)
+            dis_gen = self._model_D(onh_gen)
 
             dis_loss = \
                 F.binary_cross_entropy(
@@ -236,6 +240,7 @@ class Th2VecGenerator:
             self._optimizer_D.step()
 
             # REINFORCE
+            import pdb; pdb.set_trace()
             gen_reward = dis_gen.detach()
             gen_reward_meter.update(gen_reward.max().item())
 
@@ -476,10 +481,10 @@ def train():
         premise_only=True,
     )
 
-    kernel.postprocess_compression(4096)
+    # kernel.postprocess_compression(4096)
 
-    train_set.postprocess()
-    test_set.postprocess()
+    # train_set.postprocess()
+    # test_set.postprocess()
 
     train_dataset = HolStepTermDataset(train_set)
     test_dataset = HolStepTermDataset(test_set)

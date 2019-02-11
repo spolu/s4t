@@ -208,7 +208,7 @@ class D(nn.Module):
         self.layer_count = \
             config.get('th2vec_transformer_layer_count')
 
-        self.input_embedding = nn.Embedding(
+        self.input_linear = nn.Linear(
             self.token_count, self.embedding_size,
         )
         self.position_embedding = nn.Embedding(
@@ -221,7 +221,18 @@ class D(nn.Module):
             nn.Linear(self.embedding_size, self.hidden_size),
         ]
 
-        for _ in range(self.layer_count):
+        # for _ in range(self.layer_count):
+        #     layers += [
+        #         Transformer(
+        #             self.hidden_size,
+        #             self.attention_head_count,
+        #             self.intermediate_size,
+        #             dropout=0.1,
+        #         ),
+        #     ]
+
+        n = self.theorem_length
+        while n > 1:
             layers += [
                 Transformer(
                     self.hidden_size,
@@ -229,11 +240,6 @@ class D(nn.Module):
                     self.intermediate_size,
                     dropout=0.1,
                 ),
-            ]
-
-        n = self.theorem_length
-        while n > 1:
-            layers += [
                 Downsample(self.hidden_size, 2, 2),
                 GeLU(),
                 nn.Dropout(0.1),
@@ -257,10 +263,24 @@ class D(nn.Module):
     ):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
+    def one_hot(
+            self,
+            term,
+    ):
+        term_one_hot = torch.zeros(
+            term.size(0),
+            term.size(1),
+            self.token_count,
+        ).to(self.device)
+        term_one_hot.scatter_(2, term.unsqueeze(2), 1)
+
+        return term_one_hot
+
     def forward(
             self,
             term,
     ):
+
         pos_embeds = torch.arange(
             self.theorem_length, dtype=torch.long
         ).to(self.device)
@@ -269,7 +289,7 @@ class D(nn.Module):
         )
         pos_embeds = self.position_embedding(pos_embeds)
 
-        trm_embeds = self.input_embedding(term)
+        trm_embeds = self.input_linear(term)
 
         return self.layers(trm_embeds + pos_embeds).squeeze(1)
 
