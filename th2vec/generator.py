@@ -225,29 +225,30 @@ class Th2VecGenerator:
             dis_rel = self._model_D(onh_rel)
             dis_gen = self._model_D(onh_gen)
 
-            dis_loss = \
+            dis_loss_rel = \
                 F.binary_cross_entropy(
                     dis_rel,
                     torch.ones(*dis_rel.size()).to(self._device),
-                ) + \
+                )
+            dis_loss_gen = \
                 F.binary_cross_entropy(
                     dis_gen,
                     torch.zeros(*dis_gen.size()).to(self._device),
                 )
+            dis_loss = dis_loss_rel + dis_loss_gen
 
             self._optimizer_D.zero_grad()
             dis_loss.backward()
             self._optimizer_D.step()
 
             # REINFORCE
-            import pdb; pdb.set_trace()
-            gen_reward = dis_gen.detach()
-            gen_reward_meter.update(gen_reward.max().item())
+            reward = onh_gen.grad.detach()
+            reward -= \
+                torch.mean(reward, 2).unsqueeze(-1).expand(*reward.size())
+            reward /= \
+                torch.std(reward, 2).unsqueeze(-1).expand(*reward.size())
 
-            gen_reward -= gen_reward.mean()
-            gen_reward /= torch.std(gen_reward)
-
-            gen_loss = -m.log_prob(trm_smp).mean(1) * gen_reward
+            gen_loss = -(trm_gen * reward)
             gen_loss = gen_loss.mean()
 
             self._optimizer_G.zero_grad()
@@ -264,7 +265,6 @@ class Th2VecGenerator:
                     'train_batch': self._train_batch,
                     'dis_loss_avg': dis_loss_meter.avg,
                     'gen_loss_avg': gen_loss_meter.avg,
-                    'gen_reward_avg': gen_reward_meter.avg,
                 })
 
                 Log.out("<<<", {

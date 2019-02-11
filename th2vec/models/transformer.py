@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from generic.gelu import GeLU
 from generic.layer_norm import LayerNorm
-from generic.transformer import Transformer, Downsample, Upsample
+from generic.transformer import Downsample, Upsample
 
 from torch.distributions.categorical import Categorical
 
@@ -234,12 +234,12 @@ class D(nn.Module):
         n = self.theorem_length
         while n > 1:
             layers += [
-                Transformer(
-                    self.hidden_size,
-                    self.attention_head_count,
-                    self.intermediate_size,
-                    dropout=0.1,
-                ),
+                # Transformer(
+                #     self.hidden_size,
+                #     self.attention_head_count,
+                #     self.intermediate_size,
+                #     dropout=0.1,
+                # ),
                 Downsample(self.hidden_size, 2, 2),
                 GeLU(),
                 nn.Dropout(0.1),
