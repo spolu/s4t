@@ -218,8 +218,8 @@ class Th2VecGenerator:
             m = Categorical(torch.exp(trm_gen))
             trm_smp = m.sample()
 
-            onh_rel = self._model_D.one_hot(trm_rel)
-            onh_gen = self._model_D.one_hot(trm_smp)
+            onh_rel = self._inner_model_D.one_hot(trm_rel)
+            onh_gen = self._inner_model_D.one_hot(trm_smp)
             onh_gen.requires_grad = True
 
             dis_rel = self._model_D(onh_rel)
