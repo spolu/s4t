@@ -252,7 +252,7 @@ class Th2VecGenerator:
 
             self._optimizer_G.zero_grad()
             gen_loss.backward()
-            self._optimizer_G.step()
+            # self._optimizer_G.step()
 
             dis_loss_meter.update(dis_loss.item())
             gen_loss_meter.update(gen_loss.item())
