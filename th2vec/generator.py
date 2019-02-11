@@ -10,8 +10,6 @@ import torch.optim as optim
 from dataset.holstep import HolStepKernel, HolStepSet
 from dataset.holstep import HolStepTermDataset
 
-from generic.lr_scheduler import RampUpCosineLR
-
 from tensorboardX import SummaryWriter
 
 from th2vec.models.transformer import G, D
@@ -28,8 +26,10 @@ class Th2VecGenerator:
     def __init__(
             self,
             config: Config,
+            kernel: HolStepKernel,
     ):
         self._config = config
+        self._kernel = kernel
 
         self._device = torch.device(config.get('device'))
 
@@ -75,21 +75,9 @@ class Th2VecGenerator:
             self._model_G.parameters(),
             lr=self._config.get('th2vec_learning_rate'),
         )
-        self._scheduler_G = RampUpCosineLR(
-            self._optimizer_G,
-            self._config.get('th2vec_learning_rate_ramp_up'),
-            self._config.get('th2vec_learning_rate_period'),
-            self._config.get('th2vec_learning_rate_annealing'),
-        )
         self._optimizer_D = optim.Adam(
             self._model_D.parameters(),
             lr=self._config.get('th2vec_learning_rate'),
-        )
-        self._scheduler_D = RampUpCosineLR(
-            self._optimizer_D,
-            self._config.get('th2vec_learning_rate_ramp_up'),
-            self._config.get('th2vec_learning_rate_period'),
-            self._config.get('th2vec_learning_rate_annealing'),
         )
 
         self._train_sampler = None
@@ -164,24 +152,10 @@ class Th2VecGenerator:
                             map_location=self._device,
                         ),
                     )
-                    self._scheduler_G.load_state_dict(
-                        torch.load(
-                            self._load_dir +
-                            "/scheduler_G_{}.pt".format(rank),
-                            map_location=self._device,
-                        ),
-                    )
                     self._optimizer_D.load_state_dict(
                         torch.load(
                             self._load_dir +
                             "/optimizer_D_{}.pt".format(rank),
-                            map_location=self._device,
-                        ),
-                    )
-                    self._scheduler_D.load_state_dict(
-                        torch.load(
-                            self._load_dir +
-                            "/scheduler_D_{}.pt".format(rank),
                             map_location=self._device,
                         ),
                     )
@@ -208,20 +182,12 @@ class Th2VecGenerator:
                 self._save_dir + "/optimizer_G_{}.pt".format(rank),
             )
             torch.save(
-                self._scheduler_G.state_dict(),
-                self._save_dir + "/scheduler_G_{}.pt".format(rank),
-            )
-            torch.save(
                 self._inner_model_D.state_dict(),
                 self._save_dir + "/model_D_{}.pt".format(rank),
             )
             torch.save(
                 self._optimizer_D.state_dict(),
                 self._save_dir + "/optimizer_D_{}.pt".format(rank),
-            )
-            torch.save(
-                self._scheduler_D.state_dict(),
-                self._save_dir + "/scheduler_D_{}.pt".format(rank),
             )
 
     def batch_train(
@@ -239,8 +205,6 @@ class Th2VecGenerator:
 
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(epoch)
-        self._scheduler_G.step()
-        self._scheduler_D.step()
 
         for it, trm in enumerate(self._train_loader):
             nse = torch.randn(
@@ -272,7 +236,11 @@ class Th2VecGenerator:
             self._optimizer_D.step()
 
             # REINFORCE
-            gen_reward = dis_gen
+            gen_reward = dis_gen.detach()
+            gen_reward_meter.update(gen_reward.max().item())
+
+            gen_reward -= gen_reward.mean()
+            gen_reward /= torch.std(gen_reward)
 
             gen_loss = -m.log_prob(trm_smp).mean(1) * gen_reward
             gen_loss = gen_loss.mean()
@@ -283,7 +251,6 @@ class Th2VecGenerator:
 
             dis_loss_meter.update(dis_loss.item())
             gen_loss_meter.update(gen_loss.item())
-            gen_reward_meter.update(gen_reward.mean().item())
 
             self._train_batch += 1
 
@@ -293,6 +260,12 @@ class Th2VecGenerator:
                     'dis_loss_avg': dis_loss_meter.avg,
                     'gen_loss_avg': gen_loss_meter.avg,
                     'gen_reward_avg': gen_reward_meter.avg,
+                })
+
+                Log.out("<<<", {
+                    'term': self._kernel.detokenize(
+                        trm_smp[0].cpu().data.numpy(),
+                    ),
                 })
 
                 if self._tb_writer is not None:
@@ -315,7 +288,6 @@ class Th2VecGenerator:
 
         Log.out("EPOCH DONE", {
             'epoch': epoch,
-            'learning_rate': self._scheduler_G.get_lr(),
         })
 
     def batch_test(
@@ -357,13 +329,16 @@ class Th2VecGenerator:
                     )
 
                 gen_reward = dis_gen
+                gen_reward_meter.update(gen_reward.max().item())
 
-                gen_loss = -m.log_prob(torch.exp(trm_gen)).mean(1) * gen_reward
+                gen_reward -= gen_reward.mean()
+                gen_reward /= torch.std(gen_reward)
+
+                gen_loss = -m.log_prob(trm_smp).mean(1) * gen_reward
                 gen_loss = gen_loss.mean()
 
                 dis_loss_meter.update(dis_loss.item())
                 gen_loss_meter.update(gen_loss.item())
-                gen_reward_meter.update(gen_reward.mean().item())
 
         Log.out("TH2VEC GENERATOR TEST", {
             'batch_count': self._train_batch,
@@ -509,7 +484,7 @@ def train():
     train_dataset = HolStepTermDataset(train_set)
     test_dataset = HolStepTermDataset(test_set)
 
-    th2vec = Th2VecGenerator(config)
+    th2vec = Th2VecGenerator(config, kernel)
 
     th2vec.init_training(train_dataset)
     th2vec.init_testing(test_dataset)

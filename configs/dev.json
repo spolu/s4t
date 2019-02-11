@@ -28,8 +28,8 @@
   "th2vec_theorem_length": 512,
   "th2vec_token_count": 6144,
 
-  "th2vec_batch_size": 24,
-  "th2vec_learning_rate": 0.001,
+  "th2vec_batch_size": 16,
+  "th2vec_learning_rate": 0.0001,
   "th2vec_learning_rate_annealing": 0.0001,
   "th2vec_learning_rate_ramp_up": 10,
   "th2vec_learning_rate_period": 20,
@@ -42,7 +42,7 @@
   "th2vec_transformer_attention_head_count": 8,
   "th2vec_transformer_intermediate_size": 1024,
 
-  "th2vec_train_dataset_dir": "./data/th2vec/holstep/embed",
+  "th2vec_train_dataset_dir": "./data/th2vec/holstep/train",
   "th2vec_test_dataset_dir": "./data/th2vec/holstep/test",
 
   "th2vec_premiser_dataset_type": "classification",
