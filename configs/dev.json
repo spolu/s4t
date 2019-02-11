@@ -25,10 +25,10 @@
   "sat_solver_transformer_intermediate_size": 512,
 
 
-  "th2vec_theorem_length": 256,
+  "th2vec_theorem_length": 512,
   "th2vec_token_count": 2048,
 
-  "th2vec_batch_size": 108,
+  "th2vec_batch_size": 256,
   "th2vec_learning_rate": 0.00025,
   "th2vec_learning_rate_annealing": 0.0001,
   "th2vec_learning_rate_ramp_up": 10,
