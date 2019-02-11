@@ -9,7 +9,7 @@ import torch.optim as optim
 from dataset.holstep import HolStepKernel, HolStepSet
 from dataset.holstep import HolStepTermDataset
 
-from generic.lr_scheduler import RampUpCosineLR
+# from generic.lr_scheduler import RampUpCosineLR
 
 from tensorboardX import SummaryWriter
 
@@ -67,12 +67,12 @@ class Th2VecAutoEncoderEmbedder:
             self._model.parameters(),
             lr=self._config.get('th2vec_learning_rate'),
         )
-        self._scheduler = RampUpCosineLR(
-            self._optimizer,
-            self._config.get('th2vec_learning_rate_ramp_up'),
-            self._config.get('th2vec_learning_rate_period'),
-            self._config.get('th2vec_learning_rate_annealing'),
-        )
+        # self._scheduler = RampUpCosineLR(
+        #     self._optimizer,
+        #     self._config.get('th2vec_learning_rate_ramp_up'),
+        #     self._config.get('th2vec_learning_rate_period'),
+        #     self._config.get('th2vec_learning_rate_annealing'),
+        # )
 
         self._train_sampler = None
         if self._config.get('distributed_training'):
@@ -140,13 +140,13 @@ class Th2VecAutoEncoderEmbedder:
                             map_location=self._device,
                         ),
                     )
-                    self._scheduler.load_state_dict(
-                        torch.load(
-                            self._load_dir +
-                            "/scheduler_{}.pt".format(rank),
-                            map_location=self._device,
-                        ),
-                    )
+                    # self._scheduler.load_state_dict(
+                    #     torch.load(
+                    #         self._load_dir +
+                    #         "/scheduler_{}.pt".format(rank),
+                    #         map_location=self._device,
+                    #     ),
+                    # )
 
         return self
 
@@ -169,10 +169,10 @@ class Th2VecAutoEncoderEmbedder:
                 self._optimizer.state_dict(),
                 self._save_dir + "/optimizer_{}.pt".format(rank),
             )
-            torch.save(
-                self._scheduler.state_dict(),
-                self._save_dir + "/scheduler_{}.pt".format(rank),
-            )
+            # torch.save(
+            #     self._scheduler.state_dict(),
+            #     self._save_dir + "/scheduler_{}.pt".format(rank),
+            # )
 
     def batch_train(
             self,
@@ -186,7 +186,7 @@ class Th2VecAutoEncoderEmbedder:
 
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(epoch)
-        self._scheduler.step()
+        # self._scheduler.step()
 
         for it, trm in enumerate(self._train_loader):
             trm_rec = self._model(trm.to(self._device))
@@ -205,21 +205,9 @@ class Th2VecAutoEncoderEmbedder:
             self._train_batch += 1
 
             if self._train_batch % 10 == 0:
-                trm_smp = self._inner_model.sample(trm_rec)
-
                 Log.out("TH2VEC AUTOENCODER_EMBEDDER TRAIN", {
                     'train_batch': self._train_batch,
                     'loss_avg': all_loss_meter.avg,
-                })
-                Log.out("<<<", {
-                    'term': self._kernel.detokenize(
-                        trm[0].data.numpy(),
-                    ),
-                })
-                Log.out(">>>", {
-                    'term': self._kernel.detokenize(
-                        trm_smp[0].cpu().data.numpy(),
-                    ),
                 })
 
                 if self._tb_writer is not None:
@@ -232,7 +220,7 @@ class Th2VecAutoEncoderEmbedder:
 
         Log.out("EPOCH DONE", {
             'epoch': epoch,
-            'learning_rate': self._scheduler.get_lr(),
+            # 'learning_rate': self._scheduler.get_lr(),
         })
 
     def batch_test(
@@ -254,6 +242,20 @@ class Th2VecAutoEncoderEmbedder:
                 )
 
                 all_loss_meter.update(all_loss.item())
+
+                if it == 0:
+                    trm_smp = self._inner_model.sample(trm_rec)
+
+                    Log.out("<<<", {
+                        'term': self._kernel.detokenize(
+                            trm[0].data.numpy(),
+                        ),
+                    })
+                    Log.out(">>>", {
+                        'term': self._kernel.detokenize(
+                            trm_smp[0].cpu().data.numpy(),
+                        ),
+                    })
 
         Log.out("TH2VEC TEST", {
             'batch_count': self._train_batch,
@@ -371,12 +373,12 @@ def train():
     train_set = HolStepSet(
         kernel,
         os.path.expanduser(config.get('th2vec_train_dataset_dir')),
-        # premise_only=True,
+        premise_only=True,
     )
     test_set = HolStepSet(
         kernel,
         os.path.expanduser(config.get('th2vec_test_dataset_dir')),
-        # premise_only=True,
+        premise_only=True,
     )
 
     kernel.postprocess_compression(4096)
