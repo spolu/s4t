@@ -22,15 +22,15 @@ class P(nn.Module):
         layers += [
             nn.Linear(2*self.hidden_size, self.hidden_size),
             GeLU(),
-            nn.Dropout(0.1),
+            nn.Dropout(config.get('th2vec_mlp_dropout')),
             LayerNorm(self.hidden_size),
         ]
 
-        for _ in range(4):
+        for _ in range(8):
             layers += [
                 nn.Linear(self.hidden_size, self.hidden_size),
                 GeLU(),
-                nn.Dropout(0.1),
+                # nn.Dropout(config.get('th2vec_mlp_dropout')),
                 LayerNorm(self.hidden_size),
             ]
 
