@@ -201,12 +201,12 @@ class Th2VecGenerator:
             m = Categorical(torch.exp(trm_gen))
             trm_smp = m.sample()
 
-            onh_rel = self._inner_model_D.one_hot(trm_rel)
-            onh_gen = self._inner_model_D.one_hot(trm_smp)
-            onh_gen.requires_grad = True
+            # onh_rel = self._inner_model_D.one_hot(trm_rel)
+            # onh_gen = self._inner_model_D.one_hot(trm_smp)
+            # onh_gen.requires_grad = True
 
-            dis_rel = self._model_D(onh_rel)
-            dis_gen = self._model_D(onh_gen)
+            dis_rel = self._model_D(trm_rel)
+            dis_gen = self._model_D(trm_smp)
 
             # Label smoothing
             ones = torch.ones(*dis_rel.size()) - \
@@ -225,13 +225,21 @@ class Th2VecGenerator:
             self._optimizer_D.step()
 
             # REINFORCE
-            reward = onh_gen.grad.detach()
-            reward -= \
-                torch.mean(reward, 2).unsqueeze(-1).expand(*reward.size())
-            reward /= \
-                torch.std(reward, 2).unsqueeze(-1).expand(*reward.size())
 
-            gen_loss = trm_gen * reward  # (-logp * -grad_dis)
+            # reward = onh_gen.grad.detach()
+            # reward -= \
+            #     torch.mean(reward, 2).unsqueeze(-1).expand(*reward.size())
+            # reward /= \
+            #     torch.std(reward, 2).unsqueeze(-1).expand(*reward.size())
+
+            # gen_loss = trm_gen * reward  # (-logp * -grad_dis)
+            # gen_loss = gen_loss.mean()
+
+            reward = dis_gen.squeeze(1).detach()
+            reward -= torch.mean(reward)
+            reward /= torch.std(reward)
+
+            gen_loss = -m.log_prob(trm_smp).mean(1) * reward
             gen_loss = gen_loss.mean()
 
             self._optimizer_G.zero_grad()
@@ -367,7 +375,7 @@ def train():
     train_set = HolStepSet(
         kernel,
         os.path.expanduser(config.get('th2vec_train_dataset_dir')),
-        premise_only=True,
+        premise_only=config.get('th2vec_premise_only'),
     )
 
     # kernel.postprocess_compression(4096)

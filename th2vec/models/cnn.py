@@ -159,12 +159,12 @@ class D(nn.Module):
         self.dropout = \
             config.get('th2vec_cnn_dropout')
 
-        self.input_linear = nn.Linear(
+        self.input_embedding = nn.Embedding(
             self.token_count, self.embedding_size,
         )
-        self.position_embedding = nn.Embedding(
-            self.theorem_length, self.embedding_size
-        )
+        # self.position_embedding = nn.Embedding(
+        #     self.theorem_length, self.embedding_size
+        # )
 
         layers = []
         layers += [
@@ -215,18 +215,8 @@ class D(nn.Module):
             self,
             term,
     ):
-
-        pos_embeds = torch.arange(
-            self.theorem_length, dtype=torch.long
-        ).to(self.device)
-        pos_embeds = pos_embeds.unsqueeze(0).expand(
-           term.size(0), self.theorem_length,
-        )
-        pos_embeds = self.position_embedding(pos_embeds)
-
-        trm_embeds = self.input_linear(term)
-
-        return self.layers(trm_embeds + pos_embeds).squeeze(1)
+        trm_embeds = self.input_embedding(term)
+        return self.layers(trm_embeds).squeeze(1)
 
 
 class AE(nn.Module):
