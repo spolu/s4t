@@ -105,7 +105,7 @@ class HolStepKernel():
             v = tokenized[i]
             if v == 0:
                 term += "__"
-            if v not in self._invert:
+            elif v not in self._invert:
                 term += " ?"
             else:
                 term += " " + self._invert[v]

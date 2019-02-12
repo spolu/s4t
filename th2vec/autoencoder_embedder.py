@@ -13,7 +13,7 @@ from dataset.holstep import HolStepTermDataset
 
 from tensorboardX import SummaryWriter
 
-from th2vec.models.transformer import AE
+from th2vec.models.cnn import AE
 
 from utils.config import Config
 from utils.meter import Meter
@@ -373,16 +373,15 @@ def train():
     train_set = HolStepSet(
         kernel,
         os.path.expanduser(config.get('th2vec_train_dataset_dir')),
-        # premise_only=True,
+        premise_only=config.get('th2vec_premise_only'),
     )
     test_set = HolStepSet(
         kernel,
         os.path.expanduser(config.get('th2vec_test_dataset_dir')),
-        # premise_only=True,
+        premise_only=config.get('th2vec_premise_only'),
     )
 
     # kernel.postprocess_compression(4096)
-
     # train_set.postprocess()
     # test_set.postprocess()
 
