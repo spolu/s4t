@@ -210,6 +210,66 @@ class AE(nn.Module):
         return reconstruct
 
 
+class VAE(nn.Module):
+    """ Variationnal AutoEncoder
+    """
+    def __init__(
+            self,
+            config,
+    ):
+        super(VAE, self).__init__()
+
+        self.hidden_size = config.get('th2vec_transformer_hidden_size')
+
+        self._G = G(config)
+        self._E = E(config)
+
+        self._mu = nn.Linear(self.hidden_size, self.hidden_size)
+        self._logvar = nn.Linear(self.hidden_size, self.hidden_size)
+
+    def parameters_count(
+            self,
+    ):
+        return self._G.parameters_count() + self._E.parameters_count()
+
+    def encode(
+            self,
+            term,
+    ):
+        hidden = self._E(term)
+        return self._mu(hidden), self._logvar(hidden)
+
+    def decode(
+            self,
+            hidden,
+    ):
+        return self._G(hidden)
+
+    def sample(
+            self,
+            reconstruct,
+    ):
+        return self._G.sample(reconstruct)
+
+    def reparametrize(
+            self,
+            mu,
+            logvar,
+    ):
+        std = torch.exp(0.5*logvar)
+        eps = torch.randn_like(std)
+        return eps.mul(std).add_(mu)
+
+    def forward(
+            self,
+            term,
+    ):
+        mu, logvar = self.encode(term)
+        z = self.reparametrize(mu, logvar)
+
+        return self.decode(z), mu, logvar
+
+
 class DP(nn.Module):
     """ Direct Premiser
     """

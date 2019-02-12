@@ -13,7 +13,7 @@ from dataset.holstep import HolStepTermDataset
 
 from tensorboardX import SummaryWriter
 
-from th2vec.models.transformer import AE
+from th2vec.models.cnn import VAE
 
 from utils.config import Config
 from utils.meter import Meter
@@ -42,7 +42,7 @@ class Th2VecAutoEncoderEmbedder:
                     self._config.get('tensorboard_log_dir'),
                 )
 
-        self._inner_model = AE(self._config).to(self._device)
+        self._inner_model = VAE(self._config).to(self._device)
 
         Log.out(
             "Initializing th2vec", {
@@ -182,6 +182,8 @@ class Th2VecAutoEncoderEmbedder:
 
         self._model.train()
 
+        rec_loss_meter = Meter()
+        kld_loss_meter = Meter()
         all_loss_meter = Meter()
 
         if self._config.get('distributed_training'):
@@ -189,17 +191,22 @@ class Th2VecAutoEncoderEmbedder:
         # self._scheduler.step()
 
         for it, trm in enumerate(self._train_loader):
-            trm_rec = self._model(trm.to(self._device))
+            trm_rec, mu, logvar = self._model(trm.to(self._device))
 
-            all_loss = self._loss(
+            rec_loss = self._loss(
                 trm_rec.view(-1, trm_rec.size(2)),
                 trm.to(self._device).view(-1),
             )
+            kld_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+
+            all_loss = rec_loss + 0.2 * kld_loss
 
             self._optimizer.zero_grad()
             all_loss.backward()
             self._optimizer.step()
 
+            rec_loss_meter.update(rec_loss.item())
+            kld_loss_meter.update(kld_loss.item())
             all_loss_meter.update(all_loss.item())
 
             self._train_batch += 1
@@ -212,10 +219,20 @@ class Th2VecAutoEncoderEmbedder:
 
                 if self._tb_writer is not None:
                     self._tb_writer.add_scalar(
+                        "train/th2vec/autoencoder_embedder/rec_loss",
+                        rec_loss_meter.avg, self._train_batch,
+                    )
+                    self._tb_writer.add_scalar(
+                        "train/th2vec/autoencoder_embedder/kld_loss",
+                        kld_loss_meter.avg, self._train_batch,
+                    )
+                    self._tb_writer.add_scalar(
                         "train/th2vec/autoencoder_embedder/all_loss",
                         all_loss_meter.avg, self._train_batch,
                     )
 
+                rec_loss_meter = Meter()
+                kld_loss_meter = Meter()
                 all_loss_meter = Meter()
 
         Log.out("EPOCH DONE", {
@@ -230,18 +247,18 @@ class Th2VecAutoEncoderEmbedder:
 
         self._model.eval()
 
-        all_loss_meter = Meter()
+        rec_loss_meter = Meter()
 
         with torch.no_grad():
             for it, trm in enumerate(self._test_loader):
                 trm_rec = self._model(trm.to(self._device))
 
-                all_loss = self._loss(
+                rec_loss = self._loss(
                     trm_rec.view(-1, trm_rec.size(2)),
                     trm.to(self._device).view(-1),
                 )
 
-                all_loss_meter.update(all_loss.item())
+                rec_loss_meter.update(rec_loss.item())
 
                 if it == 0:
                     trm_smp = self._inner_model.sample(trm_rec)
@@ -259,16 +276,16 @@ class Th2VecAutoEncoderEmbedder:
 
         Log.out("TH2VEC TEST", {
             'batch_count': self._train_batch,
-            'loss_avg': all_loss_meter.avg,
+            'loss_avg': rec_loss_meter.avg,
         })
 
         if self._tb_writer is not None:
             self._tb_writer.add_scalar(
-                "test/th2vec/autoencoder_embedder/all_loss",
-                all_loss_meter.avg, self._train_batch,
+                "test/th2vec/autoencoder_embedder/rec_loss",
+                rec_loss_meter.avg, self._train_batch,
             )
 
-        all_loss_meter = Meter()
+        rec_loss_meter = Meter()
 
 
 def train():
