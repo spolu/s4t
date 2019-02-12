@@ -231,7 +231,7 @@ class Th2VecGenerator:
             reward /= \
                 torch.std(reward, 2).unsqueeze(-1).expand(*reward.size())
 
-            gen_loss = -(trm_gen * reward)
+            gen_loss = trm_gen * reward  # (-logp * -grad_dis)
             gen_loss = gen_loss.mean()
 
             self._optimizer_G.zero_grad()
