@@ -102,22 +102,6 @@ class Th2VecGenerator:
 
         self._train_batch = 0
 
-    def init_testing(
-            self,
-            test_dataset,
-    ):
-        pin_memory = False
-        if self._config.get('device') != 'cpu':
-            pin_memory = True
-
-        self._test_loader = torch.utils.data.DataLoader(
-            test_dataset,
-            batch_size=self._config.get('th2vec_batch_size'),
-            shuffle=False,
-            num_workers=8,
-            pin_memory=pin_memory,
-        )
-
     def load(
             self,
             training=True,
@@ -302,10 +286,6 @@ def train():
         type=str, help="train dataset directory",
     )
     parser.add_argument(
-        '--test_dataset_dir',
-        type=str, help="test dataset directory",
-    )
-    parser.add_argument(
         '--save_dir',
         type=str, help="config override",
     )
@@ -355,11 +335,6 @@ def train():
             'th2vec_train_dataset_dir',
             os.path.expanduser(args.train_dataset_dir),
         )
-    if args.test_dataset_dir is not None:
-        config.override(
-            'th2vec_test_dataset_dir',
-            os.path.expanduser(args.test_dataset_dir),
-        )
     if args.tensorboard_log_dir is not None:
         config.override(
             'tensorboard_log_dir',
@@ -394,24 +369,15 @@ def train():
         os.path.expanduser(config.get('th2vec_train_dataset_dir')),
         premise_only=True,
     )
-    test_set = HolStepSet(
-        kernel,
-        os.path.expanduser(config.get('th2vec_test_dataset_dir')),
-        premise_only=True,
-    )
 
     # kernel.postprocess_compression(4096)
-
     # train_set.postprocess()
-    # test_set.postprocess()
 
     train_dataset = HolStepTermDataset(train_set)
-    test_dataset = HolStepTermDataset(test_set)
 
     th2vec = Th2VecGenerator(config, kernel)
 
     th2vec.init_training(train_dataset)
-    th2vec.init_testing(test_dataset)
 
     th2vec.load(True)
 

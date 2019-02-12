@@ -36,7 +36,6 @@ class Downsample(nn.Module):
             kernel_size=3,
             stride=2,
             padding=1,
-            output_padding=0,
     ):
         super(Downsample, self).__init__()
 
@@ -45,7 +44,6 @@ class Downsample(nn.Module):
             kernel_size=kernel_size,
             stride=stride,
             padding=padding,
-            output_padding=output_padding,
         )
 
     def forward(

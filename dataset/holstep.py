@@ -104,9 +104,9 @@ class HolStepKernel():
         for i in range(len(tokenized)):
             v = tokenized[i]
             if v == 0:
-                break
+                term += "__"
             if v not in self._invert:
-                term += " #?#"
+                term += " ?"
             else:
                 term += " " + self._invert[v]
 
