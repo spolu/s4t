@@ -13,7 +13,7 @@ from dataset.holstep import HolStepTermDataset
 
 from tensorboardX import SummaryWriter
 
-from th2vec.models.cnn import VAE
+from th2vec.models.transformer import VAE
 
 from utils.config import Config
 from utils.meter import Meter
