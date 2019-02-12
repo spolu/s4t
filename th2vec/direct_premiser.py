@@ -13,7 +13,7 @@ from generic.lr_scheduler import RampUpCosineLR
 
 from tensorboardX import SummaryWriter
 
-from th2vec.models.transformer import P
+from th2vec.models.transformer import DP
 
 from utils.config import Config
 from utils.meter import Meter
@@ -40,7 +40,7 @@ class Th2VecDirectPremiser:
                     self._config.get('tensorboard_log_dir'),
                 )
 
-        self._inner_model = P(self._config).to(self._device)
+        self._inner_model = DP(self._config).to(self._device)
 
         Log.out(
             "Initializing th2vec", {
