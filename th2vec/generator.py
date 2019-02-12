@@ -12,7 +12,7 @@ from dataset.holstep import HolStepTermDataset
 
 from tensorboardX import SummaryWriter
 
-from th2vec.models.transformer import G, D
+from th2vec.models.cnn import G, D
 
 from torch.distributions.categorical import Categorical
 
@@ -224,16 +224,16 @@ class Th2VecGenerator:
             dis_rel = self._model_D(onh_rel)
             dis_gen = self._model_D(onh_gen)
 
+            # Label smoothing
+            ones = torch.ones(*dis_rel.size()) - \
+                torch.rand(*dis_rel.size()) / 10
+            zeros = torch.zeros(*dis_rel.size()) + \
+                torch.rand(*dis_rel.size()) / 10
+
             dis_loss_rel = \
-                F.binary_cross_entropy(
-                    dis_rel,
-                    torch.ones(*dis_rel.size()).to(self._device),
-                )
+                F.binary_cross_entropy(dis_rel, ones.to(self._device))
             dis_loss_gen = \
-                F.binary_cross_entropy(
-                    dis_gen,
-                    torch.zeros(*dis_gen.size()).to(self._device),
-                )
+                F.binary_cross_entropy(dis_gen, zeros.to(self._device))
             dis_loss = dis_loss_rel + dis_loss_gen
 
             self._optimizer_D.zero_grad()
@@ -252,7 +252,7 @@ class Th2VecGenerator:
 
             self._optimizer_G.zero_grad()
             gen_loss.backward()
-            # self._optimizer_G.step()
+            self._optimizer_G.step()
 
             dis_loss_meter.update(dis_loss.item())
             gen_loss_meter.update(gen_loss.item())

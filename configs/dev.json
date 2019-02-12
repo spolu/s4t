@@ -28,13 +28,17 @@
   "th2vec_theorem_length": 512,
   "th2vec_token_count": 2048,
 
-  "th2vec_batch_size": 160,
-  "th2vec_learning_rate": 0.00025,
+  "th2vec_batch_size": 32,
+  "th2vec_learning_rate": 0.0001,
   "th2vec_learning_rate_annealing": 0.0001,
   "th2vec_learning_rate_ramp_up": 10,
   "th2vec_learning_rate_period": 20,
   "th2vec_load_dir": null,
   "th2vec_save_dir": null,
+
+  "th2vec_cnn_embedding_size": 128,
+  "th2vec_cnn_hidden_size": 512,
+  "th2vec_cnn_dropout": 0.1,
 
   "th2vec_transformer_layer_count": 1,
   "th2vec_transformer_embedding_size": 128,
@@ -42,7 +46,7 @@
   "th2vec_transformer_attention_head_count": 8,
   "th2vec_transformer_intermediate_size": 512,
 
-  "th2vec_train_dataset_dir": "./data/th2vec/holstep/embed",
+  "th2vec_train_dataset_dir": "./data/th2vec/holstep/train",
   "th2vec_test_dataset_dir": "./data/th2vec/holstep/test",
 
   "th2vec_premiser_dataset_type": "classification",
