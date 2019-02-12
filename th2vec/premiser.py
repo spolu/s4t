@@ -14,7 +14,7 @@ from generic.lr_scheduler import RampUpCosineLR
 from tensorboardX import SummaryWriter
 
 from th2vec.models.mlp import P
-from th2vec.models.transformer import E
+from th2vec.models.cnn import E
 
 from utils.config import Config
 from utils.meter import Meter
@@ -404,16 +404,15 @@ def train():
     train_set = HolStepSet(
         kernel,
         os.path.expanduser(config.get('th2vec_train_dataset_dir')),
-        premise_only=True,
+        premise_only=config.get('th2vec_premise_only'),
     )
     test_set = HolStepSet(
         kernel,
         os.path.expanduser(config.get('th2vec_test_dataset_dir')),
-        premise_only=True,
+        premise_only=config.get('th2vec_premise_only'),
     )
 
     # kernel.postprocess_compression(4096)
-
     # train_set.postprocess()
     # test_set.postprocess()
 
@@ -426,6 +425,7 @@ def train():
     if config.get('th2vec_premiser_dataset_type') == 'classification':
         train_dataset = HolStepClassificationDataset(train_set)
         test_dataset = HolStepClassificationDataset(test_set)
+
     assert train_dataset is not None
     assert test_dataset is not None
 
