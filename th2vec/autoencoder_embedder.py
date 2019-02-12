@@ -199,7 +199,7 @@ class Th2VecAutoEncoderEmbedder:
             )
             kld_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
-            all_loss = rec_loss + 0.2 * kld_loss
+            all_loss = rec_loss + 0.0001 * kld_loss
 
             self._optimizer.zero_grad()
             all_loss.backward()
@@ -214,6 +214,8 @@ class Th2VecAutoEncoderEmbedder:
             if self._train_batch % 10 == 0:
                 Log.out("TH2VEC AUTOENCODER_EMBEDDER TRAIN", {
                     'train_batch': self._train_batch,
+                    'rec_loss_avg': rec_loss_meter.avg,
+                    'kld_loss_avg': kld_loss_meter.avg,
                     'loss_avg': all_loss_meter.avg,
                 })
 
@@ -251,7 +253,8 @@ class Th2VecAutoEncoderEmbedder:
 
         with torch.no_grad():
             for it, trm in enumerate(self._test_loader):
-                trm_rec = self._model(trm.to(self._device))
+                mu, _ = self._model.encode(trm.to(self._device))
+                trm_rec = self._model.decode(mu)
 
                 rec_loss = self._loss(
                     trm_rec.view(-1, trm_rec.size(2)),
