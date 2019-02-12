@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from dataset.holstep import HolStepKernel, HolStepSet
 from dataset.holstep import HolStepPremiseDataset, HolStepClassificationDataset
 
-from generic.lr_scheduler import RampUpCosineLR
+# from generic.lr_scheduler import RampUpCosineLR
 
 from tensorboardX import SummaryWriter
 
@@ -64,12 +64,12 @@ class Th2VecDirectPremiser:
             self._model.parameters(),
             lr=self._config.get('th2vec_learning_rate'),
         )
-        self._scheduler = RampUpCosineLR(
-            self._optimizer,
-            self._config.get('th2vec_learning_rate_ramp_up'),
-            self._config.get('th2vec_learning_rate_period'),
-            self._config.get('th2vec_learning_rate_annealing'),
-        )
+        # self._scheduler = RampUpCosineLR(
+        #     self._optimizer,
+        #     self._config.get('th2vec_learning_rate_ramp_up'),
+        #     self._config.get('th2vec_learning_rate_period'),
+        #     self._config.get('th2vec_learning_rate_annealing'),
+        # )
 
         self._train_sampler = None
         if self._config.get('distributed_training'):
@@ -137,13 +137,13 @@ class Th2VecDirectPremiser:
                             map_location=self._device,
                         ),
                     )
-                    self._scheduler.load_state_dict(
-                        torch.load(
-                            self._load_dir +
-                            "/scheduler_{}.pt".format(rank),
-                            map_location=self._device,
-                        ),
-                    )
+                    # self._scheduler.load_state_dict(
+                    #     torch.load(
+                    #         self._load_dir +
+                    #         "/scheduler_{}.pt".format(rank),
+                    #         map_location=self._device,
+                    #     ),
+                    # )
 
         return self
 
@@ -166,10 +166,10 @@ class Th2VecDirectPremiser:
                 self._optimizer.state_dict(),
                 self._save_dir + "/optimizer_{}.pt".format(rank),
             )
-            torch.save(
-                self._scheduler.state_dict(),
-                self._save_dir + "/scheduler_{}.pt".format(rank),
-            )
+            # torch.save(
+            #     self._scheduler.state_dict(),
+            #     self._save_dir + "/scheduler_{}.pt".format(rank),
+            # )
 
     def batch_train(
             self,
@@ -182,7 +182,7 @@ class Th2VecDirectPremiser:
 
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(epoch)
-        self._scheduler.step()
+        # self._scheduler.step()
 
         for it, (cnj, thr, pre) in enumerate(self._train_loader):
             res = self._model(
@@ -216,7 +216,7 @@ class Th2VecDirectPremiser:
 
         Log.out("EPOCH DONE", {
             'epoch': epoch,
-            'learning_rate': self._scheduler.get_lr(),
+            # 'learning_rate': self._scheduler.get_lr(),
         })
 
     def batch_test(
@@ -372,16 +372,17 @@ def train():
     train_set = HolStepSet(
         kernel,
         os.path.expanduser(config.get('th2vec_train_dataset_dir')),
+        premise_only=config.get('th2vec_premise_only'),
     )
     test_set = HolStepSet(
         kernel,
         os.path.expanduser(config.get('th2vec_test_dataset_dir')),
+        premise_only=config.get('th2vec_premise_only'),
     )
 
-    kernel.postprocess_compression(4096)
-
-    train_set.postprocess()
-    test_set.postprocess()
+    # kernel.postprocess_compression(4096)
+    # train_set.postprocess()
+    # test_set.postprocess()
 
     train_dataset = None
     test_dataset = None
@@ -392,6 +393,7 @@ def train():
     if config.get('th2vec_premiser_dataset_type') == 'classification':
         train_dataset = HolStepClassificationDataset(train_set)
         test_dataset = HolStepClassificationDataset(test_set)
+
     assert train_dataset is not None
     assert test_dataset is not None
 
