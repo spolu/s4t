@@ -14,7 +14,7 @@ from generic.lr_scheduler import RampUpCosineLR
 from tensorboardX import SummaryWriter
 
 from th2vec.models.mlp import P
-from th2vec.models.cnn import E
+from th2vec.models.cnn import AE
 
 from utils.config import Config
 from utils.meter import Meter
@@ -44,7 +44,7 @@ class Th2VecPremiser:
                 )
 
         self._inner_model = P(self._config).to(self._device)
-        self._embedder = E(self._config).to(self._device)
+        self._embedder = AE(self._config).to(self._device)
 
         Log.out(
             "Initializing th2vec", {
@@ -205,8 +205,8 @@ class Th2VecPremiser:
 
         for it, (cnj, thr, pre) in enumerate(self._train_loader):
             with torch.no_grad():
-                cnj_emd = self._embedder(cnj.to(self._device))
-                thr_emd = self._embedder(thr.to(self._device))
+                cnj_emd = self._embedder.encode(cnj.to(self._device))
+                thr_emd = self._embedder.encode(thr.to(self._device))
 
             res = self._model(cnj_emd.detach(), thr_emd.detach())
 
@@ -253,8 +253,8 @@ class Th2VecPremiser:
         with torch.no_grad():
             for it, (cnj, thr, pre) in enumerate(self._test_loader):
                 with torch.no_grad():
-                    cnj_emd = self._embedder(cnj.to(self._device))
-                    thr_emd = self._embedder(thr.to(self._device))
+                    cnj_emd = self._embedder.encode(cnj.to(self._device))
+                    thr_emd = self._embedder.encode(thr.to(self._device))
 
                 res = self._model(cnj_emd.detach(), thr_emd.detach())
 
