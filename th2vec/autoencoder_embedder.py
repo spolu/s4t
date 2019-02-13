@@ -13,7 +13,7 @@ from dataset.holstep import HolStepTermDataset
 
 from tensorboardX import SummaryWriter
 
-from th2vec.models.cnn import VAE
+from th2vec.models.transformer import VAE
 
 from utils.config import Config
 from utils.meter import Meter
@@ -199,7 +199,7 @@ class Th2VecAutoEncoderEmbedder:
             )
             kld_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
-            all_loss = rec_loss + 0.0001 * kld_loss
+            all_loss = rec_loss + 0.001 * kld_loss
 
             self._optimizer.zero_grad()
             all_loss.backward()
@@ -253,8 +253,8 @@ class Th2VecAutoEncoderEmbedder:
 
         with torch.no_grad():
             for it, trm in enumerate(self._test_loader):
-                mu, _ = self._model.encode(trm.to(self._device))
-                trm_rec = self._model.decode(mu)
+                mu, _ = self._inner_model.encode(trm.to(self._device))
+                trm_rec = self._inner_model.decode(mu)
 
                 rec_loss = self._loss(
                     trm_rec.view(-1, trm_rec.size(2)),
