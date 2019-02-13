@@ -407,6 +407,7 @@ def train():
     epoch = 0
     while True:
         th2vec.batch_train(epoch)
-        th2vec.batch_test()
-        th2vec.save()
+        if epoch % 10 == 0:
+            th2vec.batch_test()
+            th2vec.save()
         epoch += 1
