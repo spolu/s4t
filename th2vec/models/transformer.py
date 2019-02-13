@@ -80,7 +80,7 @@ class E(nn.Module):
 
         pool = self.layers(trm_embeds + pos_embeds)[:, 0, :]
 
-        return torch.tanh(pool)
+        return pool
 
 
 class G(nn.Module):
@@ -286,23 +286,9 @@ class DP(nn.Module):
 
         self._E = E(config)
 
-        self.inner_cnj = nn.Sequential(*[
-            nn.Linear(self.hidden_size, self.hidden_size),
-            GeLU(),
-            nn.Dropout(0.1),
-            LayerNorm(self.hidden_size),
-        ])
-        self.inner_thr = nn.Sequential(*[
-            nn.Linear(self.hidden_size, self.hidden_size),
-            GeLU(),
-            nn.Dropout(0.1),
-            LayerNorm(self.hidden_size),
-        ])
-
         self.head = nn.Sequential(*[
             nn.Linear(2*self.hidden_size, self.hidden_size),
             GeLU(),
-            nn.Dropout(0.1),
             LayerNorm(self.hidden_size),
             nn.Linear(self.hidden_size, 1),
             nn.Sigmoid(),
@@ -328,8 +314,5 @@ class DP(nn.Module):
         thr_th2vec = self.th2vec(theorem)
 
         return self.head(
-            torch.cat(
-                (self.inner_cnj(cnj_th2vec), self.inner_thr(thr_th2vec)),
-                dim=1,
-            )
+            torch.cat((cnj_th2vec, thr_th2vec), dim=1)
         )
