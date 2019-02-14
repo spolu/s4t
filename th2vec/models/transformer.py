@@ -329,7 +329,7 @@ class DP(nn.Module):
 
         return self.head(
             torch.cat(
-                (self.inner_cnjh(cnj_th2vec), self.inner_thr(thr_th2vec)),
+                (self.inner_cnj(cnj_th2vec), self.inner_thr(thr_th2vec)),
                 dim=1,
             )
         )
