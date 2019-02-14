@@ -27,6 +27,8 @@ class Th2VecDirectPremiser:
             config: Config,
     ):
         self._config = config
+        self._accumulation_step_count = \
+            config.get('th2vec_accumulation_step_count')
 
         self._device = torch.device(config.get('device'))
 
@@ -82,14 +84,28 @@ class Th2VecDirectPremiser:
         if self._config.get('device') != 'cpu':
             pin_memory = True
 
+        batch_size = self._config.get('th2vec_batch_size') // \
+            self._accumulation_step_count
+
         self._train_loader = torch.utils.data.DataLoader(
             train_dataset,
-            batch_size=self._config.get('th2vec_batch_size'),
+            batch_size=batch_size,
             shuffle=(self._train_sampler is None),
             pin_memory=pin_memory,
             num_workers=8,
             sampler=self._train_sampler,
         )
+
+        Log.out('Training initialization', {
+            "accumulation_step_count": self._accumulation_step_count,
+            "world_size": self._config.get('distributed_world_size'),
+            "batch_size": self._config.get('th2vec_batch_size'),
+            "dataloader_batch_size": batch_size,
+            "effective_batch_size": (
+                self._config.get('th2vec_batch_size') *
+                self._config.get('distributed_world_size')
+            ),
+        })
 
         self._train_batch = 0
 
@@ -192,9 +208,11 @@ class Th2VecDirectPremiser:
 
             loss = F.binary_cross_entropy(res, pre.to(self._device))
 
-            self._optimizer.zero_grad()
             loss.backward()
-            self._optimizer.step()
+
+            if it % self._accumulation_step_count == 0:
+                self._optimizer.step()
+                self._optimizer.zero_grad()
 
             loss_meter.update(loss.item())
 
