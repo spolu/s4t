@@ -289,16 +289,16 @@ class DP(nn.Module):
 
         self._E = E(config)
 
-        # self.inner_cnj = nn.Sequential(*[
-        #     nn.Linear(self.hidden_size, self.hidden_size),
-        #     nn.ReLU(),
-        #     LayerNorm(self.hidden_size),
-        # ])
-        # self.inner_thr = nn.Sequential(*[
-        #     nn.Linear(self.hidden_size, self.hidden_size),
-        #     nn.ReLU(),
-        #     LayerNorm(self.hidden_size),
-        # ])
+        self.inner_cnj = nn.Sequential(*[
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.ReLU(),
+            LayerNorm(self.hidden_size),
+        ])
+        self.inner_thr = nn.Sequential(*[
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.ReLU(),
+            LayerNorm(self.hidden_size),
+        ])
 
         self.head = nn.Sequential(*[
             nn.Linear(2*self.hidden_size, self.hidden_size),
@@ -328,5 +328,8 @@ class DP(nn.Module):
         thr_th2vec = self.th2vec(theorem)
 
         return self.head(
-            torch.cat((cnj_th2vec, thr_th2vec), dim=1)
+            torch.cat(
+                (self.inner_cnjh(cnj_th2vec), self.inner_thr(thr_th2vec)),
+                dim=1,
+            )
         )
