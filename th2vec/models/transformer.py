@@ -80,8 +80,8 @@ class E(nn.Module):
 
         hiddens = self.layers(trm_embeds + pos_embeds)
 
-        pools = torch.mean(hiddens, 1)
-        # pools = hiddens[:, 0, :]
+        # pools = torch.mean(hiddens, 1)
+        pools = hiddens[:, 0, :]
 
         return pools
 
