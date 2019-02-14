@@ -78,9 +78,12 @@ class E(nn.Module):
 
         trm_embeds = self.input_embedding(term)
 
-        pool = self.layers(trm_embeds + pos_embeds)[:, 0, :]
+        hiddens = self.layers(trm_embeds + pos_embeds)
 
-        return pool
+        pools = torch.mean(hiddens, 1)
+        # pools = hiddens[:, 0, :]
+
+        return pools
 
 
 class G(nn.Module):
@@ -285,6 +288,17 @@ class DP(nn.Module):
             config.get('th2vec_transformer_hidden_size')
 
         self._E = E(config)
+
+        # self.inner_cnj = nn.Sequential(*[
+        #     nn.Linear(self.hidden_size, self.hidden_size),
+        #     nn.ReLU(),
+        #     LayerNorm(self.hidden_size),
+        # ])
+        # self.inner_thr = nn.Sequential(*[
+        #     nn.Linear(self.hidden_size, self.hidden_size),
+        #     nn.ReLU(),
+        #     LayerNorm(self.hidden_size),
+        # ])
 
         self.head = nn.Sequential(*[
             nn.Linear(2*self.hidden_size, self.hidden_size),
