@@ -51,6 +51,7 @@ class Th2VecDirectPremiser:
         )
 
         self._model = self._inner_model
+        self._train_batch = 0
 
     def init_training(
             self,
@@ -106,8 +107,6 @@ class Th2VecDirectPremiser:
                 self._config.get('distributed_world_size')
             ),
         })
-
-        self._train_batch = 0
 
     def init_testing(
             self,
@@ -247,6 +246,8 @@ class Th2VecDirectPremiser:
 
         hit = 0
         total = 0
+        pos = 0
+        neg = 0
 
         with torch.no_grad():
             for it, (cnj, thr, pre) in enumerate(self._test_loader):
@@ -259,17 +260,23 @@ class Th2VecDirectPremiser:
 
                 loss_meter.update(loss.item())
 
+                limit = 0.50
                 for i in range(res.size(0)):
-                    if res[i].item() >= 0.5 and pre[i].item() >= 0.5:
+                    if res[i].item() >= limit and pre[i].item() >= limit:
                         hit += 1
-                    if res[i].item() < 0.5 and pre[i].item() < 0.5:
+                    if res[i].item() < limit and pre[i].item() < limit:
                         hit += 1
+                    if res[i].item() >= limit:
+                        pos += 1
+                    if res[i].item() < limit:
+                        neg += 1
                     total += 1
 
         Log.out("TH2VEC TEST", {
             'batch_count': self._train_batch,
             'loss_avg': loss_meter.avg,
             'hit_rate': "{:.3f}".format(hit / total),
+            'pos_rate': "{:.3f}".format(pos / total),
         })
 
         if self._tb_writer is not None:
@@ -431,3 +438,88 @@ def train():
             th2vec.batch_test()
             th2vec.save()
         epoch += 1
+
+
+def test():
+    parser = argparse.ArgumentParser(description="")
+
+    parser.add_argument(
+        'config_path',
+        type=str, help="path to the config file",
+    )
+    parser.add_argument(
+        '--train_dataset_dir',
+        type=str, help="train dataset directory",
+    )
+    parser.add_argument(
+        '--test_dataset_dir',
+        type=str, help="test dataset directory",
+    )
+    parser.add_argument(
+        '--load_dir',
+        type=str, help="config override",
+    )
+
+    parser.add_argument(
+        '--device',
+        type=str, help="config override",
+    )
+
+    args = parser.parse_args()
+
+    config = Config.from_file(args.config_path)
+
+    if args.device is not None:
+        config.override('device', args.device)
+
+    if args.train_dataset_dir is not None:
+        config.override(
+            'th2vec_train_dataset_dir',
+            os.path.expanduser(args.train_dataset_dir),
+        )
+    if args.test_dataset_dir is not None:
+        config.override(
+            'th2vec_test_dataset_dir',
+            os.path.expanduser(args.test_dataset_dir),
+        )
+    if args.load_dir is not None:
+        config.override(
+            'th2vec_load_dir',
+            os.path.expanduser(args.load_dir),
+        )
+
+    if config.get('device') != 'cpu':
+        torch.cuda.set_device(torch.device(config.get('device')))
+
+    kernel = HolStepKernel(config.get('th2vec_theorem_length'))
+
+    train_set = HolStepSet(
+        kernel,
+        os.path.expanduser(config.get('th2vec_train_dataset_dir')),
+        premise_only=config.get('th2vec_premise_only'),
+    )
+    test_set = HolStepSet(
+        kernel,
+        os.path.expanduser(config.get('th2vec_test_dataset_dir')),
+        premise_only=config.get('th2vec_premise_only'),
+    )
+
+    train_dataset = None
+    test_dataset = None
+
+    if config.get('th2vec_premiser_dataset_type') == 'premise':
+        train_dataset = HolStepPremiseDataset(train_set)
+        test_dataset = HolStepPremiseDataset(test_set)
+    if config.get('th2vec_premiser_dataset_type') == 'classification':
+        train_dataset = HolStepClassificationDataset(train_set)
+        test_dataset = HolStepClassificationDataset(test_set)
+
+    assert train_dataset is not None
+    assert test_dataset is not None
+
+    th2vec = Th2VecDirectPremiser(config)
+
+    th2vec.init_testing(test_dataset)
+    th2vec.load(False)
+
+    th2vec.batch_test()
