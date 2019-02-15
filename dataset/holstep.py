@@ -15,14 +15,30 @@ class HolStepKernel():
         self._compression = {}
 
         self._tokens = {}
-        self._invert = {}
+        # self._invert = {}
         self._token_count = 1
+
+        self._chars = {}
+        self._char_count = 1
+
         self._theorem_length = theorem_length
 
-        self._bound_count = 0
-        self._free_count = 0
+    def process_raw_formula(
+            self,
+            f: str,
+    ):
+        formula = []
 
-    def process_formula(
+        for c in f:
+            if c not in self._chars:
+                self._chars[c] = self._char_count
+                self._char_count += 1
+
+            formula.append(self._chars[c])
+
+        return formula
+
+    def process_tokenized_formula(
             self,
             f: str,
     ):
@@ -30,70 +46,61 @@ class HolStepKernel():
         tokens = f.split(' ')
 
         for t in tokens:
-            if t[0] == 'b':
-                b = int(t[1:])
-                if b > self._bound_count:
-                    self._bound_count = b
-            elif t[0] == 'f':
-                f = int(t[1:])
-                if f > self._free_count:
-                    self._free_count = f
-
             if t not in self._tokens:
                 self._tokens[t] = self._token_count
-                self._invert[self._token_count] = t
+                # self._invert[self._token_count] = t
                 self._token_count += 1
 
             formula.append(self._tokens[t])
 
-        for i in range(len(formula)):
-            for j in range(1, 3):
-                if i + j < len(formula):
-                    ngram = self.detokenize(formula[i:i+j+1])
-                    if ngram not in self._compression:
-                        self._compression[ngram] = 0
-                    self._compression[ngram] += j
+        # for i in range(len(formula)):
+        #     for j in range(1, 3):
+        #         if i + j < len(formula):
+        #             ngram = self.detokenize(formula[i:i+j+1])
+        #             if ngram not in self._compression:
+        #                 self._compression[ngram] = 0
+        #             self._compression[ngram] += j
 
         return formula
 
-    def postprocess_compression(
-            self,
-            size: int,
-    ) -> None:
-        best = sorted(
-            self._compression.keys(),
-            key=lambda ngram: self._compression[ngram],
-            reverse=True,
-        )
+    # def postprocess_compression(
+    #         self,
+    #         size: int,
+    # ) -> None:
+    #     best = sorted(
+    #         self._compression.keys(),
+    #         key=lambda ngram: self._compression[ngram],
+    #         reverse=True,
+    #     )
 
-        for i in range(size):
-            # Should not be any collision on `detokenize(formula[i:i+j+1])`
-            self._tokens[best[i]] = self._token_count
-            self._invert[self._token_count] = best[i]
-            self._token_count += 1
+    #     for i in range(size):
+    #         # Should not be any collision on `detokenize(formula[i:i+j+1])`
+    #         self._tokens[best[i]] = self._token_count
+    #         self._invert[self._token_count] = best[i]
+    #         self._token_count += 1
 
-    def postprocess_formula(
-            self,
-            f,
-    ):
-        formula = []
+    # def postprocess_formula(
+    #         self,
+    #         f,
+    # ):
+    #     formula = []
 
-        i = 0
-        while i < len(f):
-            done = False
-            for j in reversed(range(1, 3)):
-                if i + j < len(f):
-                    ngram = self.detokenize(f[i:i+j+1])
-                    if ngram in self._tokens:
-                        formula.append(self._tokens[ngram])
-                        i += j+1
-                        done = True
-                        break
-            if not done:
-                formula.append(f[i])
-                i += 1
+    #     i = 0
+    #     while i < len(f):
+    #         done = False
+    #         for j in reversed(range(1, 3)):
+    #             if i + j < len(f):
+    #                 ngram = self.detokenize(f[i:i+j+1])
+    #                 if ngram in self._tokens:
+    #                     formula.append(self._tokens[ngram])
+    #                     i += j+1
+    #                     done = True
+    #                     break
+    #         if not done:
+    #             formula.append(f[i])
+    #             i += 1
 
-        return formula
+    #     return formula
 
     def detokenize(
             self,
@@ -121,9 +128,11 @@ class HolStepSet():
             self,
             kernel: HolStepKernel,
             dataset_dir: str,
+            raw_formula: bool = False,
             premise_only: bool = False,
     ) -> None:
         self._kernel = kernel
+        self._raw_formula = raw_formula
         self._premise_only = premise_only
 
         # The actual tokenized formulas.
@@ -169,8 +178,7 @@ class HolStepSet():
                     "PreProcessing HolStep dataset", {
                         'dataset_dir': dataset_dir,
                         'token_count': self._kernel._token_count,
-                        'bound_count': self._kernel._bound_count,
-                        'free_count': self._kernel._free_count,
+                        'char_count': self._kernel._char_count,
                         'max_length': self._max_length,
                         'formula_count': len(self._formulas),
                         'theorem_count': len(self._T),
@@ -182,8 +190,7 @@ class HolStepSet():
             "Loaded HolStep dataset", {
                 'dataset_dir': dataset_dir,
                 'token_count': self._kernel._token_count,
-                'bound_count': self._kernel._bound_count,
-                'free_count': self._kernel._free_count,
+                'char_count': self._kernel._char_count,
                 'max_length': self._max_length,
                 'formula_count': len(self._formulas),
                 'theorem_count': len(self._T),
@@ -210,17 +217,21 @@ class HolStepSet():
                     ):
                         continue
 
-                    f = self._kernel.process_formula(line[2:])
+                    f = None
+                    if self._raw_formula:
+                        f = self._kernel.process_raw_formula(lines[i-1][2:])
+                    else:
+                        f = self._kernel.process_tokenized_formula(line[2:])
                     assert f is not None
 
                     f_idx = len(self._formulas)
                     self._formulas.append(f)
 
                     self._max_length = max(self._max_length, len(f))
-                    # if len(f) > self._kernel._theorem_length:
-                    #     Log.out("Excessive length formula", {
-                    #         'length': len(f),
-                    #     })
+                    if len(f) > self._kernel._theorem_length:
+                        Log.out("Excessive length formula", {
+                            'length': len(f),
+                        })
 
                     if lines[i-1][0] == 'C':
                         c_idx = f_idx
@@ -250,34 +261,34 @@ class HolStepSet():
 
             assert has_premise
 
-    def postprocess(
-            self,
-    ) -> None:
-        Log.out("Postprocessing HolStep dataset", {})
+    # def postprocess(
+    #         self,
+    # ) -> None:
+    #     Log.out("Postprocessing HolStep dataset", {})
 
-        self._max_length = 0
-        for i in range(len(self._formulas)):
-            self._formulas[i] = self._kernel.postprocess_formula(
-                self._formulas[i],
-            )
-            if len(self._formulas[i]) > self._max_length:
-                self._max_length = len(self._formulas[i])
-            if len(self._formulas[i]) > self._kernel._theorem_length:
-                Log.out("Excessive length formula", {
-                    'length': len(self._formulas[i]),
-                })
+    #     self._max_length = 0
+    #     for i in range(len(self._formulas)):
+    #         self._formulas[i] = self._kernel.postprocess_formula(
+    #             self._formulas[i],
+    #         )
+    #         if len(self._formulas[i]) > self._max_length:
+    #             self._max_length = len(self._formulas[i])
+    #         if len(self._formulas[i]) > self._kernel._theorem_length:
+    #             Log.out("Excessive length formula", {
+    #                 'length': len(self._formulas[i]),
+    #             })
 
-            if i % 100000 == 0:
-                Log.out("Postprocessing HolStep dataset", {
-                    'token_count': self._kernel._token_count,
-                    'max_length': self._max_length,
-                    'formula_count': len(self._formulas),
-                    'postprocessed': i,
-                })
+    #         if i % 100000 == 0:
+    #             Log.out("Postprocessing HolStep dataset", {
+    #                 'token_count': self._kernel._token_count,
+    #                 'max_length': self._max_length,
+    #                 'formula_count': len(self._formulas),
+    #                 'postprocessed': i,
+    #             })
 
-        Log.out("Postprocessed HolStep dataset", {
-            'max_length': self._max_length,
-        })
+    #     Log.out("Postprocessed HolStep dataset", {
+    #         'max_length': self._max_length,
+    #     })
 
 
 # PREMISER
@@ -462,10 +473,18 @@ def preprocess():
 
     kernel = HolStepKernel(512)
 
-    dataset = HolStepSet(
+    HolStepSet(
+        kernel,
+        os.path.expanduser("./data/th2vec/holstep/train"),
+        premise_only=False,
+        raw_formula=True,
+    )
+    HolStepSet(
         kernel,
         os.path.expanduser("./data/th2vec/holstep/test"),
+        premise_only=False,
+        raw_formula=True,
     )
 
-    kernel.postprocess_compression(4096)
-    dataset.postprocess()
+    # kernel.postprocess_compression(4096)
+    # dataset.postprocess()

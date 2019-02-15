@@ -390,11 +390,13 @@ def train():
     train_set = HolStepSet(
         kernel,
         os.path.expanduser(config.get('th2vec_train_dataset_dir')),
+        raw_formula=config.get('th2vec_raw_formula'),
         premise_only=config.get('th2vec_premise_only'),
     )
     test_set = HolStepSet(
         kernel,
         os.path.expanduser(config.get('th2vec_test_dataset_dir')),
+        raw_formula=config.get('th2vec_raw_formula'),
         premise_only=config.get('th2vec_premise_only'),
     )
 
