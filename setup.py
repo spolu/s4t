@@ -18,6 +18,7 @@ setup(
             'sat_test_solver=sat.solver.solver:test',
             'holstep_preprocess=dataset.holstep:preprocess',
             'th2vec_train_direct_premiser=th2vec.direct_premiser:train',
+            'th2vec_test_direct_premiser=th2vec.direct_premiser:test',
             'th2vec_train_premise_embedder=th2vec.premise_embedder:train',
             'th2vec_train_autoencoder_embedder=th2vec.autoencoder_embedder:train',
             'th2vec_train_premiser=th2vec.premiser:train',
