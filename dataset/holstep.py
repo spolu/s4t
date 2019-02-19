@@ -470,7 +470,6 @@ class HolStepTermDataset(Dataset):
 
 
 def preprocess():
-
     kernel = HolStepKernel(512)
 
     HolStepSet(

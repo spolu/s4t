@@ -23,6 +23,7 @@ setup(
             'th2vec_train_autoencoder_embedder=th2vec.autoencoder_embedder:train',
             'th2vec_train_premiser=th2vec.premiser:train',
             'th2vec_train_generator=th2vec.generator:train',
+            'prooftrace_extract=dataset.prooftrace:extract',
         ],
     },
 )
