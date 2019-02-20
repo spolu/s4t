@@ -58,5 +58,7 @@
   "th2vec_premiser_dataset_type": "classification",
   "th2vec_premiser_embedder_load_dir": null,
 
+  "prooftrace_dataset_dir": "./data/prooftrace/medium",
+
   "tensorboard_log_dir": null
 }

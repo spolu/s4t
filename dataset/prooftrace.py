@@ -1,7 +1,9 @@
+import argparse
 import os
 import json
 import sys
 
+from utils.config import Config
 from utils.log import Log
 
 
@@ -231,9 +233,29 @@ class ProofTrace():
 
 
 def extract():
+    parser = argparse.ArgumentParser(description="")
+    parser.add_argument(
+        'config_path',
+        type=str, help="path to the config file",
+    )
+    parser.add_argument(
+        '--dataset_dir',
+        type=str, help="prooftrace dataset directory",
+    )
+
+    args = parser.parse_args()
+
+    config = Config.from_file(args.config_path)
+
+    if args.dataset_dir is not None:
+        config.override(
+            'prooftrace_dataset_dir',
+            os.path.expanduser(args.dataset_dir),
+        )
+
     sys.setrecursionlimit(4096)
     kernel = ProofTraceKernel(
-        os.path.expanduser("./data/prooftrace/medium"),
+        os.path.expanduser(config.get('prooftrace_dataset_dir')),
     )
 
     traces = [ProofTrace(kernel, k) for k in kernel._names.keys()]
