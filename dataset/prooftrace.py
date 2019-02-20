@@ -1,6 +1,7 @@
 import argparse
 import os
 import json
+import shutil
 import sys
 
 from utils.config import Config
@@ -129,20 +130,25 @@ class ProofTrace():
         self._kernel = kernel
         self._index = proof_index
 
+        self._premises = {}
         self._terms = {}
         self._steps = {}
-        self._premises = {}
 
         self.walk(self._index)
 
         Log.out(
             "Constructed ProofTrace", {
                 'index': self._index,
-                'name': self._kernel._names[self._index],
+                'name': self.name(),
+                'premises_count': len(self._premises),
                 'step_count': len(self._steps),
                 'terms_count': len(self._terms),
-                'premises_count': len(self._premises),
             })
+
+    def name(
+            self,
+    ):
+        return str(self._index) + '_' + self._kernel._names[self._index]
 
     def record_term(
             self,
@@ -231,6 +237,14 @@ class ProofTrace():
 
         self._steps[index] = step
 
+    def __iter__(
+            self,
+    ):
+        yield 'index', self._index
+        yield 'terms', list(self._terms.keys())
+        yield 'premises', self._premises
+        yield 'steps', self._steps
+
 
 def extract():
     parser = argparse.ArgumentParser(description="")
@@ -278,21 +292,6 @@ def extract():
         "cross_step_count": cross_step_count,
     })
 
-    terms = {}
-    for tr in traces:
-        for tm in tr._terms.keys():
-            if tm not in terms:
-                terms[tm] = []
-            if tr._index not in terms[tm]:
-                terms[tm].append(tr._index)
-
-    for tm in terms:
-        kernel.add_term(tm, terms[tm])
-
-    Log.out("Terms aggregation", {
-        "term_count": len(terms),
-    })
-
     Log.histogram(
         "ProofTraces Steps",
         [len(pr._steps) for pr in traces],
@@ -332,3 +331,37 @@ def extract():
         buckets=[1e1, 1e2, 1e3, 2e3, 4e3, 1e4],
         labels=["1e1", "1e2", "1e3", "2e3", "4e3", "1e4"]
     )
+
+    # terms = {}
+    # for tr in traces:
+    #     for tm in tr._terms.keys():
+    #         if tm not in terms:
+    #             terms[tm] = []
+    #         if tr._index not in terms[tm]:
+    #             terms[tm].append(tr._index)
+
+    # for tm in terms:
+    #     kernel.add_term(tm, terms[tm])
+
+    # Log.out("Terms aggregation", {
+    #     "term_count": len(terms),
+    # })
+
+    traces_path = os.path.join(
+        os.path.expanduser(config.get('prooftrace_dataset_dir')),
+        "traces",
+    )
+
+    if os.path.isdir(traces_path):
+        shutil.rmtree(traces_path)
+    os.mkdir(traces_path)
+
+    for tr in traces:
+        trace_path = os.path.join(traces_path, tr.name())
+        with open(trace_path, 'w') as f:
+            json.dump(dict(tr), f, sort_keys=False, indent=2)
+
+    Log.out("Dumped all traces", {
+        "traces_path": traces_path,
+        "trace_count": len(traces),
+    })
