@@ -22,7 +22,6 @@
   "sat_solver_transformer_embedding_size": 128,
   "sat_solver_transformer_hidden_size": 256,
   "sat_solver_transformer_attention_head_count": 4,
-  "sat_solver_transformer_intermediate_size": 512,
 
 
   "th2vec_theorem_length": 5000,
@@ -48,7 +47,6 @@
   "th2vec_transformer_embedding_size": 16,
   "th2vec_transformer_hidden_size": 256,
   "th2vec_transformer_attention_head_count": 4,
-  "th2vec_transformer_intermediate_size": 512,
 
   "th2vec_train_dataset_dir": "./data/th2vec/holstep/train",
   "th2vec_test_dataset_dir": "./data/th2vec/holstep/test",

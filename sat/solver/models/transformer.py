@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from generic.gelu import GeLU
 from generic.layer_norm import LayerNorm
-from generic.transformer import Transformer
+from generic.transformer import TransformerBlock
 
 
 class S(nn.Module):
@@ -21,8 +21,6 @@ class S(nn.Module):
             config.get('sat_solver_transformer_embedding_size')
         self.hidden_size = \
             config.get('sat_solver_transformer_hidden_size')
-        self.intermediate_size = \
-            config.get('sat_solver_transformer_intermediate_size')
         self.attention_head_count = \
             config.get('sat_solver_transformer_attention_head_count')
         self.layer_count = \
@@ -39,10 +37,9 @@ class S(nn.Module):
 
         for _ in range(self.layer_count):
             layers += [
-                Transformer(
+                TransformerBlock(
                     self.hidden_size,
                     self.attention_head_count,
-                    self.intermediate_size,
                     dropout=0.1,
                 ),
             ]

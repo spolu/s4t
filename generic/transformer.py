@@ -28,7 +28,10 @@ class SelfAttention(nn.Module):
         self.key = nn.Linear(self.hidden_size, self.hidden_size)
         self.value = nn.Linear(self.hidden_size, self.hidden_size)
 
-        self.dropout = nn.Dropout(dropout)
+        self.attn_dropout = nn.Dropout(dropout)
+
+        self.proj = nn.Linear(hidden_size, hidden_size)
+        self.proj_dropout = nn.Dropout(dropout)
 
     def transpose_for_scores(
             self,
@@ -64,71 +67,55 @@ class SelfAttention(nn.Module):
 
         context = context.view(*new_context_shape)
 
-        return context
+        proj = self.proj(context)
+        proj = self.proj_dropout(proj)
+
+        return proj
 
 
-class SelfOutput(nn.Module):
+class MLP(nn.Module):
     def __init__(
             self,
             hidden_size,
             dropout,
     ):
-        super(SelfOutput, self).__init__()
+        super(MLP, self).__init__()
 
-        self.dense = nn.Linear(hidden_size, hidden_size)
-        self.layer_norm = LayerNorm(hidden_size)
+        self.intermediate = nn.Linear(hidden_size, 4*hidden_size)
+        self.gelu = GeLU()
+        self.proj = nn.Linear(4*hidden_size, hidden_size)
         self.dropout = nn.Dropout(dropout)
 
     def forward(
             self,
-            hidden_states,
             input_tensor,
     ):
-        hidden_states = self.dense(hidden_states)
-        hidden_states = self.dropout(hidden_states)
-        hidden_states = self.layer_norm(hidden_states + input_tensor)
+        hidden_states = self.intermediate(input_tensor)
+        hidden_states = self.gelu(hidden_states)
+        output = self.dense(hidden_states)
+        output = self.dropout(output)
 
-        return hidden_states
+        return output
 
 
-class Attention(nn.Module):
+class TransformerBlock(nn.Module):
     def __init__(
             self,
             hidden_size,
             attention_head_count,
-            dropout,
-    ):
-        super(Attention, self).__init__()
-        self.self = SelfAttention(hidden_size, attention_head_count, dropout)
-        self.output = SelfOutput(hidden_size, dropout)
-
-    def forward(
-            self,
-            input_tensor,
-    ):
-        hidden_states = self.self(input_tensor)
-        attention_output = self.output(hidden_states, input_tensor)
-
-        return attention_output
-
-
-class Transformer(nn.Module):
-    def __init__(
-            self,
-            hidden_size,
-            attention_head_count,
-            intermediate_size,
             dropout=0.1
     ):
-        super(Transformer, self).__init__()
-        self.attention = Attention(hidden_size, attention_head_count, dropout)
+        super(TransformerBlock, self).__init__()
 
-        self.intermediate = nn.Linear(hidden_size, intermediate_size)
-        self.dense = nn.Linear(intermediate_size, hidden_size)
+        self.attention = SelfAttention(
+            hidden_size, attention_head_count, dropout,
+        )
+        self.attention_layer_norm = LayerNorm(hidden_size)
 
-        self.layer_norm = LayerNorm(hidden_size)
-        self.dropout = nn.Dropout(dropout)
-        self.gelu = GeLU()
+        self.mlp = MLP(
+            hidden_size, dropout,
+        )
+        self.mlp_layer_norm = LayerNorm(hidden_size)
 
         self.apply(self.init_weights)
 
@@ -149,9 +136,13 @@ class Transformer(nn.Module):
             input_tensor,
     ):
         attention_output = self.attention(input_tensor)
-        intermediate_output = self.gelu(self.intermediate(attention_output))
-        block_output = self.layer_norm(
-            attention_output + self.dropout(self.dense(intermediate_output))
+        attention_output = self.attention_layer_norm(
+            input_tensor + attention_output
         )
 
-        return block_output
+        mlp_output = self.mlp(attention_output)
+        mlp_output = self.mlp_layer_norm(
+            attention_output + mlp_output
+        )
+
+        return mlp_output

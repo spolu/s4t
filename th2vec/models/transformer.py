@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from generic.gelu import GeLU
 from generic.layer_norm import LayerNorm
-from generic.transformer import Transformer
+from generic.transformer import TransformerBlock
 
 from torch.distributions.categorical import Categorical
 
@@ -27,8 +27,6 @@ class E(nn.Module):
             config.get('th2vec_transformer_embedding_size')
         self.hidden_size = \
             config.get('th2vec_transformer_hidden_size')
-        self.intermediate_size = \
-            config.get('th2vec_transformer_intermediate_size')
         self.attention_head_count = \
             config.get('th2vec_transformer_attention_head_count')
         self.layer_count = \
@@ -49,10 +47,9 @@ class E(nn.Module):
 
         for _ in range(self.layer_count):
             layers += [
-                Transformer(
+                TransformerBlock(
                     self.hidden_size,
                     self.attention_head_count,
-                    self.intermediate_size,
                     dropout=0.1,
                 ),
             ]
@@ -105,8 +102,6 @@ class G(nn.Module):
             config.get('th2vec_transformer_embedding_size')
         self.hidden_size = \
             config.get('th2vec_transformer_hidden_size')
-        self.intermediate_size = \
-            config.get('th2vec_transformer_intermediate_size')
         self.attention_head_count = \
             config.get('th2vec_transformer_attention_head_count')
         self.layer_count = \
@@ -122,10 +117,9 @@ class G(nn.Module):
 
         for _ in range(self.layer_count):
             layers += [
-                Transformer(
+                TransformerBlock(
                     self.hidden_size,
                     self.attention_head_count,
-                    self.intermediate_size,
                     dropout=0.1,
                 ),
             ]
