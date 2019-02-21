@@ -39,7 +39,7 @@ class SelfAttention(nn.Module):
         self.key = nn.Linear(self.hidden_size, self.hidden_size)
         self.value = nn.Linear(self.hidden_size, self.hidden_size)
 
-        self.attn_dropout = nn.Dropout(dropout)
+        self.attention_dropout = nn.Dropout(dropout)
 
         self.proj = nn.Linear(hidden_size, hidden_size)
         self.proj_dropout = nn.Dropout(dropout)
@@ -77,7 +77,7 @@ class SelfAttention(nn.Module):
             attention_scores = attention_scores * mask + -1e9 * (1 - mask)
 
         attention_probs = nn.Softmax(dim=-1)(attention_scores)
-        attention_probs = self.dropout(attention_probs)
+        attention_probs = self.attention_dropout(attention_probs)
 
         context = torch.matmul(attention_probs, value)
         context = context.permute(0, 2, 1, 3).contiguous()
@@ -110,7 +110,7 @@ class MLP(nn.Module):
     ):
         hidden_states = self.intermediate(input_tensor)
         hidden_states = self.gelu(hidden_states)
-        output = self.dense(hidden_states)
+        output = self.proj(hidden_states)
         output = self.dropout(output)
 
         return output
