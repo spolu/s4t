@@ -48,8 +48,10 @@ class E(nn.Module):
         for _ in range(self.layer_count):
             layers += [
                 TransformerBlock(
+                    self.theorem_length,
                     self.hidden_size,
                     self.attention_head_count,
+                    masking=False,
                     dropout=0.1,
                 ),
             ]
@@ -118,8 +120,10 @@ class G(nn.Module):
         for _ in range(self.layer_count):
             layers += [
                 TransformerBlock(
+                    self.theorem_length,
                     self.hidden_size,
                     self.attention_head_count,
+                    masking=False,
                     dropout=0.1,
                 ),
             ]
