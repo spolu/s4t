@@ -24,6 +24,7 @@ setup(
             'th2vec_train_premiser=th2vec.premiser:train',
             'th2vec_train_generator=th2vec.generator:train',
             'prooftrace_extract=dataset.prooftrace:extract',
+            'generic_test_tree_lstm=generic.tree_lstm:test',
         ],
     },
 )
