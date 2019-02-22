@@ -137,8 +137,7 @@ class BinaryTreeLSTM(nn.Module):
             return (depth, idx)
 
         # Consturct the folded computation graph.
-        for t in trees:
-            dfs(t, 0)
+        pos = [dfs(t, 0) for t in trees]
 
         Log.out("TreeLSTM dynamic batching", {
             "batch_size": len(trees),
@@ -187,10 +186,22 @@ class BinaryTreeLSTM(nn.Module):
             C[d] = c
 
         # At this stage everything is computed we just need to return the
-        # top-level hidden vectors.
-        assert H[0].size(0) == len(trees)
+        # top-level vectors for each tree.
 
-        return H[0], C[0]
+        Ht = [[]] * len(pos)
+        Ct = [[]] * len(pos)
+
+        for i, p in enumerate(pos):
+            assert p[0] == 0
+            Ht[i] = H[0][p[1]].unsqueeze(0)
+            Ct[i] = C[0][p[1]].unsqueeze(0)
+
+        Ht = torch.cat(Ht, dim=0)
+        Ct = torch.cat(Ct, dim=0)
+
+        assert Ht.size(0) == len(trees)
+
+        return Ht, Ct
 
     def recurse(
             self,
@@ -258,6 +269,7 @@ def test():
         BVT(0, BVT(2, BVT(2), BVT(8, BVT(0))), BVT(3)),
         BVT(1),
         BVT(3, BVT(0, BVT(0), BVT(0)), BVT(0)),
+        BVT(1),
     ]
 
     for i, t in enumerate(trees):
