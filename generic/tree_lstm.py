@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 import typing
+import xxhash
+
+from utils.log import Log
 
 
 class BVT():
@@ -16,15 +19,45 @@ class BVT():
         self.left = left
         self.right = right
 
+        self._hash = None
+        self._depth = None
+
+    def hash(
+            self,
+    ):
+        if self._hash is None:
+            h = xxhash.xxh64()
+            h.update(str(self.value))
+            if self.left is not None:
+                h.update(self.left.hash())
+            if self.right is not None:
+                h.update(self.right.hash())
+            self._hash = h.digest()
+
+        return self._hash
+
+    def depth(
+            self,
+    ):
+        if self._depth is None:
+            if self.left is not None:
+                ld = self.left.depth()
+            else:
+                ld = -1
+            if self.right is not None:
+                rd = self.right.depth()
+            else:
+                rd = -1
+            self._depth = 1 + max(ld, rd)
+
+        return self._depth
+
 
 class BinaryTreeLSTM(nn.Module):
     """ Binary TreeLSTM with node values.
 
-    BinaryTreeLSTM internalize the embedding of values assumed to be
-    torch.Size([1]) with dtype torch.int64.
-
-    BinaryTreeLSTM currently does not support:
-    - TODO(stan): caching at the batch level of subtrees
+    BinaryTreeLSTM internalize the embedding of BVT values assumed to be
+    integers.
     """
     def __init__(
             self,
@@ -61,12 +94,27 @@ class BinaryTreeLSTM(nn.Module):
             trees: typing.List[BVT],
     ):
         """ Dynamic batching on an array of BVT
+
+        Caching will perform better if the trees are sorted by depth. We can't
+        easily do so here so it's just easier if callers ensure it.
         """
         V = []
         L = []
         R = []
 
+        cache = {}
+        counters = {
+            'cache_hits': 0,
+            'compute_steps': 0,
+        }
+
         def dfs(tree, depth):
+            if tree.hash() in cache and cache[tree.hash()][0] >= depth:
+                print("CACHE_HIT")
+                counters['cache_hits'] += 1
+                return cache[tree.hash()]
+            counters['compute_steps'] += 1
+
             while depth >= len(V):
                 V.append([])
                 L.append([])
@@ -78,17 +126,25 @@ class BinaryTreeLSTM(nn.Module):
             if tree.left is not None:
                 L[depth].append(dfs(tree.left, depth+1))
             else:
-                L[depth].append(-1)
+                L[depth].append((depth+1, -1))
             if tree.right is not None:
                 R[depth].append(dfs(tree.right, depth+1))
             else:
-                R[depth].append(-1)
+                R[depth].append((depth+1, -1))
 
-            return idx
+            cache[tree.hash()] = (depth, idx)
+
+            return (depth, idx)
 
         # Consturct the folded computation graph.
         for t in trees:
             dfs(t, 0)
+
+        Log.out("TreeLSTM dynamic batching", {
+            "batch_size": len(trees),
+            "compute_steps": counters['compute_steps'],
+            "cache_hits": counters['cache_hits'],
+        })
 
         H = [[]] * len(V)
         C = [[]] * len(V)
@@ -103,15 +159,15 @@ class BinaryTreeLSTM(nn.Module):
             rh = []
             rc = []
             for i in range(len(V[d])):
-                if L[d][i] > -1:
-                    lh.append(H[d+1][L[d][i]].unsqueeze(0))
-                    lc.append(C[d+1][L[d][i]].unsqueeze(0))
+                if L[d][i][1] > -1:
+                    lh.append(H[L[d][i][0]][L[d][i][1]].unsqueeze(0))
+                    lc.append(C[L[d][i][0]][L[d][i][1]].unsqueeze(0))
                 else:
                     lh.append(torch.zeros(1, self.hidden_size).to(self.device))
                     lc.append(torch.zeros(1, self.hidden_size).to(self.device))
-                if R[d][i] > -1:
-                    rh.append(H[d+1][R[d][i]].unsqueeze(0))
-                    rc.append(C[d+1][R[d][i]].unsqueeze(0))
+                if R[d][i][1] > -1:
+                    rh.append(H[R[d][i][0]][R[d][i][1]].unsqueeze(0))
+                    rc.append(C[R[d][i][0]][R[d][i][1]].unsqueeze(0))
                 else:
                     rh.append(torch.zeros(1, self.hidden_size).to(self.device))
                     rc.append(torch.zeros(1, self.hidden_size).to(self.device))
@@ -121,9 +177,9 @@ class BinaryTreeLSTM(nn.Module):
             rh = torch.cat(rh, dim=0)
             rc = torch.cat(rc, dim=0)
 
-            assert v.size(0) == \
-                lh.size(0) == lc.size(0) == \
-                rh.size(0) == rc.size(0)
+            # assert v.size(0) == \
+            #     lh.size(0) == lc.size(0) == \
+            #     rh.size(0) == rc.size(0)
 
             h, c = self.forward(v, lh, lc, rh, rc)
 
@@ -173,13 +229,12 @@ class BinaryTreeLSTM(nn.Module):
             left_h, left_c,    # (hidden_size)
             right_h, right_c,  # (hidden_size)
     ):
-        batch_size = value.size(0)
-
-        assert value.size() == torch.Size([batch_size, self.hidden_size])
-        assert left_h.size() == torch.Size([batch_size, self.hidden_size])
-        assert left_c.size() == torch.Size([batch_size, self.hidden_size])
-        assert right_h.size() == torch.Size([batch_size, self.hidden_size])
-        assert right_c.size() == torch.Size([batch_size, self.hidden_size])
+        # batch_size = value.size(0)
+        # assert value.size() == torch.Size([batch_size, self.hidden_size])
+        # assert left_h.size() == torch.Size([batch_size, self.hidden_size])
+        # assert left_c.size() == torch.Size([batch_size, self.hidden_size])
+        # assert right_h.size() == torch.Size([batch_size, self.hidden_size])
+        # assert right_c.size() == torch.Size([batch_size, self.hidden_size])
 
         i, o, u, f1, f2 = (self.wx(value) + self.wh(
             torch.cat([left_h, right_h], dim=-1)
