@@ -2,6 +2,7 @@ import argparse
 import os
 import json
 # import shutil
+import re
 import sys
 import typing
 import xxhash
@@ -13,19 +14,18 @@ from utils.log import Log
 
 ACTION_TOKENS = {
     'EMPTY': 0,
-    'PREMISE': 1,
-    'HYPOTHESIS': 2,
-    'CONCLUSION': 3,
-    'TERM': 4,
-    'REFL': 5,
-    'TRANS': 6,
-    'MK_COMB': 7,
-    'ABS': 8,
-    'BETA': 9,
-    'ASSUME': 10,
-    'EQ_MP': 11,
-    'DEDUCT_ANTISYM_RULE': 12,
-    'INST': 13,
+    'EXTRACT': 1,
+    'PREMISE': 2,
+    'TERM': 3,
+    'REFL': 4,
+    'TRANS': 5,
+    'MK_COMB': 6,
+    'ABS': 7,
+    'BETA': 8,
+    'ASSUME': 9,
+    'EQ_MP': 10,
+    'DEDUCT_ANTISYM_RULE': 11,
+    'INST': 12,
 }
 
 
@@ -137,10 +137,12 @@ class ProofTraceKernel():
             for line in f:
                 data = json.loads(line)
 
-                # Store type instantiations rewrites.
-                if data['pr'][0] == 'INST_TYPE':
+                # Store type instantiations (or empty instantiations) rewrites.
+                if data['pr'][0] == 'INST_TYPE' or (
+                        data['pr'][0] == 'INST' and len(data['pr'][2]) == 0
+                ):
                     ptr = data['pr'][1]
-                    while self._proofs[ptr][0] == 'INST_TYPE':
+                    while ptr in self._rewrites:
                         ptr = self._rewrites[ptr]
                     self._rewrites[data['id']] = ptr
 
@@ -241,7 +243,7 @@ class ProofTrace():
     def __init__(
             self,
             kernel: ProofTraceKernel,
-            proof_index: int
+            proof_index: int,
     ):
         self._kernel = kernel
         self._index = proof_index
@@ -391,8 +393,8 @@ class ProofTrace():
             p = self._premises[idx]
             action = Action(
                 'PREMISE',
-                [Action('CONCLUSION', [self._kernel.term(p['cc'])])] +
-                [Action('HYPOTHESIS', [self._kernel.term(h)]) for h in p['hy']]
+                [self._kernel.term(p['cc'])] +
+                [self._kernel.term(h) for h in p['hy']]
             )
             cache['indices'][idx] = action
             sequence.append(action)
@@ -480,6 +482,8 @@ class ProofTrace():
 
             cache['indices'][idx] = actions[-1]
             sequence = sequence + actions
+
+        sequence.append(Action('EXTRACT', []))
 
         return sequence
 
@@ -569,6 +573,15 @@ def extract():
         buckets=[1e1, 1e2, 1e3, 2e3, 4e3, 1e4],
         labels=["1e1", "1e2", "1e3", "2e3", "4e3", "1e4"]
     )
+    Log.histogram(
+        "ProofTraces Length",
+        [
+            (len(pr._premises) + len(pr._terms) + len(pr._steps))
+            for pr in traces
+        ],
+        buckets=[1e1, 1e2, 1e3, 2e3, 4e3, 1e4],
+        labels=["1e1", "1e2", "1e3", "2e3", "4e3", "1e4"]
+    )
 
     # terms = {}
     # for tr in traces:
@@ -585,7 +598,7 @@ def extract():
     #     "term_count": len(terms),
     # })
 
-    actions = traces[0].actions()
+    actions = [tr.actions() for tr in traces]
     import pdb; pdb.set_trace()
 
     # traces_path = os.path.join(
