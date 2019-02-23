@@ -61,23 +61,18 @@ class BinaryTreeLSTM(nn.Module):
     """
     def __init__(
             self,
-            token_count,
             hidden_size,
+            embedder,
     ):
         super(BinaryTreeLSTM, self).__init__()
 
         self.device = torch.device('cpu')
-
-        self.token_count = token_count
         self.hidden_size = hidden_size
 
         self.wx = nn.Linear(hidden_size, 5 * hidden_size)
         self.wh = nn.Linear(2 * hidden_size, 5 * hidden_size)
 
-        self.embedding = nn.Embedding(
-            token_count,
-            hidden_size,
-        )
+        self.embedder = embedder
 
     def to(
             self,
@@ -149,9 +144,7 @@ class BinaryTreeLSTM(nn.Module):
         C = [[]] * len(V)
 
         for d in reversed(range(len(V))):
-            v = self.embedding(
-                torch.tensor(V[d], dtype=torch.int64).to(self.device)
-            )
+            v = self.embedder(V[d])
 
             lh = []
             lc = []
@@ -225,11 +218,7 @@ class BinaryTreeLSTM(nn.Module):
                  torch.zeros(1, self.hidden_size).to(self.device))
 
         return self.forward(
-            self.embedding(
-                torch.tensor(
-                    [tree.value], dtype=torch.int64,
-                ).to(self.device),
-            ),
+            self.embedder([tree.value]),
             left_h, left_c,
             right_h, right_c,
         )
@@ -262,7 +251,14 @@ class BinaryTreeLSTM(nn.Module):
 
 
 def test():
-    tree_lstm = BinaryTreeLSTM(10, 4)
+    embedding = nn.Embedding(10, 4)
+
+    def embedder(values):
+        return embedding(
+            torch.tensor(values, dtype=torch.int64).to(torch.device('cpu'))
+        )
+
+    tree_lstm = BinaryTreeLSTM(4, embedder)
     tree_lstm.to(torch.device('cpu'))
     trees = [
         BVT(0, BVT(2)),
