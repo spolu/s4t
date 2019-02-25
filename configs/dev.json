@@ -56,7 +56,13 @@
   "th2vec_premiser_dataset_type": "classification",
   "th2vec_premiser_embedder_load_dir": null,
 
+
+  "formal_term_token_count": 400,
+  "formal_hidden_size": 256,
+  "formal_sequence_length": 1024,
+
   "prooftrace_dataset_dir": "./data/prooftrace/small",
+
 
   "tensorboard_log_dir": null
 }

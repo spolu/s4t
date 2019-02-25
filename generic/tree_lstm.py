@@ -11,7 +11,7 @@ class BVT():
     """
     def __init__(
             self,
-            value: int,
+            value,
             left=None,
             right=None,
     ):
@@ -27,7 +27,10 @@ class BVT():
     ):
         if self._hash is None:
             h = xxhash.xxh64()
-            h.update(str(self.value))
+            if type(self.value) is BVT:
+                h.update(self.value.hash())
+            else:
+                h.update(str(self.value))
             if self.left is not None:
                 h.update(self.left.hash())
             if self.right is not None:
@@ -62,7 +65,6 @@ class BinaryTreeLSTM(nn.Module):
     def __init__(
             self,
             hidden_size,
-            embedder,
     ):
         super(BinaryTreeLSTM, self).__init__()
 
@@ -71,8 +73,6 @@ class BinaryTreeLSTM(nn.Module):
 
         self.wx = nn.Linear(hidden_size, 5 * hidden_size)
         self.wh = nn.Linear(2 * hidden_size, 5 * hidden_size)
-
-        self.embedder = embedder
 
     def to(
             self,
@@ -87,6 +87,7 @@ class BinaryTreeLSTM(nn.Module):
     def batch(
             self,
             trees: typing.List[BVT],
+            embedder,
     ):
         """ Dynamic batching on an array of BVT
 
@@ -105,7 +106,6 @@ class BinaryTreeLSTM(nn.Module):
 
         def dfs(tree, depth):
             if tree.hash() in cache and cache[tree.hash()][0] >= depth:
-                print("CACHE_HIT")
                 counters['cache_hits'] += 1
                 return cache[tree.hash()]
             counters['compute_steps'] += 1
@@ -144,7 +144,7 @@ class BinaryTreeLSTM(nn.Module):
         C = [[]] * len(V)
 
         for d in reversed(range(len(V))):
-            v = self.embedder(V[d])
+            v = embedder(V[d])
 
             lh = []
             lc = []
@@ -185,7 +185,6 @@ class BinaryTreeLSTM(nn.Module):
         Ct = [[]] * len(pos)
 
         for i, p in enumerate(pos):
-            assert p[0] == 0
             Ht[i] = H[0][p[1]].unsqueeze(0)
             Ct[i] = C[0][p[1]].unsqueeze(0)
 
@@ -199,14 +198,15 @@ class BinaryTreeLSTM(nn.Module):
     def recurse(
             self,
             tree: BVT,
+            embedder,
     ):
         left_h, left_c = None, None
         if tree.left is not None:
-            left_h, left_c = self.recurse(tree.left)
+            left_h, left_c = self.recurse(tree.left, embedder)
 
         right_h, right_c = None, None
         if tree.right is not None:
-            right_h, right_c = self.recurse(tree.right)
+            right_h, right_c = self.recurse(tree.right, embedder)
 
         if left_h is None:
             left_h, left_c = \
@@ -218,7 +218,7 @@ class BinaryTreeLSTM(nn.Module):
                  torch.zeros(1, self.hidden_size).to(self.device))
 
         return self.forward(
-            self.embedder([tree.value]),
+            embedder([tree.value]),
             left_h, left_c,
             right_h, right_c,
         )
@@ -258,7 +258,7 @@ def test():
             torch.tensor(values, dtype=torch.int64).to(torch.device('cpu'))
         )
 
-    tree_lstm = BinaryTreeLSTM(4, embedder)
+    tree_lstm = BinaryTreeLSTM(4)
     tree_lstm.to(torch.device('cpu'))
     trees = [
         BVT(0, BVT(2)),
@@ -269,11 +269,11 @@ def test():
     ]
 
     for i, t in enumerate(trees):
-        e, _ = tree_lstm.recurse(t)
+        e, _ = tree_lstm.recurse(t, embedder)
         print("{}: {}".format(i, e[0]))
 
     print("---")
 
-    e, _ = tree_lstm.batch(trees)
+    e, _ = tree_lstm.batch(trees, embedder)
     for i, t in enumerate(trees):
         print("{}: {}".format(i, e[i]))

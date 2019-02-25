@@ -2,9 +2,9 @@ import os
 import random
 import torch
 
-from utils.log import Log
-
 from torch.utils.data import Dataset
+
+from utils.log import Log
 
 
 class HolStepKernel():

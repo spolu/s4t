@@ -1,9 +1,15 @@
+import argparse
+import os
 import torch
 import torch.nn as nn
 import typing
 
-from generic.tree_lstm import TreeLSTM
-from dataset.prooftrace import Term, Action
+from dataset.prooftrace import Term, Action, ACTION_TOKENS, ProofTraceLMDataset
+
+from generic.tree_lstm import BinaryTreeLSTM, BVT
+
+from utils.config import Config
+# from utils.log import Log
 
 
 class TermEmbedder(nn.Module):
@@ -20,7 +26,12 @@ class TermEmbedder(nn.Module):
         self.hidden_size = \
             config.get('formal_hidden_size')
 
-        self.tree_lstm = TreeLSTM(self.term_token_count, self.hidden_size)
+        self.term_token_embedder = nn.Embedding(
+            self.term_token_count, self.hidden_size,
+        )
+
+        self.tree_lstm = BinaryTreeLSTM(self.hidden_size)
+        self.tree_lstm.to(self.device)
 
     def parameters_count(
             self,
@@ -31,8 +42,12 @@ class TermEmbedder(nn.Module):
             self,
             terms: typing.List[Term],
     ):
-        h, _ = self.batch(terms)
+        def embedder(values):
+            return self.term_token_embedder(
+                torch.tensor(values, dtype=torch.int64).to(self.device),
+            )
 
+        h, _ = self.tree_lstm.batch(terms, embedder)
         return h
 
 
@@ -43,21 +58,49 @@ class ActionEmbedder(nn.Module):
     ):
         super(ActionEmbedder, self).__init__()
 
-        self.term_token_count = \
-            config.get('formal_action_token_count')
+        self.device = torch.device(config.get('device'))
+
         self.hidden_size = \
             config.get('formal_hidden_size')
 
         self.term_embedder = TermEmbedder(config)
 
-        self.action_token_embedding = nn.Embedding(
-            self.action_token_count,
-            self.hidden_size,
+        self.action_token_embedder = nn.Embedding(
+            len(ACTION_TOKENS), self.hidden_size,
         )
-        self.lstm = nn.LSTM(
-            self.hidden_size, self.hidden_size,
-            num_layers=1, bias=True, batch_first=True, dropout=0.0,
-        )
+
+        self.tree_lstm = BinaryTreeLSTM(self.hidden_size)
+        self.tree_lstm.to(self.device)
+
+    def extract_terms(
+            self,
+            actions: typing.List[Action],
+    ) -> typing.List[Term]:
+        seen = {}
+
+        def dfs(action):
+            if action.hash() in seen:
+                return []
+            seen[action.hash()] = True
+
+            if type(action.value) is BVT:
+                return [action.value]
+            else:
+                left = []
+                if action.left is not None:
+                    left = dfs(action.left)
+
+                right = []
+                if action.right is not None:
+                    right = dfs(action.right)
+
+                return left + right
+
+        terms = []
+        for a in actions:
+            terms += dfs(a)
+
+        return terms
 
     def forward(
             self,
@@ -65,4 +108,84 @@ class ActionEmbedder(nn.Module):
                 typing.List[Action],
             ]
     ):
-        pass
+        flat = []
+        for a in actions:
+            flat += a
+
+        cache = {}
+
+        terms = self.extract_terms(flat)
+
+        terms_embeds = self.term_embedder(terms)
+        for i, tm in enumerate(terms):
+            cache[tm.hash()] = terms_embeds[i].unsqueeze(0)
+
+        tokens_embeds = self.action_token_embedder(
+            torch.tensor(
+                list(ACTION_TOKENS.values()),
+                dtype=torch.int64
+            ).to(self.device),
+        )
+        for i, tk in enumerate(list(ACTION_TOKENS.values())):
+            cache[tk] = tokens_embeds[i].unsqueeze(0)
+
+        def embedder(values):
+            embeds = [[]] * len(values)
+            for idx, v in enumerate(values):
+                if type(v) is BVT:
+                    embeds[idx] = cache[v.hash()]
+                else:
+                    embeds[idx] = cache[v]
+            return torch.cat(embeds, dim=0)
+
+        h, _ = self.tree_lstm.batch(flat, embedder)
+
+        # This assumes that all received action lists have equal size.
+        return torch.cat(
+            [t.unsqueeze(0) for t in torch.chunk(h, len(actions), dim=0)],
+            dim=0,
+        )
+
+
+def test():
+    parser = argparse.ArgumentParser(description="")
+    parser.add_argument(
+        'config_path',
+        type=str, help="path to the config file",
+    )
+    parser.add_argument(
+        '--dataset_dir',
+        type=str, help="prooftrace dataset directory",
+    )
+
+    args = parser.parse_args()
+
+    config = Config.from_file(args.config_path)
+
+    if args.dataset_dir is not None:
+        config.override(
+            'prooftrace_dataset_dir',
+            os.path.expanduser(args.dataset_dir),
+        )
+
+    # train_set = ProofTraceLMDataset(
+    #     os.path.join(
+    #         os.path.expanduser(config.get('prooftrace_dataset_dir')),
+    #         'train_traces',
+    #     ),
+    #     config.get('formal_sequence_length'),
+    # )
+    test_set = ProofTraceLMDataset(
+        os.path.join(
+            os.path.expanduser(config.get('prooftrace_dataset_dir')),
+            'test_traces',
+        ),
+        config.get('formal_sequence_length'),
+    )
+
+    embedder = ActionEmbedder(config)
+
+    device = torch.device(config.get('device'))
+    embedder.to(device)
+
+    embedder([test_set.__getitem__(i) for i in range(test_set.__len__())][0:2])

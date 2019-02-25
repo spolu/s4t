@@ -2,11 +2,14 @@ import argparse
 import os
 import json
 import pickle
+import re
 import shutil
 import sys
 import typing
 
 from generic.tree_lstm import BVT
+
+from torch.utils.data import Dataset
 
 from utils.config import Config
 from utils.log import Log
@@ -387,7 +390,7 @@ class ProofTrace():
                 else:
                     return Action.from_action(
                         'HYPOTHESIS',
-                        hypotheses[0],
+                        Action.from_term(self._kernel.term(hypotheses[0])),
                         build_hypothesis(hypotheses[1:]),
                     )
 
@@ -395,8 +398,8 @@ class ProofTrace():
                 'PREMISE',
                 Action.from_action(
                     'CONCLUSION',
-                    self._kernel.term(p['cc']),
-                    build_hypothesis([self._kernel.term(h) for h in p['hy']]),
+                    Action.from_term(self._kernel.term(p['cc'])),
+                    build_hypothesis(p['hy']),
                 ),
             )
             cache['indices'][idx] = action
@@ -498,9 +501,98 @@ class ProofTrace():
             cache['indices'][idx] = actions[-1]
             sequence = sequence + actions
 
-        sequence.append(Action.from_action('EXTRACT'))
+        # sequence.append(Action.from_action('EXTRACT'))
 
         return sequence
+
+
+class ProofTraceDataset(Dataset):
+    def __init__(
+            self,
+            dataset_dir: str,
+            trace_max_length=-1,
+    ) -> None:
+        self._traces = []
+
+        assert os.path.isdir(dataset_dir)
+        files = [
+            os.path.join(dataset_dir, f)
+            for f in os.listdir(dataset_dir)
+            if os.path.isfile(os.path.join(dataset_dir, f))
+        ]
+
+        for p in files:
+            if re.search("\\.actions$", p) is None:
+                continue
+            with open(p, 'rb') as f:
+                trace = pickle.load(f)
+                if trace_max_length <= -1 or len(trace) <= trace_max_length:
+                    self._traces.append(trace)
+
+        Log.out(
+            "Loaded extracted ProofTraces", {
+                'dataset_dir': dataset_dir,
+                'trace_max_length': trace_max_length,
+                'traces_count': len(self._traces),
+            })
+
+    def __len__(
+            self,
+    ) -> int:
+        return len(self._traces)
+
+    def __getitem__(
+            self,
+            idx: int,
+    ):
+        return self._traces[idx]
+
+
+class ProofTraceLMDataset(ProofTraceDataset):
+    def __init__(
+            self,
+            dataset_dir: str,
+            sequence_length: int,
+            trace_max_length=-1,
+    ) -> None:
+        self._sequence_length = sequence_length
+        self._cases = []
+
+        super(ProofTraceLMDataset, self).__init__(
+            dataset_dir,
+            trace_max_length,
+        )
+
+        for idx, tr in enumerate(self._traces):
+            for pos in range(len(tr)):
+                if pos < (self._sequence_length - 1):
+                    if tr[pos].value not in \
+                            [ACTION_TOKENS['TERM'], ACTION_TOKENS['PREMISE']]:
+                        self._cases.append((idx, pos))
+
+        Log.out(
+            "Loaded extracted ProofTraces LM Dataset", {
+                'dataset_dir': dataset_dir,
+                'cases': len(self._cases),
+            })
+
+    def __len__(
+            self,
+    ) -> int:
+        return len(self._cases)
+
+    def __getitem__(
+            self,
+            idx: int,
+    ):
+        trace = self._traces[self._cases[idx][0]][:self._cases[idx][1]]
+
+        trace.append(Action.from_action('EXTRACT'))
+
+        while len(trace) < self._sequence_length:
+            trace.append(Action.from_action('EMPTY'))
+
+        return trace
 
 
 def extract():
@@ -652,3 +744,6 @@ def extract():
         "train_size": train_size,
         "term_token_count": len(kernel._term_tokens),
     })
+
+    # small term_token_count: 400
+    # medium term_token_count: 13404
