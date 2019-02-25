@@ -585,14 +585,14 @@ class ProofTraceLMDataset(ProofTraceDataset):
             self,
             idx: int,
     ):
-        trace = self._traces[self._cases[idx][0]][:self._cases[idx][1]]
+        trace = self._traces[self._cases[idx][0]][:self._cases[idx][1]+1]
 
-        trace.append(Action.from_action('EXTRACT'))
+        # trace.append(Action.from_action('EXTRACT'))
 
         while len(trace) < self._sequence_length:
             trace.append(Action.from_action('EMPTY'))
 
-        return trace
+        return (self._cases[idx][1], trace)
 
 
 def extract():

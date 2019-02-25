@@ -116,9 +116,10 @@ class ActionEmbedder(nn.Module):
 
         terms = self.extract_terms(flat)
 
-        terms_embeds = self.term_embedder(terms)
-        for i, tm in enumerate(terms):
-            cache[tm.hash()] = terms_embeds[i].unsqueeze(0)
+        if len(terms) > 0:
+            terms_embeds = self.term_embedder(terms)
+            for i, tm in enumerate(terms):
+                cache[tm.hash()] = terms_embeds[i].unsqueeze(0)
 
         tokens_embeds = self.action_token_embedder(
             torch.tensor(
@@ -188,6 +189,20 @@ def test():
     device = torch.device(config.get('device'))
     embedder.to(device)
 
-    embedder(
-        [test_set.__getitem__(i) for i in range(test_set.__len__())][0:100]
-    )
+    indices = []
+    traces = []
+
+    for i in range(test_set.__len__()):
+        idx, tr = test_set.__getitem__(i)
+        indices.append(idx)
+        traces.append(tr)
+
+    embeds = embedder(traces[0:32])
+    extract = embedder([[Action.from_action('EXTRACT')]])
+
+    targets = embeds.clone().detach()
+
+    for i, idx in enumerate(indices[0:32]):
+        embeds[i][idx] = extract[0][0]
+
+    targets.size()
