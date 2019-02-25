@@ -22,9 +22,9 @@ class TermEmbedder(nn.Module):
         self.device = torch.device(config.get('device'))
 
         self.term_token_count = \
-            config.get('formal_term_token_count')
+            config.get('prooftrace_term_token_count')
         self.hidden_size = \
-            config.get('formal_hidden_size')
+            config.get('prooftrace_hidden_size')
 
         self.term_token_embedder = nn.Embedding(
             self.term_token_count, self.hidden_size,
@@ -61,7 +61,7 @@ class ActionEmbedder(nn.Module):
         self.device = torch.device(config.get('device'))
 
         self.hidden_size = \
-            config.get('formal_hidden_size')
+            config.get('prooftrace_hidden_size')
 
         self.term_embedder = TermEmbedder(config)
 
@@ -174,14 +174,14 @@ def test():
     #         os.path.expanduser(config.get('prooftrace_dataset_dir')),
     #         'train_traces',
     #     ),
-    #     config.get('formal_sequence_length'),
+    #     config.get('prooftrace_sequence_length'),
     # )
     test_set = ProofTraceLMDataset(
         os.path.join(
             os.path.expanduser(config.get('prooftrace_dataset_dir')),
             'test_traces',
         ),
-        config.get('formal_sequence_length'),
+        config.get('prooftrace_sequence_length'),
     )
 
     embedder = ActionEmbedder(config)

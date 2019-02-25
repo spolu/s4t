@@ -3,6 +3,8 @@ import torch.nn as nn
 
 from generic.transformer import TransformerBlock
 
+from prooftrace.models.embedder import ActionEmbedder
+
 
 class LM(nn.Module):
     def __init__(
@@ -14,13 +16,13 @@ class LM(nn.Module):
         self.device = torch.device(config.get('device'))
 
         self.sequence_length = \
-            config.get('formal_sequence_length')
+            config.get('prooftrace_sequence_length')
         self.hidden_size = \
-            config.get('formal_hidden_size')
+            config.get('prooftrace_hidden_size')
         self.attention_head_count = \
-            config.get('formal_transformer_attention_head_count')
+            config.get('prooftrace_transformer_attention_head_count')
         self.layer_count = \
-            config.get('formal_transformer_layer_count')
+            config.get('prooftrace_transformer_layer_count')
 
         self.position_embedding = nn.Embedding(
             self.sequence_length, self.hidden_size
@@ -41,10 +43,19 @@ class LM(nn.Module):
 
         self.layers = nn.Sequential(*layers)
 
+        self.embedder = ActionEmbedder(config)
+        self.embedder.to(self.device)
+
     def parameters_count(
             self,
     ):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+    def embed(
+            self,
+            actions,
+    ):
+        return self.embedder(actions)
 
     def forward(
             self,

@@ -57,12 +57,19 @@
   "th2vec_premiser_embedder_load_dir": null,
 
 
-  "formal_term_token_count": 400,
-  "formal_hidden_size": 256,
-  "formal_sequence_length": 1024,
+  "prooftrace_batch_size": 8,
+  "prooftrace_accumulation_step_count": 1,
 
-  "formal_transformer_attention_head_count": 4,
-  "formal_transformer_layer_count": 4,
+  "prooftrace_learning_rate": 0.00025,
+  "prooftrace_load_dir": null,
+  "prooftrace_save_dir": null,
+
+  "prooftrace_term_token_count": 400,
+  "prooftrace_hidden_size": 256,
+  "prooftrace_sequence_length": 1024,
+
+  "prooftrace_transformer_attention_head_count": 4,
+  "prooftrace_transformer_layer_count": 4,
 
   "prooftrace_dataset_dir": "./data/prooftrace/small",
 

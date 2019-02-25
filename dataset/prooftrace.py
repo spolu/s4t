@@ -521,6 +521,7 @@ class ProofTraceDataset(Dataset):
             if os.path.isfile(os.path.join(dataset_dir, f))
         ]
 
+        processed = 0
         for p in files:
             if re.search("\\.actions$", p) is None:
                 continue
@@ -528,6 +529,16 @@ class ProofTraceDataset(Dataset):
                 trace = pickle.load(f)
                 if trace_max_length <= -1 or len(trace) <= trace_max_length:
                     self._traces.append(trace)
+
+            processed += 1
+
+            if processed % 100 == 0:
+                Log.out(
+                    "Loading extracted ProofTraces", {
+                        'dataset_dir': dataset_dir,
+                        'total': len(files),
+                        'processed': processed,
+                    })
 
         Log.out(
             "Loaded extracted ProofTraces", {
@@ -593,6 +604,17 @@ class ProofTraceLMDataset(ProofTraceDataset):
             trace.append(Action.from_action('EMPTY'))
 
         return (self._cases[idx][1], trace)
+
+
+def lm_collate(batch):
+    indices = []
+    traces = []
+
+    for (idx, trc) in batch:
+        indices.append(idx)
+        traces.append(trc)
+
+    return (indices, traces)
 
 
 def extract():
