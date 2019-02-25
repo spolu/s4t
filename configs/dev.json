@@ -64,7 +64,7 @@
   "prooftrace_load_dir": null,
   "prooftrace_save_dir": null,
 
-  "prooftrace_term_token_count": 400,
+  "prooftrace_term_token_count": 13404,
   "prooftrace_hidden_size": 256,
   "prooftrace_sequence_length": 1024,
 
