@@ -170,10 +170,12 @@ class LanguageModeler:
         # self._scheduler.step()
 
         for it, (idx, trc) in enumerate(self._train_loader):
-            embeds = self._model.embed(trc)
+            embeds = self._inner_model.embed(trc)
             targets = embeds.clone().detach()
 
-            extract = self._model.embed([[Action.from_action('EXTRACT')]])
+            extract = self._inner_model.embed(
+                [[Action.from_action('EXTRACT')]]
+            )
 
             for i, idx in enumerate(idx):
                 embeds[i][idx] = extract[0][0]
@@ -221,10 +223,12 @@ class LanguageModeler:
 
         with torch.no_grad():
             for it, (trc, idx) in enumerate(self._test_loader):
-                embeds = self._model.embed(trc)
+                embeds = self._inner_model.embed(trc)
                 targets = embeds.clone().detach()
 
-                extract = self._model.embed([[Action.from_action('EXTRACT')]])
+                extract = self._inner_model.embed(
+                    [[Action.from_action('EXTRACT')]]
+                )
 
                 for i, idx in enumerate(idx):
                     embeds[i][idx] = extract[0][0]
@@ -245,11 +249,6 @@ class LanguageModeler:
                 "test/prooftrace/language_modeler/loss",
                 loss_meter.avg, self._train_batch,
             )
-
-    def embed(
-            self,
-    ):
-        self._model.eval()
 
 
 def train():
