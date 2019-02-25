@@ -1,11 +1,10 @@
 import argparse
 import os
 import json
-# import shutil
-import re
+import pickle
+import shutil
 import sys
 import typing
-import xxhash
 
 from generic.tree_lstm import BVT
 
@@ -589,15 +588,6 @@ def extract():
         buckets=[1e1, 1e2, 1e3, 2e3, 4e3, 1e4],
         labels=["1e1", "1e2", "1e3", "2e3", "4e3", "1e4"]
     )
-    Log.histogram(
-        "ProofTraces Length",
-        [
-            (len(pr._premises) + len(pr._terms) + len(pr._steps))
-            for pr in traces
-        ],
-        buckets=[1e1, 1e2, 1e3, 2e3, 4e3, 1e4],
-        labels=["1e1", "1e2", "1e3", "2e3", "4e3", "1e4"]
-    )
 
     # terms = {}
     # for tr in traces:
@@ -615,23 +605,33 @@ def extract():
     # })
 
     actions = [tr.actions() for tr in traces]
-    import pdb; pdb.set_trace()
 
-    # traces_path = os.path.join(
-    #     os.path.expanduser(config.get('prooftrace_dataset_dir')),
-    #     "traces",
-    # )
+    Log.histogram(
+        "ProofTraces Length",
+        [len(a) for a in actions],
+        buckets=[1e1, 1e2, 1e3, 2e3, 4e3, 1e4],
+        labels=["1e1", "1e2", "1e3", "2e3", "4e3", "1e4"]
+    )
 
-    # if os.path.isdir(traces_path):
-    #     shutil.rmtree(traces_path)
-    # os.mkdir(traces_path)
+    traces_path = os.path.join(
+        os.path.expanduser(config.get('prooftrace_dataset_dir')),
+        "traces",
+    )
 
-    # for tr in traces:
-    #     trace_path = os.path.join(traces_path, tr.name())
-    #     with open(trace_path, 'w') as f:
-    #         json.dump(dict(tr), f, sort_keys=False, indent=2)
+    if os.path.isdir(traces_path):
+        shutil.rmtree(traces_path)
+    os.mkdir(traces_path)
 
-    # Log.out("Dumped all traces", {
-    #     "traces_path": traces_path,
-    #     "trace_count": len(traces),
-    # })
+    for i, tr in enumerate(traces):
+        actions_path = os.path.join(traces_path, tr.name() + '.actions')
+        with open(actions_path, 'wb') as f:
+            pickle.dump(actions[i], f)
+
+        trace_path = os.path.join(traces_path, tr.name() + '.trace')
+        with open(trace_path, 'w') as f:
+            json.dump(dict(tr), f, sort_keys=False, indent=2)
+
+    Log.out("Dumped all traces", {
+        "traces_path": traces_path,
+        "trace_count": len(traces),
+    })
