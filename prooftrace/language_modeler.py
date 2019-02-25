@@ -163,7 +163,13 @@ class LanguageModeler:
         assert self._train_loader is not None
 
         self._model.train()
+
         loss_meter = Meter()
+
+        prd_norm_meter = Meter()
+        trg_norm_meter = Meter()
+        emd_norm_meter = Meter()
+        simi_meter = Meter()
 
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(epoch)
@@ -192,6 +198,13 @@ class LanguageModeler:
 
             loss_meter.update(loss.item())
 
+            prd_norm_meter.update(torch.norm(predictions, dim=2).mean())
+            trg_norm_meter.update(torch.norm(targets, dim=2).mean())
+            emd_norm_meter.update(torch.norm(embeds, dim=2).mean())
+            simi_meter.update(
+                F.cosine_similarity(predictions, targets, dim=2).mean(),
+            )
+
             if self._train_batch % 10 == 0:
                 Log.out("PROOFTRACE TRAIN", {
                     'train_batch': self._train_batch,
@@ -203,14 +216,34 @@ class LanguageModeler:
                         "train/prooftrace/language_modeler/loss",
                         loss_meter.avg, self._train_batch,
                     )
+                    self._tb_writer.add_scalar(
+                        "train/prooftrace/language_modeler/prd_norm",
+                        prd_norm_meter.avg, self._train_batch,
+                    )
+                    self._tb_writer.add_scalar(
+                        "train/prooftrace/language_modeler/trg_norm",
+                        trg_norm_meter.avg, self._train_batch,
+                    )
+                    self._tb_writer.add_scalar(
+                        "train/prooftrace/language_modeler/emd_norm",
+                        emd_norm_meter.avg, self._train_batch,
+                    )
+                    self._tb_writer.add_scalar(
+                        "train/prooftrace/language_modeler/simi",
+                        simi_meter.avg, self._train_batch,
+                    )
 
                 loss_meter = Meter()
+
+                prd_norm_meter = Meter()
+                trg_norm_meter = Meter()
+                emd_norm_meter = Meter()
+                simi_meter = Meter()
 
             self._train_batch += 1
 
         Log.out("EPOCH DONE", {
             'epoch': epoch,
-            # 'learning_rate': self._scheduler.get_lr(),
         })
 
     def batch_test(
