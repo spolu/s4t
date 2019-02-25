@@ -16,16 +16,19 @@ ACTION_TOKENS = {
     'EMPTY': 0,
     'EXTRACT': 1,
     'PREMISE': 2,
-    'TERM': 3,
-    'REFL': 4,
-    'TRANS': 5,
-    'MK_COMB': 6,
-    'ABS': 7,
-    'BETA': 8,
-    'ASSUME': 9,
-    'EQ_MP': 10,
-    'DEDUCT_ANTISYM_RULE': 11,
-    'INST': 12,
+    'HYPOTHESIS': 3,
+    'CONCLUSION': 4,
+    'TERM': 5,
+    'REFL': 6,
+    'TRANS': 7,
+    'MK_COMB': 8,
+    'ABS': 9,
+    'BETA': 10,
+    'ASSUME': 11,
+    'EQ_MP': 12,
+    'DEDUCT_ANTISYM_RULE': 13,
+    'INST': 14,
+    'INST_PAIR': 15,
 }
 
 
@@ -33,39 +36,21 @@ class Term(BVT):
     pass
 
 
-class Action():
-    def __init__(
-            self,
+class Action(BVT):
+    @staticmethod
+    def from_action(
             action: str,
-            args,
+            left=None,
+            right=None,
     ):
-        self.action = ACTION_TOKENS[action]
-        self.args = args
+        value = ACTION_TOKENS[action]
+        return Action(value, left, right)
 
-        self._hash = None
-        self._depth = None
-
-    def hash(
-            self,
+    @staticmethod
+    def from_term(
+            term: Term,
     ):
-        if self._hash is None:
-            h = xxhash.xxh64()
-            h.update(str(self.action))
-            for arg in self.args:
-                h.update(arg.hash())
-            self._hash = h.digest()
-
-        return self._hash
-
-    def depth(
-            self,
-    ):
-        if self._depth is None:
-            self._depth = 1 + max(
-                [arg.depth() for arg in self.args] + [0]
-            )
-
-        return self._depth
+        return Action(term)
 
 
 class ProofTraceKernel():
@@ -379,22 +364,41 @@ class ProofTrace():
         # We start by terms as they are generally deeper than premises but
         # include very similar terms (optimize TreeLSTM cache hit).
         for tm in self._terms:
-            action = Action('TERM', [self._kernel.term(tm)])
+            action = Action.from_action(
+                'TERM',
+                Action.from_term(self._kernel.term(tm)),
+            )
             cache['terms'][tm] = action
             sequence.append(action)
 
         # Terms are unordered so we order them by depth to optimize cache hit
         # again.
         sequence = sorted(
-            sequence, key=lambda action: action.depth(), reverse=True,
+            sequence,
+            key=lambda action: action.left.value.depth(),
+            reverse=True,
         )
 
         for idx in self._premises:
             p = self._premises[idx]
-            action = Action(
+
+            def build_hypothesis(hypotheses):
+                if len(hypotheses) == 0:
+                    return None
+                else:
+                    return Action.from_action(
+                        'HYPOTHESIS',
+                        hypotheses[0],
+                        build_hypothesis(hypotheses[1:]),
+                    )
+
+            action = Action.from_action(
                 'PREMISE',
-                [self._kernel.term(p['cc'])] +
-                [self._kernel.term(h) for h in p['hy']]
+                Action.from_action(
+                    'CONCLUSION',
+                    self._kernel.term(p['cc']),
+                    build_hypothesis([self._kernel.term(h) for h in p['hy']]),
+                ),
             )
             cache['indices'][idx] = action
             sequence.append(action)
@@ -405,66 +409,78 @@ class ProofTrace():
 
             if step[0] == 'REFL':
                 actions = [
-                    Action('REFL', [
+                    Action.from_action(
+                        'REFL',
                         cache['terms'][step[1]],
-                    ])
+                    ),
                 ]
             elif step[0] == 'TRANS':
                 actions = [
-                    Action('TRANS', [
+                    Action.from_action(
+                        'TRANS',
                         cache['indices'][step[1]],
                         cache['indices'][step[2]],
-                    ])
+                    ),
                 ]
             elif step[0] == 'MK_COMB':
                 actions = [
-                    Action('MK_COMB', [
+                    Action.from_action(
+                        'MK_COMB',
                         cache['indices'][step[1]],
                         cache['indices'][step[2]],
-                    ])
+                    ),
                 ]
             elif step[0] == 'ABS':
                 actions = [
-                    Action('ABS', [
+                    Action.from_action(
+                        'ABS',
                         cache['indices'][step[1]],
                         cache['terms'][step[2]],
-                    ])
+                    ),
                 ]
             elif step[0] == 'BETA':
                 actions = [
-                    Action('BETA', [
+                    Action.from_action(
+                        'BETA',
                         cache['terms'][step[1]],
-                    ])
+                    ),
                 ]
             elif step[0] == 'ASSUME':
                 actions = [
-                    Action('ASSUME', [
+                    Action.from_action(
+                        'ASSUME',
                         cache['terms'][step[1]],
-                    ])
+                    ),
                 ]
             elif step[0] == 'EQ_MP':
                 actions = [
-                    Action('EQ_MP', [
+                    Action.from_action(
+                        'EQ_MP',
                         cache['indices'][step[1]],
                         cache['indices'][step[2]],
-                    ])
+                    ),
                 ]
             elif step[0] == 'DEDUCT_ANTISYM_RULE':
                 actions = [
-                    Action('DEDUCT_ANTISYM_RULE', [
+                    Action.from_action(
+                        'DEDUCT_ANTISYM_RULE',
                         cache['indices'][step[1]],
                         cache['indices'][step[2]],
-                    ])
+                    ),
                 ]
             elif step[0] == 'INST':
                 pred = cache['indices'][step[1]]
                 actions = []
                 for inst in step[2]:
-                    action = Action('INST', [
+                    action = Action.from_action(
+                        'INST',
                         pred,
-                        cache['terms'][inst[0]],
-                        cache['terms'][inst[1]],
-                    ])
+                        Action.from_action(
+                            'INST_PAIR',
+                            cache['terms'][inst[0]],
+                            cache['terms'][inst[1]],
+                        ),
+                    )
                     pred = action
                     actions.append(action)
 
@@ -483,7 +499,7 @@ class ProofTrace():
             cache['indices'][idx] = actions[-1]
             sequence = sequence + actions
 
-        sequence.append(Action('EXTRACT', []))
+        sequence.append(Action.from_action('EXTRACT'))
 
         return sequence
 
