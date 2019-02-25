@@ -569,6 +569,7 @@ def extract():
     )
 
     traces = [ProofTrace(kernel, k) for k in kernel._names.keys()]
+    traces = sorted(traces, key=lambda tr: tr._index)
 
     Log.histogram(
         "ProofTraces Steps",
@@ -613,25 +614,41 @@ def extract():
         labels=["1e1", "1e2", "1e3", "2e3", "4e3", "1e4"]
     )
 
-    traces_path = os.path.join(
+    traces_path_train = os.path.join(
         os.path.expanduser(config.get('prooftrace_dataset_dir')),
-        "traces",
+        "train_traces",
+    )
+    traces_path_test = os.path.join(
+        os.path.expanduser(config.get('prooftrace_dataset_dir')),
+        "test_traces",
     )
 
-    if os.path.isdir(traces_path):
-        shutil.rmtree(traces_path)
-    os.mkdir(traces_path)
+    if os.path.isdir(traces_path_train):
+        shutil.rmtree(traces_path_train)
+    os.mkdir(traces_path_train)
+    if os.path.isdir(traces_path_test):
+        shutil.rmtree(traces_path_test)
+    os.mkdir(traces_path_test)
+
+    train_size = int(len(traces) * 90 / 100)
 
     for i, tr in enumerate(traces):
-        actions_path = os.path.join(traces_path, tr.name() + '.actions')
+        if i < train_size:
+            path = traces_path_train
+        else:
+            path = traces_path_test
+        actions_path = os.path.join(path, tr.name() + '.actions')
         with open(actions_path, 'wb') as f:
             pickle.dump(actions[i], f)
 
-        trace_path = os.path.join(traces_path, tr.name() + '.trace')
+        trace_path = os.path.join(path, tr.name() + '.trace')
         with open(trace_path, 'w') as f:
             json.dump(dict(tr), f, sort_keys=False, indent=2)
 
     Log.out("Dumped all traces", {
-        "traces_path": traces_path,
+        "traces_path_train": traces_path_train,
+        "traces_path_test": traces_path_test,
         "trace_count": len(traces),
+        "train_size": train_size,
+        "term_token_count": len(kernel._term_tokens),
     })
