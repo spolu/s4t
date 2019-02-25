@@ -185,8 +185,8 @@ class BinaryTreeLSTM(nn.Module):
         Ct = [[]] * len(pos)
 
         for i, p in enumerate(pos):
-            Ht[i] = H[0][p[1]].unsqueeze(0)
-            Ct[i] = C[0][p[1]].unsqueeze(0)
+            Ht[i] = H[p[0]][p[1]].unsqueeze(0)
+            Ct[i] = C[p[0]][p[1]].unsqueeze(0)
 
         Ht = torch.cat(Ht, dim=0)
         Ct = torch.cat(Ct, dim=0)

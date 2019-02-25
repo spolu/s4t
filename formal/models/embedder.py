@@ -188,4 +188,6 @@ def test():
     device = torch.device(config.get('device'))
     embedder.to(device)
 
-    embedder([test_set.__getitem__(i) for i in range(test_set.__len__())][0:2])
+    embedder(
+        [test_set.__getitem__(i) for i in range(test_set.__len__())][0:100]
+    )
