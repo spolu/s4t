@@ -381,6 +381,9 @@ class ProofTrace():
             reverse=True,
         )
 
+        empty = Action.from_action('EMPTY')
+        sequence = [empty] + sequence
+
         for idx in self._premises:
             p = self._premises[idx]
 
@@ -414,6 +417,7 @@ class ProofTrace():
                     Action.from_action(
                         'REFL',
                         cache['terms'][step[1]],
+                        empty,
                     ),
                 ]
             elif step[0] == 'TRANS':
@@ -445,6 +449,7 @@ class ProofTrace():
                     Action.from_action(
                         'BETA',
                         cache['terms'][step[1]],
+                        empty,
                     ),
                 ]
             elif step[0] == 'ASSUME':
@@ -452,6 +457,7 @@ class ProofTrace():
                     Action.from_action(
                         'ASSUME',
                         cache['terms'][step[1]],
+                        empty,
                     ),
                 ]
             elif step[0] == 'EQ_MP':
@@ -474,16 +480,18 @@ class ProofTrace():
                 pred = cache['indices'][step[1]]
                 actions = []
                 for inst in step[2]:
+                    pair = Action.from_action(
+                        'INST_PAIR',
+                        cache['terms'][inst[0]],
+                        cache['terms'][inst[1]],
+                    )
                     action = Action.from_action(
                         'INST',
                         pred,
-                        Action.from_action(
-                            'INST_PAIR',
-                            cache['terms'][inst[0]],
-                            cache['terms'][inst[1]],
-                        ),
+                        pair,
                     )
                     pred = action
+                    actions.append(pair)
                     actions.append(action)
 
             elif step[0] == 'INST_TYPE':

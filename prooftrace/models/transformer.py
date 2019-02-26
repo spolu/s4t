@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+from dataset.prooftrace import ACTION_TOKENS
+
 from generic.transformer import TransformerBlock
 
 from prooftrace.models.embedder import ActionEmbedder
@@ -43,6 +45,13 @@ class LM(nn.Module):
 
         self.layers = nn.Sequential(*layers)
 
+        self.left_head = nn.Linear(self.hidden_size, self.hidden_size)
+        self.right_head = nn.Linear(self.hidden_size, self.hidden_size)
+        self.action_head = nn.Sequential(
+            nn.Linear(self.hidden_size, len(ACTION_TOKENS)),
+            nn.LogSoftmax(dim=1),
+        )
+
         self.embedder = ActionEmbedder(config)
         self.embedder.to(self.device)
 
@@ -57,6 +66,16 @@ class LM(nn.Module):
     ):
         return self.embedder(actions)
 
+    def head(
+            self,
+            predictions,
+    ):
+        lefts = self.left_head(predictions)
+        rights = self.right_head(predictions)
+        actions = self.action_head(predictions)
+
+        return actions, lefts, rights
+
     def forward(
             self,
             embeds,
@@ -69,4 +88,6 @@ class LM(nn.Module):
         )
         pos_embeds = self.position_embedding(pos_embeds)
 
-        return self.layers(embeds + pos_embeds)
+        hiddens = self.layers(embeds + pos_embeds)
+
+        return hiddens

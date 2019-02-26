@@ -1,6 +1,7 @@
 import argparse
 import os
 import torch
+import torch.nn as nn
 import torch.distributed as distributed
 import torch.utils.data.distributed
 import torch.optim as optim
@@ -48,6 +49,8 @@ class LanguageModeler:
         )
 
         self._model = self._inner_model
+        self._act_loss = nn.NLLLoss()
+
         self._train_batch = 0
 
     def init_training(
@@ -165,10 +168,16 @@ class LanguageModeler:
         self._model.train()
 
         trg_loss_meter = Meter()
-        trg_simi_meter = Meter()
         ext_loss_meter = Meter()
+        act_loss_meter = Meter()
+        lft_loss_meter = Meter()
+        rgt_loss_meter = Meter()
+
+        trg_norm_meter = Meter()
+        prd_norm_meter = Meter()
+
+        trg_simi_meter = Meter()
         ext_simi_meter = Meter()
-        emd_norm_meter = Meter()
 
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(epoch)
@@ -176,7 +185,7 @@ class LanguageModeler:
 
         for it, (idx, trc) in enumerate(self._train_loader):
             embeds = self._inner_model.embed(trc)
-            targets = embeds.clone().detach()
+            ground = embeds.clone().detach()
 
             extract = self._inner_model.embed(
                 [[Action.from_action('EXTRACT')]]
@@ -185,23 +194,40 @@ class LanguageModeler:
             for i, ext in enumerate(idx):
                 embeds[i][ext] = extract[0][0]
 
-            predictions = self._model(embeds)
+            hiddens = self._model(embeds)
 
-            trg_loss = 0
-            ext_loss = 0
-            for i in range(len(idx)):
-                trg_loss += F.mse_loss(
-                    predictions[i][idx[i]],
-                    targets[i][idx[i]]
-                )
-                ext_loss += F.mse_loss(
-                    predictions[i][idx[i]],
-                    embeds[i][idx[i]]
-                )
-            trg_loss /= len(idx)
-            ext_loss /= len(idx)
+            extracts = torch.cat([
+                embeds[i][idx[i]].unsqueeze(0) for i in range(len(idx))
+            ], dim=0)
+            targets = torch.cat([
+                ground[i][idx[i]].unsqueeze(0) for i in range(len(idx))
+            ], dim=0)
+            predictions = torch.cat([
+                hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
+            ], dim=0)
+            actions = torch.tensor([
+                trc[i][idx[i]].value for i in range(len(idx))
+            ], dtype=torch.int64).to(self._device)
+            lefts = torch.cat([
+                embeds[i][trc[i].index(trc[i][idx[i]].left)].unsqueeze(0)
+                for i in range(len(idx))
+            ], dim=0)
+            rights = torch.cat([
+                embeds[i][trc[i].index(trc[i][idx[i]].right)].unsqueeze(0)
+                for i in range(len(idx))
+            ], dim=0)
 
-            trg_loss.backward()
+            trg_loss = F.mse_loss(predictions, targets)
+            ext_loss = F.mse_loss(predictions, extracts)
+
+            pred_actions, pred_lefts, pred_rights = \
+                self._inner_model.head(predictions)
+
+            act_loss = self._act_loss(pred_actions, actions)
+            lft_loss = F.mse_loss(pred_lefts, lefts)
+            rgt_loss = F.mse_loss(pred_rights, rights)
+
+            (trg_loss + act_loss + 0.5 * (lft_loss + rgt_loss)).backward()
 
             if it % self._accumulation_step_count == 0:
                 self._optimizer.step()
@@ -209,20 +235,25 @@ class LanguageModeler:
 
             trg_loss_meter.update(trg_loss.item())
             ext_loss_meter.update(ext_loss.item())
-            for i in range(len(idx)):
-                trg_simi_meter.update(
-                    F.cosine_similarity(
-                        predictions[i][idx[i]],
-                        targets[i][idx[i]],
-                        dim=0).mean(),
-                )
-                ext_simi_meter.update(
-                    F.cosine_similarity(
-                        predictions[i][idx[i]],
-                        embeds[i][idx[i]],
-                        dim=0).mean(),
-                )
-            emd_norm_meter.update(torch.norm(embeds, dim=2).mean())
+            act_loss_meter.update(act_loss.item())
+            lft_loss_meter.update(lft_loss.item())
+            rgt_loss_meter.update(rgt_loss.item())
+
+            trg_norm_meter.update(torch.norm(targets, dim=1).mean())
+            prd_norm_meter.update(torch.norm(predictions, dim=1).mean())
+
+            trg_simi_meter.update(
+                F.cosine_similarity(
+                    predictions,
+                    targets,
+                    dim=1).mean(),
+            )
+            ext_simi_meter.update(
+                F.cosine_similarity(
+                    predictions,
+                    extracts,
+                    dim=1).mean(),
+            )
 
             if self._train_batch % 10 == 0:
                 Log.out("PROOFTRACE TRAIN", {
@@ -237,27 +268,47 @@ class LanguageModeler:
                         trg_loss_meter.avg, self._train_batch,
                     )
                     self._tb_writer.add_scalar(
-                        "train/prooftrace/language_modeler/trg_simi",
-                        trg_simi_meter.avg, self._train_batch,
-                    )
-                    self._tb_writer.add_scalar(
                         "train/prooftrace/language_modeler/ext_loss",
                         ext_loss_meter.avg, self._train_batch,
+                    )
+                    self._tb_writer.add_scalar(
+                        "train/prooftrace/language_modeler/act_loss",
+                        act_loss_meter.avg, self._train_batch,
+                    )
+                    self._tb_writer.add_scalar(
+                        "train/prooftrace/language_modeler/lft_loss",
+                        lft_loss_meter.avg, self._train_batch,
+                    )
+
+                    self._tb_writer.add_scalar(
+                        "train/prooftrace/language_modeler/trg_norm",
+                        trg_norm_meter.avg, self._train_batch,
+                    )
+                    self._tb_writer.add_scalar(
+                        "train/prooftrace/language_modeler/prd_norm",
+                        prd_norm_meter.avg, self._train_batch,
+                    )
+
+                    self._tb_writer.add_scalar(
+                        "train/prooftrace/language_modeler/trg_simi",
+                        trg_simi_meter.avg, self._train_batch,
                     )
                     self._tb_writer.add_scalar(
                         "train/prooftrace/language_modeler/ext_simi",
                         ext_simi_meter.avg, self._train_batch,
                     )
-                    self._tb_writer.add_scalar(
-                        "train/prooftrace/language_modeler/emd_norm",
-                        emd_norm_meter.avg, self._train_batch,
-                    )
 
                 trg_loss_meter = Meter()
-                trg_simi_meter = Meter()
                 ext_loss_meter = Meter()
+                act_loss_meter = Meter()
+                lft_loss_meter = Meter()
+                rgt_loss_meter = Meter()
+
+                trg_norm_meter = Meter()
+                prd_norm_meter = Meter()
+
+                trg_simi_meter = Meter()
                 ext_simi_meter = Meter()
-                emd_norm_meter = Meter()
 
             if self._train_batch % 100 == 0:
                 self.save()
@@ -267,43 +318,6 @@ class LanguageModeler:
         Log.out("EPOCH DONE", {
             'epoch': epoch,
         })
-
-    def batch_test(
-            self,
-    ):
-        assert self._test_loader is not None
-
-        self._model.eval()
-        loss_meter = Meter()
-
-        with torch.no_grad():
-            for it, (trc, idx) in enumerate(self._test_loader):
-                embeds = self._inner_model.embed(trc)
-                targets = embeds.clone().detach()
-
-                extract = self._inner_model.embed(
-                    [[Action.from_action('EXTRACT')]]
-                )
-
-                for i, idx in enumerate(idx):
-                    embeds[i][idx] = extract[0][0]
-
-                predictions = self._model(embeds)
-
-                loss = F.mse_loss(predictions, targets)
-
-                loss_meter.update(loss.item())
-
-        Log.out("PROOFTRACE TEST", {
-            'batch_count': self._train_batch,
-            'loss_avg': loss_meter.avg,
-        })
-
-        if self._tb_writer is not None:
-            self._tb_writer.add_scalar(
-                "test/prooftrace/language_modeler/loss",
-                loss_meter.avg, self._train_batch,
-            )
 
 
 def train():
@@ -419,6 +433,5 @@ def train():
     epoch = 0
     while True:
         lmodeler.batch_train(epoch)
-        lmodeler.batch_test()
         lmodeler.save()
         epoch += 1
