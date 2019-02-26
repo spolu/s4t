@@ -5,7 +5,6 @@ import torch.nn as nn
 import torch.distributed as distributed
 import torch.utils.data.distributed
 import torch.optim as optim
-import torch.nn.functional as F
 
 from dataset.prooftrace import ProofTraceLMDataset, lm_collate, Action
 
@@ -167,17 +166,9 @@ class LanguageModeler:
 
         self._model.train()
 
-        trg_loss_meter = Meter()
-        ext_loss_meter = Meter()
         act_loss_meter = Meter()
         lft_loss_meter = Meter()
         rgt_loss_meter = Meter()
-
-        trg_norm_meter = Meter()
-        prd_norm_meter = Meter()
-
-        trg_simi_meter = Meter()
-        ext_simi_meter = Meter()
 
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(epoch)
@@ -185,7 +176,7 @@ class LanguageModeler:
 
         for it, (idx, trc) in enumerate(self._train_loader):
             embeds = self._inner_model.embed(trc)
-            ground = embeds.clone().detach()
+            # ground = embeds.clone().detach()
 
             extract = self._inner_model.embed(
                 [[Action.from_action('EXTRACT', None, None)]]
@@ -196,12 +187,12 @@ class LanguageModeler:
 
             hiddens = self._model(embeds)
 
-            extracts = torch.cat([
-                embeds[i][idx[i]].unsqueeze(0) for i in range(len(idx))
-            ], dim=0)
-            targets = torch.cat([
-                ground[i][idx[i]].unsqueeze(0) for i in range(len(idx))
-            ], dim=0)
+            # extracts = torch.cat([
+            #     embeds[i][idx[i]].unsqueeze(0) for i in range(len(idx))
+            # ], dim=0)
+            # targets = torch.cat([
+            #     ground[i][idx[i]].unsqueeze(0) for i in range(len(idx))
+            # ], dim=0)
             predictions = torch.cat([
                 hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
@@ -216,8 +207,8 @@ class LanguageModeler:
                 trc[i].index(trc[i][idx[i]].right) for i in range(len(idx))
             ], dtype=torch.int64).to(self._device)
 
-            trg_loss = F.mse_loss(predictions, targets)
-            ext_loss = F.mse_loss(predictions, extracts)
+            # trg_loss = F.mse_loss(predictions, targets)
+            # ext_loss = F.mse_loss(predictions, extracts)
 
             pred_actions, pred_lefts, pred_rights = \
                 self._inner_model.head(predictions)
@@ -232,44 +223,19 @@ class LanguageModeler:
                 self._optimizer.step()
                 self._optimizer.zero_grad()
 
-            trg_loss_meter.update(trg_loss.item())
-            ext_loss_meter.update(ext_loss.item())
             act_loss_meter.update(act_loss.item())
             lft_loss_meter.update(lft_loss.item())
             rgt_loss_meter.update(rgt_loss.item())
 
-            trg_norm_meter.update(torch.norm(targets, dim=1).mean())
-            prd_norm_meter.update(torch.norm(predictions, dim=1).mean())
-
-            trg_simi_meter.update(
-                F.cosine_similarity(
-                    predictions,
-                    targets,
-                    dim=1).mean(),
-            )
-            ext_simi_meter.update(
-                F.cosine_similarity(
-                    predictions,
-                    extracts,
-                    dim=1).mean(),
-            )
-
             if self._train_batch % 10 == 0:
                 Log.out("PROOFTRACE TRAIN", {
                     'train_batch': self._train_batch,
-                    'ext_loss_avg': "{:.4f}".format(ext_loss_meter.avg),
-                    'trg_loss_avg': "{:.4f}".format(trg_loss_meter.avg),
+                    'act_loss_avg': "{:.4f}".format(act_loss_meter.avg),
+                    'lft_loss_avg': "{:.4f}".format(lft_loss_meter.avg),
+                    'rgt_loss_avg': "{:.4f}".format(rgt_loss_meter.avg),
                 })
 
                 if self._tb_writer is not None:
-                    self._tb_writer.add_scalar(
-                        "train/prooftrace/language_modeler/trg_loss",
-                        trg_loss_meter.avg, self._train_batch,
-                    )
-                    self._tb_writer.add_scalar(
-                        "train/prooftrace/language_modeler/ext_loss",
-                        ext_loss_meter.avg, self._train_batch,
-                    )
                     self._tb_writer.add_scalar(
                         "train/prooftrace/language_modeler/act_loss",
                         act_loss_meter.avg, self._train_batch,
@@ -283,35 +249,9 @@ class LanguageModeler:
                         rgt_loss_meter.avg, self._train_batch,
                     )
 
-                    self._tb_writer.add_scalar(
-                        "train/prooftrace/language_modeler/trg_norm",
-                        trg_norm_meter.avg, self._train_batch,
-                    )
-                    self._tb_writer.add_scalar(
-                        "train/prooftrace/language_modeler/prd_norm",
-                        prd_norm_meter.avg, self._train_batch,
-                    )
-
-                    self._tb_writer.add_scalar(
-                        "train/prooftrace/language_modeler/trg_simi",
-                        trg_simi_meter.avg, self._train_batch,
-                    )
-                    self._tb_writer.add_scalar(
-                        "train/prooftrace/language_modeler/ext_simi",
-                        ext_simi_meter.avg, self._train_batch,
-                    )
-
-                trg_loss_meter = Meter()
-                ext_loss_meter = Meter()
                 act_loss_meter = Meter()
                 lft_loss_meter = Meter()
                 rgt_loss_meter = Meter()
-
-                trg_norm_meter = Meter()
-                prd_norm_meter = Meter()
-
-                trg_simi_meter = Meter()
-                ext_simi_meter = Meter()
 
             if self._train_batch % 100 == 0:
                 self.save()
