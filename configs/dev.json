@@ -71,7 +71,7 @@
   "prooftrace_transformer_attention_head_count": 4,
   "prooftrace_transformer_layer_count": 8,
 
-  "prooftrace_dataset_dir": "./data/prooftrace/small",
+  "prooftrace_dataset_dir": "./data/prooftrace/medium",
 
 
   "tensorboard_log_dir": null
