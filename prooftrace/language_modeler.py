@@ -49,7 +49,7 @@ class LanguageModeler:
         )
 
         self._model = self._inner_model
-        self._act_loss = nn.NLLLoss()
+        self._loss = nn.NLLLoss()
 
         self._train_batch = 0
 
@@ -205,21 +205,16 @@ class LanguageModeler:
             predictions = torch.cat([
                 hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
+
             actions = torch.tensor([
                 trc[i][idx[i]].value for i in range(len(idx))
             ], dtype=torch.int64).to(self._device)
-            if trc[i][idx[i]].left is None:
-                import pdb; pdb.set_trace()
-            if trc[i][idx[i]].right is None:
-                import pdb; pdb.set_trace()
-            lefts = torch.cat([
-                embeds[i][trc[i].index(trc[i][idx[i]].left)].unsqueeze(0)
-                for i in range(len(idx))
-            ], dim=0)
-            rights = torch.cat([
-                embeds[i][trc[i].index(trc[i][idx[i]].right)].unsqueeze(0)
-                for i in range(len(idx))
-            ], dim=0)
+            lefts = torch.tensor([
+                trc[i].index(trc[i][idx[i]].left) for i in range(len(idx))
+            ], dtype=torch.int64).to(self._device)
+            rights = torch.tensor([
+                trc[i].index(trc[i][idx[i]].right) for i in range(len(idx))
+            ], dtype=torch.int64).to(self._device)
 
             trg_loss = F.mse_loss(predictions, targets)
             ext_loss = F.mse_loss(predictions, extracts)
@@ -227,11 +222,11 @@ class LanguageModeler:
             pred_actions, pred_lefts, pred_rights = \
                 self._inner_model.head(predictions)
 
-            act_loss = self._act_loss(pred_actions, actions)
-            lft_loss = F.mse_loss(pred_lefts, lefts)
-            rgt_loss = F.mse_loss(pred_rights, rights)
+            act_loss = self._loss(pred_actions, actions)
+            lft_loss = self._loss(pred_lefts, lefts)
+            rgt_loss = self._loss(pred_rights, rights)
 
-            (trg_loss + act_loss + 0.5 * (lft_loss + rgt_loss)).backward()
+            (act_loss + 0.5 * (lft_loss + rgt_loss)).backward()
 
             if it % self._accumulation_step_count == 0:
                 self._optimizer.step()

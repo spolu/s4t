@@ -26,6 +26,9 @@ class LM(nn.Module):
         self.layer_count = \
             config.get('prooftrace_transformer_layer_count')
 
+        self.embedder = ActionEmbedder(config)
+        self.embedder.to(self.device)
+
         self.position_embedding = nn.Embedding(
             self.sequence_length, self.hidden_size
         )
@@ -45,15 +48,23 @@ class LM(nn.Module):
 
         self.layers = nn.Sequential(*layers)
 
-        self.left_head = nn.Linear(self.hidden_size, self.hidden_size)
-        self.right_head = nn.Linear(self.hidden_size, self.hidden_size)
+        position_decoder = nn.Linear(
+            self.hidden_size, self.sequence_length, bias=False,
+        )
+        position_decoder.weight = self.position_embedding.weight
+
         self.action_head = nn.Sequential(
             nn.Linear(self.hidden_size, len(ACTION_TOKENS)),
             nn.LogSoftmax(dim=1),
         )
-
-        self.embedder = ActionEmbedder(config)
-        self.embedder.to(self.device)
+        self.left_head = nn.Sequential(
+            nn.Linear(self.hidden_size, self.hidden_size),
+            position_decoder,
+        )
+        self.right_head = nn.Sequential(
+            nn.Linear(self.hidden_size, self.hidden_size),
+            position_decoder,
+        )
 
     def parameters_count(
             self,
@@ -70,9 +81,9 @@ class LM(nn.Module):
             self,
             predictions,
     ):
+        actions = self.action_head(predictions)
         lefts = self.left_head(predictions)
         rights = self.right_head(predictions)
-        actions = self.action_head(predictions)
 
         return actions, lefts, rights
 
