@@ -279,6 +279,10 @@ class LanguageModeler:
                         "train/prooftrace/language_modeler/lft_loss",
                         lft_loss_meter.avg, self._train_batch,
                     )
+                    self._tb_writer.add_scalar(
+                        "train/prooftrace/language_modeler/rgt_loss",
+                        rgt_loss_meter.avg, self._train_batch,
+                    )
 
                     self._tb_writer.add_scalar(
                         "train/prooftrace/language_modeler/trg_norm",
