@@ -240,6 +240,9 @@ class LanguageModeler:
                 emd_norm_meter = Meter()
                 simi_meter = Meter()
 
+            if self._train_batch % 100 == 0:
+                self.save()
+
             self._train_batch += 1
 
         Log.out("EPOCH DONE", {
