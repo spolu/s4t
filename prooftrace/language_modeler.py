@@ -188,7 +188,7 @@ class LanguageModeler:
             ground = embeds.clone().detach()
 
             extract = self._inner_model.embed(
-                [[Action.from_action('EXTRACT')]]
+                [[Action.from_action('EXTRACT', None, None)]]
             )
 
             for i, ext in enumerate(idx):

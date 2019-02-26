@@ -42,8 +42,8 @@ class Action(BVT):
     @staticmethod
     def from_action(
             action: str,
-            left=None,
-            right=None,
+            left,
+            right,
     ):
         value = ACTION_TOKENS[action]
         return Action(value, left, right)
@@ -369,6 +369,7 @@ class ProofTrace():
             action = Action.from_action(
                 'TERM',
                 Action.from_term(self._kernel.term(tm)),
+                None,
             )
             cache['terms'][tm] = action
             sequence.append(action)
@@ -381,7 +382,7 @@ class ProofTrace():
             reverse=True,
         )
 
-        empty = Action.from_action('EMPTY')
+        empty = Action.from_action('EMPTY', None, None)
         sequence = [empty] + sequence
 
         for idx in self._premises:
@@ -404,6 +405,7 @@ class ProofTrace():
                     Action.from_term(self._kernel.term(p['cc'])),
                     build_hypothesis(p['hy']),
                 ),
+                None,
             )
             cache['indices'][idx] = action
             sequence.append(action)
@@ -609,7 +611,7 @@ class ProofTraceLMDataset(ProofTraceDataset):
         # trace.append(Action.from_action('EXTRACT'))
 
         while len(trace) < self._sequence_length:
-            trace.append(Action.from_action('EMPTY'))
+            trace.append(Action.from_action('EMPTY', None, None))
 
         return (self._cases[idx][1], trace)
 
