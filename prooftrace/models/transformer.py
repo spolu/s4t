@@ -60,10 +60,12 @@ class LM(nn.Module):
         self.left_head = nn.Sequential(
             nn.Linear(self.hidden_size, self.hidden_size),
             position_decoder,
+            nn.LogSoftmax(dim=1),
         )
         self.right_head = nn.Sequential(
             nn.Linear(self.hidden_size, self.hidden_size),
             position_decoder,
+            nn.LogSoftmax(dim=1),
         )
 
     def parameters_count(
