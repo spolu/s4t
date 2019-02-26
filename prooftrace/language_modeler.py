@@ -208,6 +208,10 @@ class LanguageModeler:
             actions = torch.tensor([
                 trc[i][idx[i]].value for i in range(len(idx))
             ], dtype=torch.int64).to(self._device)
+            if trc[i][idx[i]].left is None:
+                import pdb; pdb.set_trace()
+            if trc[i][idx[i]].right is None:
+                import pdb; pdb.set_trace()
             lefts = torch.cat([
                 embeds[i][trc[i].index(trc[i][idx[i]].left)].unsqueeze(0)
                 for i in range(len(idx))

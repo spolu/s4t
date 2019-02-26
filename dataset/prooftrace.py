@@ -588,7 +588,11 @@ class ProofTraceLMDataset(ProofTraceDataset):
             for pos in range(len(tr)):
                 if pos < (self._sequence_length - 1):
                     if tr[pos].value not in \
-                            [ACTION_TOKENS['TERM'], ACTION_TOKENS['PREMISE']]:
+                            [
+                                ACTION_TOKENS['EMPTY'],
+                                ACTION_TOKENS['TERM'],
+                                ACTION_TOKENS['PREMISE'],
+                            ]:
                         self._cases.append((idx, pos))
 
         Log.out(
