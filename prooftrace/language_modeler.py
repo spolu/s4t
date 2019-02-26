@@ -397,7 +397,6 @@ def train():
     epoch = 0
     while True:
         lmodeler.batch_train(epoch)
-        if epoch % 2 == 0:
-            lmodeler.batch_test()
-            lmodeler.save()
+        lmodeler.batch_test()
+        lmodeler.save()
         epoch += 1
