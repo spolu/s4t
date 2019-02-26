@@ -227,8 +227,8 @@ class LanguageModeler:
             if self._train_batch % 10 == 0:
                 Log.out("PROOFTRACE TRAIN", {
                     'train_batch': self._train_batch,
-                    'ext_loss_avg': "%.4f".format(ext_loss_meter.avg),
-                    'trg_loss_avg': "%.4f".format(trg_loss_meter.avg),
+                    'ext_loss_avg': "{:.4f}".format(ext_loss_meter.avg),
+                    'trg_loss_avg': "{:.4f}".format(trg_loss_meter.avg),
                 })
 
                 if self._tb_writer is not None:
