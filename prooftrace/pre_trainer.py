@@ -10,7 +10,7 @@ from dataset.prooftrace import ProofTraceLMDataset, lm_collate, Action
 
 from tensorboardX import SummaryWriter
 
-from prooftrace.models.lstm import P
+from prooftrace.models.transformer import P
 
 from utils.config import Config
 from utils.meter import Meter
