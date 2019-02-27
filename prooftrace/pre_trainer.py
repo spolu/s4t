@@ -10,7 +10,7 @@ from dataset.prooftrace import ProofTraceLMDataset, lm_collate, Action
 
 from tensorboardX import SummaryWriter
 
-from prooftrace.models.transformer import P
+from prooftrace.models.lstm import P
 
 from utils.config import Config
 from utils.meter import Meter
@@ -240,15 +240,15 @@ class PreTrainer:
 
                 if self._tb_writer is not None:
                     self._tb_writer.add_scalar(
-                        "train/prooftrace/language_modeler/act_loss",
+                        "train/prooftrace/pre_trainer/act_loss",
                         act_loss_meter.avg, self._train_batch,
                     )
                     self._tb_writer.add_scalar(
-                        "train/prooftrace/language_modeler/lft_loss",
+                        "train/prooftrace/pre_trainer/lft_loss",
                         lft_loss_meter.avg, self._train_batch,
                     )
                     self._tb_writer.add_scalar(
-                        "train/prooftrace/language_modeler/rgt_loss",
+                        "train/prooftrace/pre_trainer/rgt_loss",
                         rgt_loss_meter.avg, self._train_batch,
                     )
 
