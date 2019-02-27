@@ -10,7 +10,7 @@ from dataset.prooftrace import ProofTraceLMDataset, lm_collate, Action
 
 from tensorboardX import SummaryWriter
 
-from prooftrace.models.transformer import LM
+from prooftrace.models.transformer import P
 
 from utils.config import Config
 from utils.meter import Meter
@@ -18,7 +18,7 @@ from utils.log import Log
 from utils.str2bool import str2bool
 
 
-class LanguageModeler:
+class PreTrainer:
     def __init__(
             self,
             config: Config,
@@ -39,10 +39,10 @@ class LanguageModeler:
                     self._config.get('tensorboard_log_dir'),
                 )
 
-        self._inner_model = LM(self._config).to(self._device)
+        self._inner_model = P(self._config).to(self._device)
 
         Log.out(
-            "Initializing prooftrace LanguageModeler", {
+            "Initializing prooftrace PreTrainer", {
                 'parameter_count': self._inner_model.parameters_count()
             },
         )
@@ -100,10 +100,13 @@ class LanguageModeler:
             self,
             test_dataset,
     ):
+        batch_size = self._config.get('prooftrace_batch_size') // \
+            self._accumulation_step_count
+
         self._test_loader = torch.utils.data.DataLoader(
             test_dataset,
-            batch_size=self._config.get('prooftrace_batch_size'),
-            shuffle=False,
+            batch_size=batch_size,
+            shuffle=True,
             collate_fn=lm_collate,
         )
 
@@ -210,12 +213,12 @@ class LanguageModeler:
             # trg_loss = F.mse_loss(predictions, targets)
             # ext_loss = F.mse_loss(predictions, extracts)
 
-            pred_actions, pred_lefts, pred_rights = \
+            prd_actions, prd_lefts, prd_rights, _ = \
                 self._inner_model.head(predictions)
 
-            act_loss = self._loss(pred_actions, actions)
-            lft_loss = self._loss(pred_lefts, lefts)
-            rgt_loss = self._loss(pred_rights, rights)
+            act_loss = self._loss(prd_actions, actions)
+            lft_loss = self._loss(prd_lefts, lefts)
+            rgt_loss = self._loss(prd_rights, rights)
 
             (act_loss + 0.5 * (lft_loss + rgt_loss)).backward()
 
@@ -261,6 +264,72 @@ class LanguageModeler:
         Log.out("EPOCH DONE", {
             'epoch': epoch,
         })
+
+    def batch_test(
+            self,
+    ):
+        assert self._test_loader is not None
+
+        self._model.eval()
+
+        act_loss_meter = Meter()
+        lft_loss_meter = Meter()
+        rgt_loss_meter = Meter()
+
+        with torch.no_grad():
+            for it, (idx, trc) in enumerate(self._test_loader):
+                embeds = self._inner_model.embed(trc)
+                # ground = embeds.clone().detach()
+
+                extract = self._inner_model.embed(
+                    [[Action.from_action('EXTRACT', None, None)]]
+                )
+
+                for i, ext in enumerate(idx):
+                    embeds[i][ext] = extract[0][0]
+
+                hiddens = self._model(embeds)
+
+                # extracts = torch.cat([
+                #     embeds[i][idx[i]].unsqueeze(0) for i in range(len(idx))
+                # ], dim=0)
+                # targets = torch.cat([
+                #     ground[i][idx[i]].unsqueeze(0) for i in range(len(idx))
+                # ], dim=0)
+                predictions = torch.cat([
+                    hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
+                ], dim=0)
+
+                actions = torch.tensor([
+                    trc[i][idx[i]].value for i in range(len(idx))
+                ], dtype=torch.int64).to(self._device)
+                lefts = torch.tensor([
+                    trc[i].index(trc[i][idx[i]].left) for i in range(len(idx))
+                ], dtype=torch.int64).to(self._device)
+                rights = torch.tensor([
+                    trc[i].index(trc[i][idx[i]].right) for i in range(len(idx))
+                ], dtype=torch.int64).to(self._device)
+
+                # trg_loss = F.mse_loss(predictions, targets)
+                # ext_loss = F.mse_loss(predictions, extracts)
+
+                prd_actions, prd_lefts, prd_rights, _ = \
+                    self._inner_model.head(predictions)
+
+                act_loss = self._loss(prd_actions, actions)
+                lft_loss = self._loss(prd_lefts, lefts)
+                rgt_loss = self._loss(prd_rights, rights)
+
+                act_loss_meter.update(act_loss.item())
+                lft_loss_meter.update(lft_loss.item())
+                rgt_loss_meter.update(rgt_loss.item())
+
+                Log.out("PROOFTRACE TEST", {
+                    'batch': it,
+                    'act_loss_avg': "{:.4f}".format(act_loss_meter.avg),
+                    'lft_loss_avg': "{:.4f}".format(lft_loss_meter.avg),
+                    'rgt_loss_avg': "{:.4f}".format(rgt_loss_meter.avg),
+                })
 
 
 def train():
@@ -366,15 +435,73 @@ def train():
         config.get('prooftrace_sequence_length'),
     )
 
-    lmodeler = LanguageModeler(config)
+    pt = PreTrainer(config)
 
-    lmodeler.init_training(train_dataset)
-    lmodeler.init_testing(test_dataset)
+    pt.init_training(train_dataset)
+    pt.init_testing(test_dataset)
 
-    lmodeler.load(True)
+    pt.load(True)
 
     epoch = 0
     while True:
-        lmodeler.batch_train(epoch)
-        lmodeler.save()
+        pt.batch_train(epoch)
+        pt.save()
         epoch += 1
+
+
+def test():
+    parser = argparse.ArgumentParser(description="")
+
+    parser.add_argument(
+        'config_path',
+        type=str, help="path to the config file",
+    )
+    parser.add_argument(
+        '--dataset_dir',
+        type=str, help="test dataset directory",
+    )
+    parser.add_argument(
+        '--load_dir',
+        type=str, help="config override",
+    )
+
+    parser.add_argument(
+        '--device',
+        type=str, help="config override",
+    )
+
+    args = parser.parse_args()
+
+    config = Config.from_file(args.config_path)
+
+    if args.device is not None:
+        config.override('device', args.device)
+
+    if args.dataset_dir is not None:
+        config.override(
+            'prooftrace_dataset_dir',
+            os.path.expanduser(args.dataset_dir),
+        )
+    if args.load_dir is not None:
+        config.override(
+            'prooftrace_load_dir',
+            os.path.expanduser(args.load_dir),
+        )
+
+    if config.get('device') != 'cpu':
+        torch.cuda.set_device(torch.device(config.get('device')))
+
+    test_dataset = ProofTraceLMDataset(
+        os.path.join(
+            os.path.expanduser(config.get('prooftrace_dataset_dir')),
+            'test_traces',
+        ),
+        config.get('prooftrace_sequence_length'),
+    )
+
+    pt = PreTrainer(config)
+
+    pt.init_testing(test_dataset)
+    pt.load(False)
+
+    pt.batch_test()

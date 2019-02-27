@@ -27,6 +27,7 @@ setup(
             'generic_test_tree_lstm=generic.tree_lstm:test',
             'prooftrace_test_embedder=prooftrace.models.embedder:test',
             'prooftrace_train_language_modeler=prooftrace.language_modeler:train',
+            'prooftrace_test_language_modeler=prooftrace.language_modeler:test',
         ],
     },
 )

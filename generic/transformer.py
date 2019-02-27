@@ -12,24 +12,14 @@ class SelfAttention(nn.Module):
             sequence_max_length,
             hidden_size,
             attention_head_count,
-            masking,
             dropout,
     ):
         super(SelfAttention, self).__init__()
 
         self.hidden_size = hidden_size
         self.attention_head_count = attention_head_count
-        self.masking = masking
 
         assert self.hidden_size % self.attention_head_count == 0
-
-        if self.masking:
-            self.register_buffer(
-                "mask",
-                torch.tril(
-                    torch.ones(sequence_max_length, sequence_max_length),
-                ).view(1, 1, sequence_max_length, sequence_max_length)
-            )
 
         self.attention_head_size = int(
             self.hidden_size / self.attention_head_count
@@ -68,13 +58,6 @@ class SelfAttention(nn.Module):
 
         attention_scores = torch.matmul(query, key.transpose(-1, -2)) / \
             math.sqrt(self.attention_head_size)
-
-        if self.masking:
-            # `attention_scores` may be smaller than mask (sequence_max_length)
-            mask = self.mask[
-                :, :, : attention_scores.size(-2), : attention_scores.size(-1),
-            ]
-            attention_scores = attention_scores * mask + -1e9 * (1 - mask)
 
         attention_probs = nn.Softmax(dim=-1)(attention_scores)
         attention_probs = self.attention_dropout(attention_probs)
@@ -122,14 +105,13 @@ class TransformerBlock(nn.Module):
             sequence_max_length,
             hidden_size,
             attention_head_count,
-            masking=False,
             dropout=0.1
     ):
         super(TransformerBlock, self).__init__()
 
         self.attention = SelfAttention(
             sequence_max_length, hidden_size,
-            attention_head_count, masking, dropout
+            attention_head_count, dropout
         )
         self.attention_layer_norm = LayerNorm(hidden_size)
 

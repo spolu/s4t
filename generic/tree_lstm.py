@@ -3,8 +3,6 @@ import torch.nn as nn
 import typing
 import xxhash
 
-from utils.log import Log
-
 
 class BVT():
     """ BVT stands for BinaryValuedTree
@@ -54,6 +52,22 @@ class BVT():
             self._depth = 1 + max(ld, rd)
 
         return self._depth
+
+    def string(
+            self,
+    ):
+        string = str(self.value)
+
+        if self.left is not None:
+            string += self.left.string()
+        else:
+            string += 'N'
+        if self.right is not None:
+            string += self.right.string()
+        else:
+            string += 'N'
+
+        return string
 
 
 class BinaryTreeLSTM(nn.Module):
@@ -134,11 +148,11 @@ class BinaryTreeLSTM(nn.Module):
         # Consturct the folded computation graph.
         pos = [dfs(t, 0) for t in trees]
 
-        Log.out("TreeLSTM dynamic batching", {
-            "batch_size": len(trees),
-            "compute_steps": counters['compute_steps'],
-            "cache_hits": counters['cache_hits'],
-        })
+        # Log.out("TreeLSTM dynamic batching", {
+        #     "batch_size": len(trees),
+        #     "compute_steps": counters['compute_steps'],
+        #     "cache_hits": counters['cache_hits'],
+        # })
 
         H = [[]] * len(V)
         C = [[]] * len(V)
