@@ -48,10 +48,6 @@ class P(nn.Module):
             nn.Linear(self.hidden_size, self.sequence_length),
             nn.LogSoftmax(dim=1),
         )
-        self.value_head = nn.Sequential(
-            nn.Linear(self.hidden_size, self.hidden_size),
-            nn.Linear(self.hidden_size, 1),
-        )
 
     def parameters_count(
             self,
@@ -71,9 +67,8 @@ class P(nn.Module):
         actions = self.action_head(predictions)
         lefts = self.left_head(predictions)
         rights = self.right_head(predictions)
-        values = self.value_head(predictions)
 
-        return actions, lefts, rights, values
+        return actions, lefts, rights
 
     def forward(
             self,

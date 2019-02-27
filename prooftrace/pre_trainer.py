@@ -213,7 +213,7 @@ class PreTrainer:
             # trg_loss = F.mse_loss(predictions, targets)
             # ext_loss = F.mse_loss(predictions, extracts)
 
-            prd_actions, prd_lefts, prd_rights, _ = \
+            prd_actions, prd_lefts, prd_rights = \
                 self._inner_model.head(predictions)
 
             act_loss = self._loss(prd_actions, actions)
@@ -313,7 +313,7 @@ class PreTrainer:
                 # trg_loss = F.mse_loss(predictions, targets)
                 # ext_loss = F.mse_loss(predictions, extracts)
 
-                prd_actions, prd_lefts, prd_rights, _ = \
+                prd_actions, prd_lefts, prd_rights = \
                     self._inner_model.head(predictions)
 
                 act_loss = self._loss(prd_actions, actions)
