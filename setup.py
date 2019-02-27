@@ -26,8 +26,8 @@ setup(
             'prooftrace_extract=dataset.prooftrace:extract',
             'generic_test_tree_lstm=generic.tree_lstm:test',
             'prooftrace_test_embedder=prooftrace.models.embedder:test',
-            'prooftrace_train_language_modeler=prooftrace.language_modeler:train',
-            'prooftrace_test_language_modeler=prooftrace.language_modeler:test',
+            'prooftrace_train_pre_trainer=prooftrace.pre_trainer:train',
+            'prooftrace_test_pre_trainer=prooftrace.pre_trainer:test',
         ],
     },
 )
