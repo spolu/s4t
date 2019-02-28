@@ -69,12 +69,12 @@
   "prooftrace_sequence_length": 1024,
 
   "prooftrace_transformer_attention_head_count": 4,
-  "prooftrace_transformer_layer_count": 6,
+  "prooftrace_transformer_layer_count": 2,
 
-  "prooftrace_lstm_layer_count": 4,
+  "prooftrace_lstm_layer_count": 2,
   "prooftrace_lstm_hidden_size": 1024,
 
-  "prooftrace_dataset_dir": "./data/prooftrace/medium",
+  "prooftrace_dataset_dir": "./data/prooftrace/small",
 
 
   "tensorboard_log_dir": null
