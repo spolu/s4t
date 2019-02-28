@@ -50,10 +50,10 @@
 
   "th2vec_train_dataset_dir": "./data/th2vec/holstep/train",
   "th2vec_test_dataset_dir": "./data/th2vec/holstep/test",
-  "th2vec_raw_formula": true,
-  "th2vec_premise_only": false,
+  "th2vec_raw_formula": false,
+  "th2vec_premise_only": true,
 
-  "th2vec_premiser_dataset_type": "classification",
+  "th2vec_premiser_dataset_type": "premise",
   "th2vec_premiser_embedder_load_dir": null,
 
 
