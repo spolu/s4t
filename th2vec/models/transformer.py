@@ -51,7 +51,6 @@ class E(nn.Module):
                     self.theorem_length,
                     self.hidden_size,
                     self.attention_head_count,
-                    masking=False,
                     dropout=0.1,
                 ),
             ]
@@ -123,7 +122,6 @@ class G(nn.Module):
                     self.theorem_length,
                     self.hidden_size,
                     self.attention_head_count,
-                    masking=False,
                     dropout=0.1,
                 ),
             ]
