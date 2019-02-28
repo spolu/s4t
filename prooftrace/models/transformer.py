@@ -21,6 +21,8 @@ class P(nn.Module):
             config.get('prooftrace_sequence_length')
         self.hidden_size = \
             config.get('prooftrace_hidden_size')
+        self.transformer_hidden_size = \
+            config.get('prooftrace_transformer_hidden_size')
         self.attention_head_count = \
             config.get('prooftrace_transformer_attention_head_count')
         self.layer_count = \
@@ -33,13 +35,15 @@ class P(nn.Module):
             self.sequence_length, self.hidden_size
         )
 
-        layers = []
+        layers = [
+            nn.Linear(self.hidden_size, self.transformer_hidden_size),
+        ]
 
         for _ in range(self.layer_count):
             layers += [
                 TransformerBlock(
                     self.sequence_length,
-                    self.hidden_size,
+                    self.transformer_hidden_size,
                     self.attention_head_count,
                     dropout=0.0,
                 ),
@@ -53,18 +57,24 @@ class P(nn.Module):
         # position_decoder.weight = self.position_embedding.weight
 
         self.action_head = nn.Sequential(
-            nn.Linear(self.hidden_size, self.hidden_size),
-            nn.Linear(self.hidden_size, len(ACTION_TOKENS)),
+            nn.Linear(
+                self.transformer_hidden_size, self.transformer_hidden_size,
+            ),
+            nn.Linear(self.transformer_hidden_size, len(ACTION_TOKENS)),
             nn.LogSoftmax(dim=1),
         )
         self.left_head = nn.Sequential(
-            nn.Linear(self.hidden_size, self.hidden_size),
-            nn.Linear(self.hidden_size, self.sequence_length),
+            nn.Linear(
+                self.transformer_hidden_size, self.transformer_hidden_size,
+            ),
+            nn.Linear(self.transformer_hidden_size, self.sequence_length),
             nn.LogSoftmax(dim=1),
         )
         self.right_head = nn.Sequential(
-            nn.Linear(self.hidden_size, self.hidden_size),
-            nn.Linear(self.hidden_size, self.sequence_length),
+            nn.Linear(
+                self.transformer_hidden_size, self.transformer_hidden_size,
+            ),
+            nn.Linear(self.transformer_hidden_size, self.sequence_length),
             nn.LogSoftmax(dim=1),
         )
 
