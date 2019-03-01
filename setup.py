@@ -28,6 +28,7 @@ setup(
             'prooftrace_test_embedder=prooftrace.models.embedder:test',
             'prooftrace_train_pre_trainer=prooftrace.pre_trainer:train',
             'prooftrace_test_pre_trainer=prooftrace.pre_trainer:test',
+            'prooftrace_test_repl=prooftrace.repl.repl:test',
         ],
     },
 )
