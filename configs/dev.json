@@ -57,7 +57,7 @@
   "th2vec_premiser_embedder_load_dir": null,
 
 
-  "prooftrace_batch_size": 60,
+  "prooftrace_batch_size": 48,
   "prooftrace_accumulation_step_count": 2,
 
   "prooftrace_learning_rate": 0.00025,
