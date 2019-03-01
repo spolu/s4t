@@ -276,6 +276,11 @@ class PreTrainer:
         lft_loss_meter = Meter()
         rgt_loss_meter = Meter()
 
+        act_hit = 0
+        lft_hit = 0
+        rgt_hit = 0
+        total = 0
+
         with torch.no_grad():
             for it, (idx, trc) in enumerate(self._test_loader):
                 embeds = self._inner_model.embed(trc)
@@ -324,11 +329,27 @@ class PreTrainer:
                 lft_loss_meter.update(lft_loss.item())
                 rgt_loss_meter.update(rgt_loss.item())
 
+                smp_actions = prd_actions.max(dim=1)[1].cpu().numpy()
+                smp_lefts = prd_lefts.max(dim=1)[1].cpu().numpy()
+                smp_rights = prd_rights.max(dim=1)[1].cpu().numpy()
+
+                for i in range(len(idx)):
+                    if smp_actions[i] == trc[i][idx[i]].value:
+                        act_hit += 1
+                    if smp_lefts[i] == trc[i].index(trc[i][idx[i]].left):
+                        lft_hit += 1
+                    if smp_rights[i] == trc[i].index(trc[i][idx[i]].right):
+                        rgt_hit += 1
+                    total += 1
+
                 Log.out("PROOFTRACE TEST", {
                     'batch': it,
                     'act_loss_avg': "{:.4f}".format(act_loss_meter.avg),
                     'lft_loss_avg': "{:.4f}".format(lft_loss_meter.avg),
                     'rgt_loss_avg': "{:.4f}".format(rgt_loss_meter.avg),
+                    'act_hit': "{:.2f}".format(act_hit/total),
+                    'lft_hit': "{:.2f}".format(lft_hit/total),
+                    'rgt_hit': "{:.2f}".format(rgt_hit/total),
                 })
 
 
