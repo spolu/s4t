@@ -1,5 +1,9 @@
+import argparse
 import os
 import pexpect
+import pexpect.replwrap
+
+from utils.config import Config
 
 
 class REPL():
@@ -14,14 +18,50 @@ class Pool():
 
 
 def test():
-    print("ProofTrace REPL testing \o/")
+    parser = argparse.ArgumentParser(description="")
 
-    child = pexpect.spawn(
-        'ocaml',
-        args=['-I', '/home/stan/.opam/4.06.1/lib/camlp5', 'camlp5o.cma'],
-        echo=False,
+    parser.add_argument(
+        'config_path',
+        type=str, help="path to the config file",
     )
-    child.expect('# ')
-    child.sendline ('2+3;;')
-    child.expect('# ')
-    print(child.before)
+
+    args = parser.parse_args()
+
+    config = Config.from_file(args.config_path)
+
+    ocaml_path = os.path.expanduser(
+        config.get("prooftrace_repl_ocaml_path"),
+    )
+    camlp5_path = os.path.expanduser(
+        config.get("prooftrace_repl_camlp5_path"),
+    )
+    hol_ml_path = os.path.expanduser(
+        os.path.join(
+            config.get("prooftrace_repl_hol_light_path"),
+            "hol.ml",
+        )
+    )
+
+    print("============================")
+    print("ProofTrace REPL testing \\o/")
+    print("----------------------------")
+
+    ocaml = pexpect.replwrap.REPLWrapper(
+        ocaml_path,
+        "# ",
+        None,
+        extra_init_cmd="#use \"{}\"".format(hol_ml_path),
+    )
+    # child = pexpect.spawn(
+    #     ocaml_path,
+    #     args=['-I', camlp5_path, 'camlp5o.cma'],
+    #     echo=False,
+    # )
+    # child.expect('\r\n# ')
+    # child.sendline ('2+3;;')
+    # child.expect('\r\n# ')
+    # print(child.before)
+    out = ocaml.run_command('2+3;;')
+    print(out)
+    out = ocaml.run_command('5+3;;')
+    print(out)
