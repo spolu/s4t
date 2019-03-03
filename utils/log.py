@@ -7,12 +7,15 @@ class Log:
     @staticmethod
     def out(
             message: str,
-            data: typing.Dict[str, typing.Any],
+            data: typing.Dict[str, typing.Any] = {},
     ) -> None:
-        message = "[{}] {}:".format(
+        message = "[{}] {}".format(
             datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f"),
             message,
         )
+        if len(data) > 0:
+            message += ":"
+
         for k in data:
             message += " {}={}".format(k, data[k])
 

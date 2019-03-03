@@ -69,8 +69,6 @@ class ProofTraceKernel():
 
         # Proof steps that are re-used >1 time.
         self._shared = {}
-        # Terms that are used is proof traces.
-        self._terms = {}
 
         self._term_tokens = {
             '__C': 0,
@@ -169,13 +167,6 @@ class ProofTraceKernel():
     ):
         self._shared[index] = theorems
 
-    def add_term(
-            self,
-            term,
-            theorems,
-    ):
-        self._terms[term] = theorems
-
     def term(
             self,
             tm: str,
@@ -224,6 +215,38 @@ class ProofTraceKernel():
                 return BVT(self._term_tokens['__v'], BVT(self._term_tokens[t]))
 
         return construct(tm)
+
+
+class ProofTraceActions():
+    def __init__(
+            self,
+            name: str,
+            actions: typing.List[Action],
+    ) -> None:
+        self._name = name
+        self._actions = actions
+
+    def dump(
+            self,
+            path,
+    ) -> None:
+        with open(path, 'wb') as f:
+            pickle.dump(self, f)
+
+    def len(
+            self,
+    ) -> int:
+        return len(self._actions)
+
+    def name(
+            self,
+    ) -> str:
+        return self._name
+
+    def actions(
+            self,
+    ) -> typing.List[Action]:
+        return self._actions
 
 
 class ProofTrace():
@@ -327,6 +350,9 @@ class ProofTrace():
         elif step[0] == 'INST_TYPE':
             assert False
 
+        # TODO(stan): AXIONS/DEFINITIONS  end-up as 0 step proofs.
+        #             (see 131616_INFINITY_AX)
+
         elif step[0] == 'AXIOM':
             self.record_premise(index)
             return
@@ -355,7 +381,7 @@ class ProofTrace():
 
     def actions(
             self,
-    ) -> typing.List[Action]:
+    ) -> ProofTraceActions:
         sequence = []
 
         cache = {
@@ -511,9 +537,10 @@ class ProofTrace():
             cache['indices'][idx] = actions[-1]
             sequence = sequence + actions
 
-        # sequence.append(Action.from_action('EXTRACT'))
-
-        return sequence
+        return ProofTraceActions(
+            self.name(),
+            sequence
+        )
 
 
 class ProofTraceDataset(Dataset):
@@ -537,7 +564,7 @@ class ProofTraceDataset(Dataset):
                 continue
             with open(p, 'rb') as f:
                 trace = pickle.load(f)
-                if trace_max_length <= -1 or len(trace) <= trace_max_length:
+                if trace_max_length <= -1 or trace.len() <= trace_max_length:
                     self._traces.append(trace)
 
             processed += 1
@@ -566,7 +593,7 @@ class ProofTraceDataset(Dataset):
             self,
             idx: int,
     ):
-        return self._traces[idx]
+        return self._traces[idx].actions()
 
 
 class ProofTraceLMDataset(ProofTraceDataset):
@@ -585,9 +612,10 @@ class ProofTraceLMDataset(ProofTraceDataset):
         )
 
         for idx, tr in enumerate(self._traces):
-            for pos in range(len(tr)):
+            actions = tr.actions()
+            for pos in range(len(actions)):
                 if pos < (self._sequence_length - 1):
-                    if tr[pos].value not in \
+                    if actions[pos].value not in \
                             [
                                 ACTION_TOKENS['EMPTY'],
                                 ACTION_TOKENS['TERM'],
@@ -610,7 +638,9 @@ class ProofTraceLMDataset(ProofTraceDataset):
             self,
             idx: int,
     ):
-        trace = self._traces[self._cases[idx][0]][:self._cases[idx][1]+1]
+        trace = self._traces[self._cases[idx][0]].actions()[
+            :self._cases[idx][1]+1
+        ]
 
         # trace.append(Action.from_action('EXTRACT'))
 
@@ -718,26 +748,11 @@ def extract():
         labels=["1e1", "1e2", "1e3", "2e3", "4e3", "1e4"]
     )
 
-    # terms = {}
-    # for tr in traces:
-    #     for tm in tr._terms.keys():
-    #         if tm not in terms:
-    #             terms[tm] = []
-    #         if tr._index not in terms[tm]:
-    #             terms[tm].append(tr._index)
-
-    # for tm in terms:
-    #     kernel.add_term(tm, terms[tm])
-
-    # Log.out("Terms aggregation", {
-    #     "term_count": len(terms),
-    # })
-
     actions = [tr.actions() for tr in traces]
 
     Log.histogram(
         "ProofTraces Length",
-        [len(a) for a in actions],
+        [a.len() for a in actions],
         buckets=[1e1, 1e2, 1e3, 2e3, 4e3, 1e4],
         labels=["1e1", "1e2", "1e3", "2e3", "4e3", "1e4"]
     )

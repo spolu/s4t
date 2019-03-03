@@ -4,13 +4,43 @@ import pexpect
 import pexpect.replwrap
 
 from utils.config import Config
+from utils.log import Log
 
 
 class REPL():
-    def init(
+    def __init__(
             self,
+            config: Config,
     ) -> None:
-        pass
+        self._config = config
+
+        ocaml_path = os.path.expanduser(
+            config.get("prooftrace_repl_ocaml_path"),
+        )
+        camlp5_path = os.path.expanduser(
+            config.get("prooftrace_repl_camlp5_path"),
+        )
+
+        self._ocaml = pexpect.replwrap.REPLWrapper(
+            ocaml_path + " -I " + camlp5_path + " camlp5o.cma",
+            "# ",
+            None,
+        )
+
+    def prepare(
+            self,
+    ):
+        hol_ml_path = os.path.expanduser(
+            os.path.join(
+                self._config.get("prooftrace_repl_hol_light_path"),
+                "hol.ml",
+            )
+        )
+
+        self._ocaml.run_command(
+            "#use \"{}\";;".format(hol_ml_path),
+            timeout=None,
+        )
 
 
 class Pool():
@@ -29,29 +59,10 @@ def test():
 
     config = Config.from_file(args.config_path)
 
-    ocaml_path = os.path.expanduser(
-        config.get("prooftrace_repl_ocaml_path"),
-    )
-    camlp5_path = os.path.expanduser(
-        config.get("prooftrace_repl_camlp5_path"),
-    )
-    hol_ml_path = os.path.expanduser(
-        os.path.join(
-            config.get("prooftrace_repl_hol_light_path"),
-            "hol.ml",
-        )
-    )
-
     print("============================")
     print("ProofTrace REPL testing \\o/")
     print("----------------------------")
 
-    ocaml = pexpect.replwrap.REPLWrapper(
-        ocaml_path,
-        "# ",
-        None,
-        extra_init_cmd="#use \"{}\"".format(hol_ml_path),
-    )
     # child = pexpect.spawn(
     #     ocaml_path,
     #     args=['-I', camlp5_path, 'camlp5o.cma'],
@@ -59,9 +70,14 @@ def test():
     # )
     # child.expect('\r\n# ')
     # child.sendline ('2+3;;')
-    # child.expect('\r\n# ')
-    # print(child.before)
-    out = ocaml.run_command('2+3;;')
+
+    repl = REPL(config)
+
+    Log.out("Preparing REPL")
+    repl.prepare()
+    Log.out("Done")
+
+    out = repl._ocaml.run_command("2+3;;")
     print(out)
-    out = ocaml.run_command('5+3;;')
-    print(out)
+
+    import pdb; pdb.set_trace()
