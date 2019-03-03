@@ -448,19 +448,10 @@ def train():
         ),
         config.get('prooftrace_sequence_length'),
     )
-    test_dataset = ProofTraceLMDataset(
-        os.path.join(
-            os.path.expanduser(config.get('prooftrace_dataset_dir')),
-            'test_traces',
-        ),
-        config.get('prooftrace_sequence_length'),
-    )
 
     pt = PreTrainer(config)
 
     pt.init_training(train_dataset)
-    pt.init_testing(test_dataset)
-
     pt.load(True)
 
     epoch = 0
