@@ -75,7 +75,7 @@
   "prooftrace_lstm_layer_count": 2,
   "prooftrace_lstm_hidden_size": 1024,
 
-  "prooftrace_dataset_dir": "./data/prooftrace/medium",
+  "prooftrace_dataset_dir": "./data/prooftrace/small",
 
   "prooftrace_repl_ocaml_path": "~/.opam/4.06.1/bin/ocaml",
   "prooftrace_repl_camlp5_path": "~/.opam/4.06.1/lib/camlp5",

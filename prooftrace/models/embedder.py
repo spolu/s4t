@@ -83,7 +83,7 @@ class ActionEmbedder(nn.Module):
                 return []
             seen[action.hash()] = True
 
-            if type(action.value) is BVT:
+            if type(action.value) is Term:
                 return [action.value]
             else:
                 left = []
@@ -133,7 +133,7 @@ class ActionEmbedder(nn.Module):
         def embedder(values):
             embeds = [[]] * len(values)
             for idx, v in enumerate(values):
-                if type(v) is BVT:
+                if type(v) is Term:
                     embeds[idx] = cache[v.hash()]
                 else:
                     embeds[idx] = cache[v]

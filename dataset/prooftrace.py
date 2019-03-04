@@ -36,18 +36,57 @@ ACTION_TOKENS = {
 
 
 class Term(BVT):
-    pass
+    def __init__(
+            self,
+            value,
+            left,
+            right,
+            token: str,
+    ):
+        super(Term, self).__init__(
+            value, left, right
+        )
+        # `self._token` stores the associated string token so that we can
+        # reconstruct term strings directly from their BVT.
+        self._token = token
+
+    def token(
+            self,
+    ) -> str:
+        return self._token
 
 
 class Action(BVT):
+    def __init__(
+            self,
+            value,
+            left=None,
+            right=None,
+            index: int = None,
+    ):
+        super(Action, self).__init__(
+            value, left, right
+        )
+        # `self._index` stores the original index of the associated action.
+        # It's used solely for PREMISE to store their index in order to be
+        # able to retrieve the associated theorem (through the proof) in the
+        # HOL Light environment as we create a prooftrace REPL environment.
+        self._index = index
+
+    def index(
+            self,
+    ) -> int:
+        return self._index
+
     @staticmethod
     def from_action(
             action: str,
             left,
             right,
+            origin=None,
     ):
         value = ACTION_TOKENS[action]
-        return Action(value, left, right)
+        return Action(value, left, right, origin)
 
     @staticmethod
     def from_term(
@@ -172,7 +211,7 @@ class ProofTraceKernel():
             self,
             tm: str,
     ) -> Term:
-        """ Construct a term BVT from a term string.
+        """ Construct a Term BVT from a term string.
 
         Tokenizes constants appearing in terms using self._term_tokens.
         """
@@ -194,26 +233,38 @@ class ProofTraceKernel():
         def construct(t):
             if t[0] == 'C':
                 chld = list(split(t))
-                return BVT(
+                return Term(
                     self._term_tokens['__C'],
                     construct(chld[0]),
                     construct(chld[1]),
+                    '__C',
                 )
             if t[0] == 'A':
                 chld = list(split(t))
-                return BVT(
+                return Term(
                     self._term_tokens['__A'],
                     construct(chld[0]),
                     construct(chld[1]),
+                    '__A',
                 )
             if t[0] == 'c':
                 if t not in self._term_tokens:
                     self._term_tokens[t] = len(self._term_tokens)
-                return BVT(self._term_tokens['__c'], BVT(self._term_tokens[t]))
+                return Term(
+                    self._term_tokens['__c'],
+                    Term(self._term_tokens[t], None, None, t),
+                    None,
+                    '__c',
+                )
             if t[0] == 'v':
                 if t not in self._term_tokens:
                     self._term_tokens[t] = len(self._term_tokens)
-                return BVT(self._term_tokens['__v'], BVT(self._term_tokens[t]))
+                return Term(
+                    self._term_tokens['__v'],
+                    Term(self._term_tokens[t], None, None, t),
+                    None,
+                    '__v',
+                )
 
         return construct(tm)
 
@@ -392,7 +443,9 @@ class ProofTrace():
         }
 
         # Empty is used by unary actions as right argument, it lives at the
-        # start of the sequence after the target.
+        # start of the sequence after the target (index 1). We can't use None
+        # since the language model loss needs an index to use as right
+        # arguments even for right arguments of unary actions.
         empty = Action.from_action('EMPTY', None, None)
 
         # Recursive function used to build theorems hypotheses used for TARGET
@@ -453,6 +506,7 @@ class ProofTrace():
                     build_hypothesis(p['hy']),
                 ),
                 None,
+                idx,
             )
             cache['indices'][idx] = action
             sequence.append(action)
@@ -635,7 +689,7 @@ class ProofTraceLMDataset(ProofTraceDataset):
         for idx, tr in enumerate(self._traces):
             actions = tr.actions()
             for pos in range(len(actions)):
-                if pos < (self._sequence_length - 1):
+                if pos < self._sequence_length:
                     if actions[pos].value not in \
                             [
                                 ACTION_TOKENS['EMPTY'],
@@ -729,20 +783,20 @@ def extract():
     Log.histogram(
         "ProofTraces Steps",
         [len(pr._steps) for pr in traces],
-        buckets=[1e1, 1e2, 1e3, 2e3, 4e3, 1e4],
-        labels=["1e1", "1e2", "1e3", "2e3", "4e3", "1e4"]
+        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
+        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
     )
     Log.histogram(
         "ProofTraces Terms",
         [len(pr._terms) for pr in traces],
-        buckets=[1e1, 1e2, 1e3, 2e3, 4e3, 1e4],
-        labels=["1e1", "1e2", "1e3", "2e3", "4e3", "1e4"]
+        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
+        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
     )
     Log.histogram(
         "ProofTraces Premises",
         [len(pr._premises) for pr in traces],
-        buckets=[1e1, 1e2, 1e3, 2e3, 4e3, 1e4],
-        labels=["1e1", "1e2", "1e3", "2e3", "4e3", "1e4"]
+        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
+        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
     )
 
     traces = [ProofTrace(kernel, k) for k in kernel._names.keys()]
@@ -751,20 +805,20 @@ def extract():
     Log.histogram(
         "ProofTraces Steps",
         [len(pr._steps) for pr in traces],
-        buckets=[1e1, 1e2, 1e3, 2e3, 4e3, 1e4],
-        labels=["1e1", "1e2", "1e3", "2e3", "4e3", "1e4"]
+        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
+        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
     )
     Log.histogram(
         "ProofTraces Terms",
         [len(pr._terms) for pr in traces],
-        buckets=[1e1, 1e2, 1e3, 2e3, 4e3, 1e4],
-        labels=["1e1", "1e2", "1e3", "2e3", "4e3", "1e4"]
+        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
+        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
     )
     Log.histogram(
         "ProofTraces Premises",
         [len(pr._premises) for pr in traces],
-        buckets=[1e1, 1e2, 1e3, 2e3, 4e3, 1e4],
-        labels=["1e1", "1e2", "1e3", "2e3", "4e3", "1e4"]
+        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
+        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
     )
 
     actions = [tr.actions() for tr in traces]
@@ -772,8 +826,8 @@ def extract():
     Log.histogram(
         "ProofTraces Length",
         [a.len() for a in actions],
-        buckets=[1e1, 1e2, 1e3, 2e3, 4e3, 1e4],
-        labels=["1e1", "1e2", "1e3", "2e3", "4e3", "1e4"]
+        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
+        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
     )
 
     traces_path_train = os.path.join(
