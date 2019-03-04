@@ -64,7 +64,7 @@ class Log:
             r = int(L * hist[i] / len(values))
 
             print(base + " " + b + " " +
-                  ("*" * r) + (" " * (L-r)) + str(hist[i]))
+                  ("*" * r) + (" " * (L-r)) + ' ' + str(hist[i]))
 
         print(base + "-" * 48)
 
