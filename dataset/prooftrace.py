@@ -692,6 +692,7 @@ class ProofTraceLMDataset(ProofTraceDataset):
                 if pos < self._sequence_length:
                     if actions[pos].value not in \
                             [
+                                ACTION_TOKENS['TARGET'],
                                 ACTION_TOKENS['EMPTY'],
                                 ACTION_TOKENS['TERM'],
                                 ACTION_TOKENS['PREMISE'],
