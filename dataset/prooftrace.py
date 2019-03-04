@@ -16,21 +16,22 @@ from utils.log import Log
 
 ACTION_TOKENS = {
     'EMPTY': 0,
-    'EXTRACT': 1,
-    'PREMISE': 2,
-    'HYPOTHESIS': 3,
-    'CONCLUSION': 4,
-    'TERM': 5,
-    'REFL': 6,
-    'TRANS': 7,
-    'MK_COMB': 8,
-    'ABS': 9,
-    'BETA': 10,
-    'ASSUME': 11,
-    'EQ_MP': 12,
-    'DEDUCT_ANTISYM_RULE': 13,
-    'INST': 14,
-    'INST_PAIR': 15,
+    'TARGET': 1,
+    'EXTRACT': 2,
+    'PREMISE': 3,
+    'HYPOTHESIS': 4,
+    'CONCLUSION': 5,
+    'TERM': 6,
+    'REFL': 7,
+    'TRANS': 8,
+    'MK_COMB': 9,
+    'ABS': 10,
+    'BETA': 11,
+    'ASSUME': 12,
+    'EQ_MP': 13,
+    'DEDUCT_ANTISYM_RULE': 14,
+    'INST': 15,
+    'INST_PAIR': 16,
 }
 
 
@@ -375,6 +376,7 @@ class ProofTrace():
             self,
     ):
         yield 'index', self._index
+        yield 'target', self._kernel._theorems[self._index]
         yield 'terms', list(self._terms.keys())
         yield 'premises', self._premises
         yield 'steps', self._steps
@@ -389,7 +391,37 @@ class ProofTrace():
             'indices': {},
         }
 
-        # We start by terms as they are generally deeper than premises but
+        # Empty is used by unary actions as right argument, it lives at the
+        # start of the sequence after the target.
+        empty = Action.from_action('EMPTY', None, None)
+
+        # Recursive function used to build theorems hypotheses used for TARGET
+        # and PREMISE actions.
+        def build_hypothesis(hypotheses):
+            if len(hypotheses) == 0:
+                return None
+            else:
+                return Action.from_action(
+                    'HYPOTHESIS',
+                    Action.from_term(self._kernel.term(hypotheses[0])),
+                    build_hypothesis(hypotheses[1:]),
+                )
+
+        # Start by recording the target theorem (TARGET action).
+        t = self._kernel._theorems[self._index]
+
+        target = Action.from_action(
+            'TARGET',
+            Action.from_action(
+                'CONCLUSION',
+                Action.from_term(self._kernel.term(t['cc'])),
+                build_hypothesis(t['hy']),
+            ),
+            None,
+        )
+
+        terms = []
+        # We first record terms as they are generally deeper than premises but
         # include very similar terms (optimize TreeLSTM cache hit).
         for tm in self._terms:
             action = Action.from_action(
@@ -398,31 +430,20 @@ class ProofTrace():
                 None,
             )
             cache['terms'][tm] = action
-            sequence.append(action)
+            terms.append(action)
 
         # Terms are unordered so we order them by depth to optimize cache hit
         # again.
-        sequence = sorted(
-            sequence,
+        terms = sorted(
+            terms,
             key=lambda action: action.left.value.depth(),
             reverse=True,
         )
 
-        empty = Action.from_action('EMPTY', None, None)
-        sequence = [empty] + sequence
+        sequence = [target, empty] + terms
 
         for idx in self._premises:
             p = self._premises[idx]
-
-            def build_hypothesis(hypotheses):
-                if len(hypotheses) == 0:
-                    return None
-                else:
-                    return Action.from_action(
-                        'HYPOTHESIS',
-                        Action.from_term(self._kernel.term(hypotheses[0])),
-                        build_hypothesis(hypotheses[1:]),
-                    )
 
             action = Action.from_action(
                 'PREMISE',
@@ -641,8 +662,6 @@ class ProofTraceLMDataset(ProofTraceDataset):
         trace = self._traces[self._cases[idx][0]].actions()[
             :self._cases[idx][1]+1
         ]
-
-        # trace.append(Action.from_action('EXTRACT'))
 
         while len(trace) < self._sequence_length:
             trace.append(Action.from_action('EMPTY', None, None))
