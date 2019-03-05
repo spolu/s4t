@@ -35,6 +35,32 @@ ACTION_TOKENS = {
     'INST_PAIR': 16,
 }
 
+INFIX_CONSTANTS = {}
+BINDER_CONSTANTS = {}
+
+
+def init_parse_constants():
+    global INFIX_CONSTANTS
+    global BINDER_CONSTANTS
+
+    if len(INFIX_CONSTANTS) == 0:
+        infix_path = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)),
+            "prooftrace.infix",
+        )
+        with open(infix_path, 'r') as f:
+            for infix in f:
+                INFIX_CONSTANTS[infix[:-1]] = True
+
+    if len(BINDER_CONSTANTS) == 0:
+        binder_path = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)),
+            "prooftrace.binder",
+        )
+        with open(binder_path, 'r') as f:
+            for binder in f:
+                BINDER_CONSTANTS[binder[:-1]] = True
+
 
 class Term(BVT):
     def __init__(
@@ -55,6 +81,44 @@ class Term(BVT):
             self,
     ) -> str:
         return self._token
+
+    def term_string(
+            self,
+    ) -> str:
+        """ `term_string` formats the Term BVT as a HOL Light term string
+        """
+        init_parse_constants()
+
+        def dump(term, args):
+            if term.token() == '__C':
+                right = dump(term.right, [])
+                return dump(term.left, [right] + args)
+            if term.token() == '__A':
+                assert len(args) == 0
+                right = dump(term.right, [])
+                left = dump(term.left, [])
+                return '\\' + left + '. ' + right
+            if term.token() == '__c' or term.token() == '__v':
+                assert term.right is None
+                token = term.left.token()[1:]
+                if len(args) == 0:
+                    return token
+                elif token in BINDER_CONSTANTS:
+                    assert len(args) == 1
+                    assert args[0][0] == '\\'
+                    return '(' + token + ' ' + args[0][1:] + ')'
+                elif token in INFIX_CONSTANTS:
+                    assert len(args) == 2
+                    return \
+                        '((' + args[0] + ') ' + token + ' (' + args[1] + '))'
+                else:
+                    tm = '(' + term.left.token()[1:]
+                    for a in args:
+                        tm += ' (' + a + ')'
+                    tm += ')'
+                    return tm
+
+        return dump(self, [])
 
 
 class Action(BVT):

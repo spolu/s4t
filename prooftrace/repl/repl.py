@@ -2,9 +2,13 @@ import argparse
 import os
 import pexpect
 import pexpect.replwrap
+import pickle
+
+from dataset.prooftrace import ProofTraceActions
 
 from utils.config import Config
 from utils.log import Log
+
 
 
 class REPL():
@@ -71,13 +75,18 @@ def test():
     # child.expect('\r\n# ')
     # child.sendline ('2+3;;')
 
-    repl = REPL(config)
+    # repl = REPL(config)
 
-    Log.out("Preparing REPL")
-    repl.prepare()
-    Log.out("Done")
+    # Log.out("Preparing REPL")
+    # repl.prepare()
+    # Log.out("Done")
 
-    out = repl._ocaml.run_command("2+3;;")
-    print(out)
+    # out = repl._ocaml.run_command("2+3;;")
+    # print(out)
 
-    import pdb; pdb.set_trace()
+    p = 'data/prooftrace/small/train_traces/33892_LEFT_EXISTS_IMP_THM.actions'
+    ptra = None
+    with open(p, 'rb') as f: 
+        ptra = pickle.load(f)
+
+    print(ptra.actions()[0].left.left.value.term_string())
