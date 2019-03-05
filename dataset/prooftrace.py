@@ -207,6 +207,20 @@ class ProofTraceKernel():
     ):
         self._shared[index] = theorems
 
+    def name_shared_premise(
+            self,
+            index,
+    ) -> bool:
+        if index not in self._names:
+            # Log.out("SHARED", {
+            #     "index": index,
+            # })
+            self._names[index] = "SHARED_" + str(index)
+
+            return True
+
+        return False
+
     def term(
             self,
             tm: str,
@@ -318,14 +332,14 @@ class ProofTrace():
 
         self.walk(self._index)
 
-        Log.out(
-            "Constructed ProofTrace", {
-                'index': self._index,
-                'name': self.name(),
-                'premises_count': len(self._premises),
-                'step_count': len(self._steps),
-                'terms_count': len(self._terms),
-            })
+        # Log.out(
+        #     "Constructed ProofTrace", {
+        #         'index': self._index,
+        #         'name': self.name(),
+        #         'premises_count': len(self._premises),
+        #         'step_count': len(self._steps),
+        #         'terms_count': len(self._terms),
+        #     })
 
     def name(
             self,
@@ -401,9 +415,6 @@ class ProofTrace():
 
         elif step[0] == 'INST_TYPE':
             assert False
-
-        # TODO(stan): AXIONS/DEFINITIONS  end-up as 0 step proofs.
-        #             (see 131616_INFINITY_AX)
 
         elif step[0] == 'AXIOM':
             self.record_premise(index)
@@ -761,7 +772,33 @@ def extract():
         os.path.expanduser(config.get('prooftrace_dataset_dir')),
     )
 
+    def log_histogram(traces):
+        Log.histogram(
+            "ProofTraces Steps",
+            [len(pr._steps) for pr in traces],
+            buckets=[64, 128, 256, 512, 1024, 2048, 4096],
+            labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
+        )
+        Log.histogram(
+            "ProofTraces Terms",
+            [len(pr._terms) for pr in traces],
+            buckets=[64, 128, 256, 512, 1024, 2048, 4096],
+            labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
+        )
+        Log.histogram(
+            "ProofTraces Premises",
+            [len(pr._premises) for pr in traces],
+            buckets=[64, 128, 256, 512, 1024, 2048, 4096],
+            labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
+        )
+
+    Log.out("Starting cross steps detection")
+
     traces = [ProofTrace(kernel, k) for k in kernel._names.keys()]
+
+    Log.out("Prooftraces computed", {
+        "traces_count": len(traces),
+    })
 
     cross_steps = {}
     for tr in traces:
@@ -781,46 +818,42 @@ def extract():
         "cross_step_count": cross_step_count,
     })
 
-    Log.histogram(
-        "ProofTraces Steps",
-        [len(pr._steps) for pr in traces],
-        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
-        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
-    )
-    Log.histogram(
-        "ProofTraces Terms",
-        [len(pr._terms) for pr in traces],
-        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
-        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
-    )
-    Log.histogram(
-        "ProofTraces Premises",
-        [len(pr._premises) for pr in traces],
-        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
-        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
-    )
+    # log_histogram(traces)
+
+    Log.out("Starting shared premises detection")
 
     traces = [ProofTrace(kernel, k) for k in kernel._names.keys()]
+
+    Log.out("Prooftraces computed", {
+        "traces_count": len(traces),
+    })
+
+    shared_premise_count = 0
+    for tr in traces:
+        for th in tr._premises.keys():
+            if kernel.name_shared_premise(th):
+                shared_premise_count += 1
+
+    Log.out("Shared premises detection", {
+        "shared_premise_count": shared_premise_count,
+    })
+
+    # log_histogram(traces)
+
+    Log.out("Starting final prooftraces generation")
+
+    kernel._shared = {}
+    traces = [ProofTrace(kernel, k) for k in kernel._names.keys()]
+    traces = [tr for tr in traces if len(tr._steps) > 0]
     traces = sorted(traces, key=lambda tr: tr._index)
 
-    Log.histogram(
-        "ProofTraces Steps",
-        [len(pr._steps) for pr in traces],
-        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
-        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
-    )
-    Log.histogram(
-        "ProofTraces Terms",
-        [len(pr._terms) for pr in traces],
-        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
-        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
-    )
-    Log.histogram(
-        "ProofTraces Premises",
-        [len(pr._premises) for pr in traces],
-        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
-        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
-    )
+    Log.out("Prooftraces computed, filtered and sorted", {
+        "traces_count": len(traces),
+    })
+
+    log_histogram(traces)
+
+    Log.out("Starting action generation")
 
     actions = [tr.actions() for tr in traces]
 
