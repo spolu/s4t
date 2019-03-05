@@ -913,8 +913,13 @@ def extract():
 
     Log.out("Starting action generation")
 
+    def compute_actions(tr):
+        return tr.actions()
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        trace_actions_raw = executor.map(lambda tr: tr.actions(), traces)
+        trace_actions_raw = executor.map(
+            compute_actions, traces, chunksize=64,
+        )
+
     trace_actions = [ptra for ptra in trace_actions_raw]
     # trace_actions = [tr.actions() for tr in traces]
 
