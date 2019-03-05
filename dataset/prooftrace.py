@@ -1,4 +1,5 @@
 import argparse
+import concurrent.futures
 import os
 import json
 import pickle
@@ -848,11 +849,14 @@ def extract():
 
     Log.out("Starting action generation")
 
-    actions = [tr.actions() for tr in traces]
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        trace_actions_raw = executor.map(lambda tr: tr.actions(), traces)
+    trace_actions = [ptra for ptra in trace_actions_raw]
+    # trace_actions = [tr.actions() for tr in traces]
 
     Log.histogram(
         "ProofTraces Length",
-        [a.len() for a in actions],
+        [a.len() for a in trace_actions],
         buckets=[64, 128, 256, 512, 1024, 2048, 4096],
         labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
     )
@@ -875,14 +879,15 @@ def extract():
 
     train_size = int(len(traces) * 90 / 100)
 
-    for i, tr in enumerate(traces):
+    for i, ptra in enumerate(trace_actions):
+        tr = traces[i]
         if i < train_size:
             path = traces_path_train
         else:
             path = traces_path_test
         actions_path = os.path.join(path, tr.name() + '.actions')
         with open(actions_path, 'wb') as f:
-            pickle.dump(actions[i], f)
+            pickle.dump(ptra, f)
 
         trace_path = os.path.join(path, tr.name() + '.trace')
         with open(trace_path, 'w') as f:
