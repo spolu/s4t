@@ -1,5 +1,4 @@
 import argparse
-import concurrent.futures
 import os
 import json
 import pickle
@@ -181,6 +180,7 @@ class ProofTraceKernel():
             '__c': 2,
             '__v': 3,
         }
+        self._term_cache = {}
 
         self._dataset_dir = os.path.abspath(dataset_dir)
 
@@ -294,6 +294,9 @@ class ProofTraceKernel():
 
         Tokenizes constants appearing in terms using self._term_tokens.
         """
+        if tm in self._term_cache:
+            return self._term_cache[tm]
+
         def split(t):
             stack = []
             for i, c in enumerate(t):
@@ -345,7 +348,10 @@ class ProofTraceKernel():
                     '__v',
                 )
 
-        return construct(tm)
+        term = construct(tm)
+        self._term_cache[tm] = term
+
+        return term
 
 
 class ProofTraceActions():
@@ -913,15 +919,7 @@ def extract():
 
     Log.out("Starting action generation")
 
-    def compute_actions(tr):
-        return tr.actions()
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        trace_actions_raw = executor.map(
-            compute_actions, traces, chunksize=64,
-        )
-
-    trace_actions = [ptra for ptra in trace_actions_raw]
-    # trace_actions = [tr.actions() for tr in traces]
+    trace_actions = [tr.actions() for tr in traces]
 
     Log.histogram(
         "ProofTraces Length",
