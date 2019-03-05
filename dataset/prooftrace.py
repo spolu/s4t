@@ -772,26 +772,6 @@ def extract():
         os.path.expanduser(config.get('prooftrace_dataset_dir')),
     )
 
-    def log_histogram(traces):
-        Log.histogram(
-            "ProofTraces Steps",
-            [len(pr._steps) for pr in traces],
-            buckets=[64, 128, 256, 512, 1024, 2048, 4096],
-            labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
-        )
-        Log.histogram(
-            "ProofTraces Terms",
-            [len(pr._terms) for pr in traces],
-            buckets=[64, 128, 256, 512, 1024, 2048, 4096],
-            labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
-        )
-        Log.histogram(
-            "ProofTraces Premises",
-            [len(pr._premises) for pr in traces],
-            buckets=[64, 128, 256, 512, 1024, 2048, 4096],
-            labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
-        )
-
     Log.out("Starting cross steps detection")
 
     traces = [ProofTrace(kernel, k) for k in kernel._names.keys()]
@@ -818,8 +798,6 @@ def extract():
         "cross_step_count": cross_step_count,
     })
 
-    # log_histogram(traces)
-
     Log.out("Starting shared premises detection")
 
     traces = [ProofTrace(kernel, k) for k in kernel._names.keys()]
@@ -838,8 +816,6 @@ def extract():
         "shared_premise_count": shared_premise_count,
     })
 
-    # log_histogram(traces)
-
     Log.out("Starting final prooftraces generation")
 
     kernel._shared = {}
@@ -851,7 +827,24 @@ def extract():
         "traces_count": len(traces),
     })
 
-    log_histogram(traces)
+    Log.histogram(
+        "ProofTraces Steps",
+        [len(pr._steps) for pr in traces],
+        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
+        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
+    )
+    Log.histogram(
+        "ProofTraces Terms",
+        [len(pr._terms) for pr in traces],
+        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
+        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
+    )
+    Log.histogram(
+        "ProofTraces Premises",
+        [len(pr._premises) for pr in traces],
+        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
+        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
+    )
 
     Log.out("Starting action generation")
 
