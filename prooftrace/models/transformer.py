@@ -92,6 +92,7 @@ class P(nn.Module):
     def head(
             self,
             predictions,
+            targets,
     ):
         actions = self.action_head(predictions)
         lefts = self.left_head(predictions)

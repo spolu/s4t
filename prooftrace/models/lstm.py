@@ -42,17 +42,17 @@ class P(nn.Module):
         # position_decoder.weight = self.position_embedding.weight
 
         self.action_head = nn.Sequential(
-            nn.Linear(self.lstm_hidden_size, self.lstm_hidden_size),
+            nn.Linear(2 * self.lstm_hidden_size, self.lstm_hidden_size),
             nn.Linear(self.lstm_hidden_size, len(ACTION_TOKENS)),
             nn.LogSoftmax(dim=1),
         )
         self.left_head = nn.Sequential(
-            nn.Linear(self.lstm_hidden_size, self.lstm_hidden_size),
+            nn.Linear(2 * self.lstm_hidden_size, self.lstm_hidden_size),
             nn.Linear(self.lstm_hidden_size, self.sequence_length),
             nn.LogSoftmax(dim=1),
         )
         self.right_head = nn.Sequential(
-            nn.Linear(self.lstm_hidden_size, self.lstm_hidden_size),
+            nn.Linear(2 * self.lstm_hidden_size, self.lstm_hidden_size),
             nn.Linear(self.lstm_hidden_size, self.sequence_length),
             nn.LogSoftmax(dim=1),
         )
@@ -71,10 +71,13 @@ class P(nn.Module):
     def head(
             self,
             predictions,
+            targets,
     ):
-        actions = self.action_head(predictions)
-        lefts = self.left_head(predictions)
-        rights = self.right_head(predictions)
+        residuals = torch.cat([targets, predictions], dim=1)
+
+        actions = self.action_head(residuals)
+        lefts = self.left_head(residuals)
+        rights = self.right_head(residuals)
 
         return actions, lefts, rights
 
