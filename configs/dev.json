@@ -57,7 +57,7 @@
   "th2vec_premiser_embedder_load_dir": null,
 
 
-  "prooftrace_batch_size": 32,
+  "prooftrace_batch_size": 16,
   "prooftrace_accumulation_step_count": 1,
 
   "prooftrace_learning_rate": 0.00025,
@@ -75,7 +75,7 @@
   "prooftrace_lstm_layer_count": 2,
   "prooftrace_lstm_hidden_size": 1024,
 
-  "prooftrace_dataset_dir": "./data/prooftrace/small",
+  "prooftrace_dataset_dir": "./data/prooftrace/medium",
 
   "prooftrace_repl_ocaml_path": "~/.opam/4.06.1/bin/ocaml",
   "prooftrace_repl_camlp5_path": "~/.opam/4.06.1/lib/camlp5",
