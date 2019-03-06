@@ -34,32 +34,6 @@ ACTION_TOKENS = {
     'INST_PAIR': 16,
 }
 
-INFIX_CONSTANTS = {}
-BINDER_CONSTANTS = {}
-
-
-def init_parse_constants():
-    global INFIX_CONSTANTS
-    global BINDER_CONSTANTS
-
-    if len(INFIX_CONSTANTS) == 0:
-        infix_path = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)),
-            "prooftrace.infix",
-        )
-        with open(infix_path, 'r') as f:
-            for infix in f:
-                INFIX_CONSTANTS[infix[:-1]] = True
-
-    if len(BINDER_CONSTANTS) == 0:
-        binder_path = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)),
-            "prooftrace.binder",
-        )
-        with open(binder_path, 'r') as f:
-            for binder in f:
-                BINDER_CONSTANTS[binder[:-1]] = True
-
 
 class Term(BVT):
     def __init__(
@@ -86,8 +60,6 @@ class Term(BVT):
     ) -> str:
         """ `term_string` formats the Term BVT as a HOL Light term string
         """
-        init_parse_constants()
-
         def dump(term, args):
             if term.token() == '__C':
                 right = dump(term.right, [])
@@ -103,18 +75,12 @@ class Term(BVT):
             if term.token() == '__c' or term.token() == '__v':
                 assert term.right is None
                 token = term.left.token()[1:]
+                if token == '_comma_':
+                    token = ','
                 if len(args) == 0:
                     return token
-                elif token in BINDER_CONSTANTS:
-                    assert len(args) == 1
-                    assert args[0][0] == '\\'
-                    return '(' + token + ' ' + args[0][1:] + ')'
-                elif token in INFIX_CONSTANTS:
-                    assert len(args) == 2
-                    return \
-                        '((' + args[0] + ') ' + token + ' (' + args[1] + '))'
                 else:
-                    tm = '(' + term.left.token()[1:]
+                    tm = '((' + token + ')'
                     for a in args:
                         tm += ' (' + a + ')'
                     tm += ')'
@@ -973,3 +939,89 @@ def extract():
 
     # small term_token_count: 400
     # medium term_token_count: 13404
+
+
+def dump_shared():
+    parser = argparse.ArgumentParser(description="")
+    parser.add_argument(
+        'config_path',
+        type=str, help="path to the config file",
+    )
+    parser.add_argument(
+        '--dataset_dir',
+        type=str, help="prooftrace dataset directory",
+    )
+
+    args = parser.parse_args()
+
+    config = Config.from_file(args.config_path)
+
+    if args.dataset_dir is not None:
+        config.override(
+            'prooftrace_dataset_dir',
+            os.path.expanduser(args.dataset_dir),
+        )
+
+    sys.setrecursionlimit(4096)
+    kernel = ProofTraceKernel(
+        os.path.expanduser(config.get('prooftrace_dataset_dir')),
+    )
+
+    Log.out("Starting cross steps detection")
+
+    traces = [ProofTrace(kernel, k) for k in kernel._names.keys()]
+
+    Log.out("Prooftraces computed", {
+        "traces_count": len(traces),
+    })
+
+    cross_steps = {}
+    for tr in traces:
+        for th in tr._steps.keys():
+            if th not in cross_steps:
+                cross_steps[th] = []
+            if tr._index not in cross_steps[th]:
+                cross_steps[th].append(tr._index)
+
+    cross_step_count = 0
+    for th in cross_steps:
+        if len(cross_steps[th]) > 1:
+            cross_step_count += 1
+            kernel.add_shared(th, cross_steps[th])
+
+    Log.out("Cross steps detection", {
+        "cross_step_count": cross_step_count,
+    })
+
+    Log.out("Starting shared premises detection")
+
+    traces = [ProofTrace(kernel, k) for k in kernel._names.keys()]
+
+    Log.out("Prooftraces computed", {
+        "traces_count": len(traces),
+    })
+
+    shared = {}
+
+    for tr in traces:
+        for th in tr._premises.keys():
+            if kernel.name_shared_premise(th):
+                shared[th] = 1
+            elif th in shared:
+                shared[th] += 1
+
+    keys = sorted(shared.keys(), key=lambda k: shared[k], reverse=True)
+
+    for idx in keys:
+        dump = "=========\n"
+        dump += str(shared[idx]) + " [" + str(idx) + "]\n"
+
+        th = kernel._theorems[idx]
+
+        for h in th['hy']:
+            dump += kernel.term(h).term_string() + '\n'
+        dump += '|-\n'
+        dump += kernel.term(th['cc']).term_string() + '\n'
+        # dump += kernel._proofs[idx][0] + '\n'
+        dump += "---------"
+        print(dump)
