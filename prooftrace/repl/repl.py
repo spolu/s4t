@@ -2,135 +2,14 @@ import argparse
 import os
 import pexpect
 import pexpect.replwrap
-import pickle
-import typing
+# import pickle
+
+from prooftrace.repl.actions import \
+    ProofIndex, Term, \
+    REFL, TRANS, MK_COMB, ABS, BETA, ASSUME, EQ_MP, DEDUCT_ANTISYM_RULE
 
 from utils.config import Config
-
-
-class Argument():
-    pass
-
-
-class ProofIndex(Argument):
-    def __init__(
-            self,
-            index: int,
-    ) -> None:
-        self._index = index
-
-
-class Term(Argument):
-    def __init__(
-            self,
-            term: str,
-    ) -> None:
-        self._term = term
-
-
-class Action():
-    def __init__(
-            self,
-            args: typing.List[Argument],
-    ) -> None:
-        self._args = args
-
-
-class REFL(Action):
-    def __init__(
-            self,
-            args: typing.List[Argument],
-    ) -> None:
-        super(REFL, self).__init__(args)
-        assert len(args) == 1
-        assert type(args[0]) is Term
-
-
-class TRANS(Action):
-    def __init__(
-            self,
-            args: typing.List[Argument],
-    ) -> None:
-        super(TRANS, self).__init__(args)
-        assert len(args) == 2
-        assert type(args[0]) is ProofIndex
-        assert type(args[1]) is ProofIndex
-
-
-class MK_COMB(Action):
-    def __init__(
-            self,
-            args: typing.List[Argument],
-    ) -> None:
-        super(MK_COMB, self).__init__(args)
-        assert len(args) == 2
-        assert type(args[0]) is ProofIndex
-        assert type(args[1]) is ProofIndex
-
-
-class ABS(Action):
-    def __init__(
-            self,
-            args: typing.List[Argument],
-    ) -> None:
-        super(ABS, self).__init__(args)
-        assert len(args) == 2
-        assert type(args[0]) is Term
-        assert type(args[1]) is ProofIndex
-
-
-class BETA(Action):
-    def __init__(
-            self,
-            args: typing.List[Argument],
-    ) -> None:
-        super(BETA, self).__init__(args)
-        assert len(args) == 1
-        assert type(args[0]) is Term
-
-
-class ASSUME(Action):
-    def __init__(
-            self,
-            args: typing.List[Argument],
-    ) -> None:
-        super(BETA, self).__init__(args)
-        assert len(args) == 1
-        assert type(args[0]) is Term
-
-
-class EQ_MP(Action):
-    def __init__(
-            self,
-            args: typing.List[Argument],
-    ) -> None:
-        super(EQ_MP, self).__init__(args)
-        assert len(args) == 2
-        assert type(args[0]) is ProofIndex
-        assert type(args[1]) is ProofIndex
-
-
-class DEDUCT_ANTISYM(Action):
-    def __init__(
-            self,
-            args: typing.List[Argument],
-    ) -> None:
-        super(DEDUCT_ANTISYM, self).__init__(args)
-        assert len(args) == 2
-        assert type(args[0]) is ProofIndex
-        assert type(args[1]) is ProofIndex
-
-
-class INST(Action):
-    def __init__(
-            self,
-            args: typing.List[Argument],
-    ) -> None:
-        super(INST, self).__init__(args)
-        assert len(args) == 3
-        assert type(args[0]) is ProofIndex
-        assert type(args[1]) is Term
-        assert type(args[2]) is Term
+from utils.log import Log
 
 
 class REPL():
@@ -153,6 +32,8 @@ class REPL():
             None,
         )
 
+        self._var_index = 0
+
     def prepare(
             self,
     ):
@@ -163,10 +44,23 @@ class REPL():
             )
         )
 
-        self._ocaml.run_command(
+        self.run(
             "#use \"{}\";;".format(hol_ml_path),
             timeout=None,
         )
+
+    def next_var(
+            self,
+    ) -> str:
+        self._var_index += 1
+        return "___" + str(self._var_index)
+
+    def run(
+            self,
+            cmd: str,
+            timeout=-1,
+    ) -> str:
+        return self._ocaml.run_command(cmd, timeout)
 
 
 class Pool():
@@ -206,13 +100,67 @@ def test():
     # out = repl._ocaml.run_command("2+3;;")
     # print(out)
 
-    p = 'data/prooftrace/small/train_traces/33892_LEFT_EXISTS_IMP_THM.actions'
-    ptra = None
-    with open(p, 'rb') as f: 
-        ptra = pickle.load(f)
+    # p = \
+    #   'data/prooftrace/small/train_traces/33892_LEFT_EXISTS_IMP_THM.actions'
+    # ptra = None
+    # with open(p, 'rb') as f:
+    #     ptra = pickle.load(f)
 
-    print(ptra.actions()[0].left.left.value.term_string())
-    i = 2
-    while ptra.actions()[i].value == 6:
-        print(ptra.actions()[i].left.value.term_string())
-        i += 1
+    # print(ptra.actions()[0].left.left.value.term_string())
+    # i = 2
+    # while ptra.actions()[i].value == 6:
+    #     print(ptra.actions()[i].left.value.term_string())
+    #     i += 1
+
+    repl = REPL(config)
+
+    repl.prepare()
+    Log.out("PREPARED")
+
+    try:
+        proof_index = REFL([Term('q')]).run(repl)
+        Log.out("REFL `q` = [64]", {
+            "proof_index": proof_index,
+        })
+
+        proof_index = TRANS([ProofIndex(79), ProofIndex(80)]).run(repl)
+        Log.out("TRANS 79 80 = [81]", {
+            "proof_index": proof_index,
+        })
+
+        proof_index = MK_COMB([ProofIndex(74), ProofIndex(75)]).run(repl)
+        Log.out("MK_COMB 74 75 = [76]", {
+            "proof_index": proof_index,
+        })
+
+        proof_index = ABS([ProofIndex(498), Term('Q')]).run(repl)
+        Log.out("ABS 498 `Q` = [499]", {
+            "proof_index": proof_index,
+        })
+
+        proof_index = BETA([Term('(\\x.T) x')]).run(repl)
+        Log.out("BETA `(\\x.T) x` = [430]", {
+            "proof_index": proof_index,
+        })
+
+        proof_index = ASSUME([Term('(!) P')]).run(repl)
+        Log.out("BETA `(!) P` = [422]", {
+            "proof_index": proof_index,
+        })
+
+        proof_index = EQ_MP([ProofIndex(432), ProofIndex(429)]).run(repl)
+        Log.out("EQ_MP 432 429 = [433]", {
+            "proof_index": proof_index,
+        })
+
+        proof_index = DEDUCT_ANTISYM_RULE([
+            ProofIndex(413), ProofIndex(417)
+        ]).run(repl)
+        Log.out("DEDUCT_ANTISYM_RULE 413 417 = [418]", {
+            "proof_index": proof_index,
+        })
+
+    except Exception as e:
+        print(e)
+        import pdb
+        pdb.set_trace()
