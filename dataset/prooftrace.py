@@ -93,10 +93,13 @@ class Term(BVT):
                 right = dump(term.right, [])
                 return dump(term.left, [right] + args)
             if term.token() == '__A':
-                assert len(args) == 0
+                assert len(args) <= 1
                 right = dump(term.right, [])
                 left = dump(term.left, [])
-                return '\\' + left + '. ' + right
+                if len(args) == 0:
+                    return '\\' + left + '. ' + right
+                else:
+                    return '(\\' + left + '. ' + right + ') (' + args[0] + ')'
             if term.token() == '__c' or term.token() == '__v':
                 assert term.right is None
                 token = term.left.token()[1:]

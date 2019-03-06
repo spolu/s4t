@@ -3,12 +3,134 @@ import os
 import pexpect
 import pexpect.replwrap
 import pickle
-
-from dataset.prooftrace import ProofTraceActions
+import typing
 
 from utils.config import Config
-from utils.log import Log
 
+
+class Argument():
+    pass
+
+
+class ProofIndex(Argument):
+    def __init__(
+            self,
+            index: int,
+    ) -> None:
+        self._index = index
+
+
+class Term(Argument):
+    def __init__(
+            self,
+            term: str,
+    ) -> None:
+        self._term = term
+
+
+class Action():
+    def __init__(
+            self,
+            args: typing.List[Argument],
+    ) -> None:
+        self._args = args
+
+
+class REFL(Action):
+    def __init__(
+            self,
+            args: typing.List[Argument],
+    ) -> None:
+        super(REFL, self).__init__(args)
+        assert len(args) == 1
+        assert type(args[0]) is Term
+
+
+class TRANS(Action):
+    def __init__(
+            self,
+            args: typing.List[Argument],
+    ) -> None:
+        super(TRANS, self).__init__(args)
+        assert len(args) == 2
+        assert type(args[0]) is ProofIndex
+        assert type(args[1]) is ProofIndex
+
+
+class MK_COMB(Action):
+    def __init__(
+            self,
+            args: typing.List[Argument],
+    ) -> None:
+        super(MK_COMB, self).__init__(args)
+        assert len(args) == 2
+        assert type(args[0]) is ProofIndex
+        assert type(args[1]) is ProofIndex
+
+
+class ABS(Action):
+    def __init__(
+            self,
+            args: typing.List[Argument],
+    ) -> None:
+        super(ABS, self).__init__(args)
+        assert len(args) == 2
+        assert type(args[0]) is Term
+        assert type(args[1]) is ProofIndex
+
+
+class BETA(Action):
+    def __init__(
+            self,
+            args: typing.List[Argument],
+    ) -> None:
+        super(BETA, self).__init__(args)
+        assert len(args) == 1
+        assert type(args[0]) is Term
+
+
+class ASSUME(Action):
+    def __init__(
+            self,
+            args: typing.List[Argument],
+    ) -> None:
+        super(BETA, self).__init__(args)
+        assert len(args) == 1
+        assert type(args[0]) is Term
+
+
+class EQ_MP(Action):
+    def __init__(
+            self,
+            args: typing.List[Argument],
+    ) -> None:
+        super(EQ_MP, self).__init__(args)
+        assert len(args) == 2
+        assert type(args[0]) is ProofIndex
+        assert type(args[1]) is ProofIndex
+
+
+class DEDUCT_ANTISYM(Action):
+    def __init__(
+            self,
+            args: typing.List[Argument],
+    ) -> None:
+        super(DEDUCT_ANTISYM, self).__init__(args)
+        assert len(args) == 2
+        assert type(args[0]) is ProofIndex
+        assert type(args[1]) is ProofIndex
+
+
+class INST(Action):
+    def __init__(
+            self,
+            args: typing.List[Argument],
+    ) -> None:
+        super(INST, self).__init__(args)
+        assert len(args) == 3
+        assert type(args[0]) is ProofIndex
+        assert type(args[1]) is Term
+        assert type(args[2]) is Term
 
 
 class REPL():
@@ -90,3 +212,7 @@ def test():
         ptra = pickle.load(f)
 
     print(ptra.actions()[0].left.left.value.term_string())
+    i = 2
+    while ptra.actions()[i].value == 6:
+        print(ptra.actions()[i].left.value.term_string())
+        i += 1
