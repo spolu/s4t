@@ -6,6 +6,7 @@ import re
 import shutil
 import sys
 import typing
+import xxhash
 
 from generic.tree_lstm import BVT
 
@@ -21,17 +22,18 @@ ACTION_TOKENS = {
     'PREMISE': 3,
     'HYPOTHESIS': 4,
     'CONCLUSION': 5,
-    'TERM': 6,
-    'REFL': 7,
-    'TRANS': 8,
-    'MK_COMB': 9,
-    'ABS': 10,
-    'BETA': 11,
-    'ASSUME': 12,
-    'EQ_MP': 13,
-    'DEDUCT_ANTISYM_RULE': 14,
-    'INST': 15,
-    'INST_PAIR': 16,
+    'SUBST': 6,
+    'SUBST_PAIR': 7,
+    'TERM': 8,
+    'REFL': 9,
+    'TRANS': 10,
+    'MK_COMB': 11,
+    'ABS': 12,
+    'BETA': 13,
+    'ASSUME': 14,
+    'EQ_MP': 15,
+    'DEDUCT_ANTISYM_RULE': 16,
+    'INST': 17,
 }
 
 
@@ -366,6 +368,7 @@ class ProofTrace():
 
         self._premises = {}
         self._terms = {}
+        self._substs = {}
 
         self._steps = {}
         self._sequence = []
@@ -379,6 +382,7 @@ class ProofTrace():
         #         'premises_count': len(self._premises),
         #         'step_count': len(self._steps),
         #         'terms_count': len(self._terms),
+        #         'substs_count': len(self._substs),
         #     })
 
     def name(
@@ -386,13 +390,47 @@ class ProofTrace():
     ):
         return str(self._index) + '_' + self._kernel._names[self._index]
 
+    def term_hash(
+            self,
+            term,
+    ):
+        h = xxhash.xxh64()
+        h.update(term)
+        return h.digest()
+
+    def subst_hash(
+            self,
+            subst,
+    ):
+        h = xxhash.xxh64()
+        for s in subst:
+            assert len(s) == 2
+            h.update(s[0])
+            h.update(s[1])
+        return h.digest()
+
     def record_term(
             self,
             term,
     ):
-        if term not in self._terms:
-            self._terms[term] = 0
-        self._terms[term] += 1
+        h = self.term_hash(term)
+        if h in self._terms:
+            assert term == self._terms[h]
+        else:
+            self._terms[h] = term
+
+    def record_subst(
+            self,
+            subst,
+    ):
+        h = self.subst_hash(subst)
+        if h in self._substs:
+            assert len(subst) == len(self._substs[h])
+            for i, s in enumerate(subst):
+                assert s[0] == self._substs[h][i][0]
+                assert s[1] == self._substs[h][i][1]
+        else:
+            self._substs[h] = subst
 
     def record_premise(
             self,
@@ -449,9 +487,7 @@ class ProofTrace():
 
         elif step[0] == 'INST':
             self.walk(step[1])
-            for inst in step[2]:
-                self.record_term(inst[0])
-                self.record_term(inst[1])
+            self.record_subst(step[2])
 
         elif step[0] == 'INST_TYPE':
             assert False
@@ -479,7 +515,8 @@ class ProofTrace():
     ):
         yield 'index', self._index
         yield 'target', self._kernel._theorems[self._index]
-        yield 'terms', list(self._terms.keys())
+        yield 'terms', list(self._terms.values())
+        yield 'substs', list(self._substs.values())
         yield 'premises', self._premises
         yield 'steps', self._steps
 
@@ -490,6 +527,7 @@ class ProofTrace():
 
         cache = {
             'terms': {},
+            'substs': {},
             'indices': {},
         }
 
@@ -511,6 +549,21 @@ class ProofTrace():
                     build_hypothesis(hypotheses[1:]),
                 )
 
+        # Recursive function used to build instantiations substitutions
+        def build_subst(subst):
+            if len(subst) == 0:
+                return None
+            else:
+                return Action.from_action(
+                    'SUBST',
+                    Action.from_action(
+                        'SUBST_PAIR',
+                        Action.from_term(self._kernel.term(subst[0][0])),
+                        Action.from_term(self._kernel.term(subst[0][1])),
+                    ),
+                    build_subst(subst[1:]),
+                )
+
         # Start by recording the target theorem (TARGET action).
         t = self._kernel._theorems[self._index]
 
@@ -524,16 +577,24 @@ class ProofTrace():
             None,
         )
 
-        terms = []
-        # We first record terms as they are generally deeper than premises but
+        substs = []
+        # We first record subst as they are generally deeper than terms but
         # include very similar terms (optimize TreeLSTM cache hit).
-        for tm in self._terms:
+        for subst in self._substs.values():
+            action = build_subst(subst)
+            cache['substs'][self.subst_hash(subst)] = action
+            substs.append(action)
+
+        terms = []
+        # We then record terms as they are generally deeper than premises but
+        # include very similar terms (optimize TreeLSTM cache hit).
+        for term in self._terms.values():
             action = Action.from_action(
                 'TERM',
-                Action.from_term(self._kernel.term(tm)),
+                Action.from_term(self._kernel.term(term)),
                 None,
             )
-            cache['terms'][tm] = action
+            cache['terms'][self.term_hash(term)] = action
             terms.append(action)
 
         # Terms are unordered so we order them by depth to optimize cache hit
@@ -544,7 +605,7 @@ class ProofTrace():
             reverse=True,
         )
 
-        sequence = [target, empty] + terms
+        sequence = [target, empty] + substs + terms
 
         for idx in self._premises:
             p = self._premises[idx]
@@ -570,7 +631,7 @@ class ProofTrace():
                 actions = [
                     Action.from_action(
                         'REFL',
-                        cache['terms'][step[1]],
+                        cache['terms'][self.term_hash(step[1])],
                         empty,
                     ),
                 ]
@@ -595,14 +656,14 @@ class ProofTrace():
                     Action.from_action(
                         'ABS',
                         cache['indices'][step[1]],
-                        cache['terms'][step[2]],
+                        cache['terms'][self.term_hash(step[2])],
                     ),
                 ]
             elif step[0] == 'BETA':
                 actions = [
                     Action.from_action(
                         'BETA',
-                        cache['terms'][step[1]],
+                        cache['terms'][self.term_hash(step[1])],
                         empty,
                     ),
                 ]
@@ -610,7 +671,7 @@ class ProofTrace():
                 actions = [
                     Action.from_action(
                         'ASSUME',
-                        cache['terms'][step[1]],
+                        cache['terms'][self.term_hash(step[1])],
                         empty,
                     ),
                 ]
@@ -631,22 +692,13 @@ class ProofTrace():
                     ),
                 ]
             elif step[0] == 'INST':
-                pred = cache['indices'][step[1]]
-                actions = []
-                for inst in step[2]:
-                    pair = Action.from_action(
-                        'INST_PAIR',
-                        cache['terms'][inst[0]],
-                        cache['terms'][inst[1]],
-                    )
-                    action = Action.from_action(
+                actions = [
+                    Action.from_action(
                         'INST',
-                        pred,
-                        pair,
-                    )
-                    pred = action
-                    actions.append(pair)
-                    actions.append(action)
+                        cache['indices'][step[1]],
+                        cache['substs'][self.subst_hash(step[2])]
+                    ),
+                ]
 
             elif step[0] == 'INST_TYPE':
                 assert False
@@ -660,7 +712,9 @@ class ProofTrace():
             elif step[0] == 'TYPE_DEFINITION':
                 assert False
 
+            assert len(actions) == 1
             cache['indices'][idx] = actions[-1]
+
             sequence = sequence + actions
 
         return ProofTraceActions(
@@ -745,6 +799,7 @@ class ProofTraceLMDataset(ProofTraceDataset):
                             [
                                 ACTION_TOKENS['TARGET'],
                                 ACTION_TOKENS['EMPTY'],
+                                ACTION_TOKENS['SUBST'],
                                 ACTION_TOKENS['TERM'],
                                 ACTION_TOKENS['PREMISE'],
                             ]:
@@ -868,8 +923,14 @@ def extract():
     })
 
     Log.histogram(
-        "ProofTraces Steps",
-        [len(pr._steps) for pr in traces],
+        "ProofTraces Premises",
+        [len(pr._premises) for pr in traces],
+        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
+        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
+    )
+    Log.histogram(
+        "ProofTraces Substs",
+        [len(pr._substs) for pr in traces],
         buckets=[64, 128, 256, 512, 1024, 2048, 4096],
         labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
     )
@@ -880,12 +941,11 @@ def extract():
         labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
     )
     Log.histogram(
-        "ProofTraces Premises",
-        [len(pr._premises) for pr in traces],
+        "ProofTraces Steps",
+        [len(pr._steps) for pr in traces],
         buckets=[64, 128, 256, 512, 1024, 2048, 4096],
         labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
     )
-
     Log.out("Starting action generation")
 
     trace_actions = [tr.actions() for tr in traces]
