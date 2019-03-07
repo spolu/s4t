@@ -4,11 +4,52 @@ import torch
 import torch.nn as nn
 import typing
 
-from dataset.prooftrace import Term, Action, ACTION_TOKENS, ProofTraceLMDataset
+from dataset.prooftrace import \
+    Term, Type, Action, \
+    ACTION_TOKENS, ProofTraceLMDataset
 
 from generic.tree_lstm import BinaryTreeLSTM
 
 from utils.config import Config
+
+
+class TypeEmbedder(nn.Module):
+    def __init__(
+            self,
+            config,
+    ):
+        super(TypeEmbedder, self).__init__()
+
+        self.device = torch.device(config.get('device'))
+
+        self.type_token_count = \
+            config.get('prooftrace_type_token_count')
+        self.hidden_size = \
+            config.get('prooftrace_hidden_size')
+
+        self.type_token_embedder = nn.Embedding(
+            self.type_token_count, self.hidden_size,
+        )
+
+        self.tree_lstm = BinaryTreeLSTM(self.hidden_size)
+        self.tree_lstm.to(self.device)
+
+    def parameters_count(
+            self,
+    ):
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+    def forward(
+            self,
+            types: typing.List[Type],
+    ):
+        def embedder(values):
+            return self.type_token_embedder(
+                torch.tensor(values, dtype=torch.int64).to(self.device),
+            )
+
+        h, _ = self.tree_lstm.batch(types, embedder)
+        return h
 
 
 class TermEmbedder(nn.Module):
@@ -25,12 +66,79 @@ class TermEmbedder(nn.Module):
         self.hidden_size = \
             config.get('prooftrace_hidden_size')
 
+        self.type_embedder = TypeEmbedder(config)
+
         self.term_token_embedder = nn.Embedding(
             self.term_token_count, self.hidden_size,
         )
 
         self.tree_lstm = BinaryTreeLSTM(self.hidden_size)
         self.tree_lstm.to(self.device)
+
+    def extract_types(
+            self,
+            terms: typing.List[Term],
+    ) -> typing.List[Type]:
+        seen = {}
+
+        def dfs(term):
+            if term.hash() in seen:
+                return []
+            seen[term.hash()] = True
+
+            if type(term.value) is Type:
+                if term.value.hash() not in seen:
+                    seen[term.value.hash()] = True
+                    return [term.value]
+                else:
+                    return []
+            else:
+                left = []
+                if term.left is not None:
+                    left = dfs(term.left)
+                right = []
+                if term.right is not None:
+                    right = dfs(term.right)
+                return left + right
+
+        types = []
+        for t in terms:
+            types += dfs(t)
+
+        return types
+
+    def extract_tokens(
+            self,
+            terms: typing.List[Term],
+    ) -> typing.List[int]:
+        seen = {}
+
+        def dfs(term):
+            if term.hash() in seen:
+                return []
+            seen[term.hash()] = True
+
+            if type(term.value) is not Type:
+                left = []
+                if term.left is not None:
+                    left = dfs(term.left)
+                right = []
+                if term.right is not None:
+                    right = dfs(term.right)
+
+                if term.value not in seen:
+                    seen[term.value] = True
+                    return left + right + [term.value]
+                else:
+                    return left + right + []
+            else:
+                return []
+
+        tokens = []
+        for t in terms:
+            tokens += dfs(t)
+
+        return tokens
 
     def parameters_count(
             self,
@@ -41,10 +149,32 @@ class TermEmbedder(nn.Module):
             self,
             terms: typing.List[Term],
     ):
-        def embedder(values):
-            return self.term_token_embedder(
-                torch.tensor(values, dtype=torch.int64).to(self.device),
+        cache = {}
+
+        # TODO(stan): optmize by sharing extraction
+        types = self.extract_types(terms)
+        tokens = self.extract_tokens(terms)
+
+        if len(types) > 0:
+            types_embeds = self.type_embedder(types)
+            for i, ty in enumerate(types):
+                cache[ty.hash()] = types_embeds[i].unsqueeze(0)
+
+        if len(tokens) > 0:
+            tokens_embeds = self.term_token_embedder(
+                torch.tensor(tokens, dtype=torch.int64).to(self.device),
             )
+            for i, v in enumerate(tokens):
+                cache[v] = tokens_embeds[i].unsqueeze(0)
+
+        def embedder(values):
+            embeds = [[]] * len(values)
+            for idx, v in enumerate(values):
+                if type(v) is Type:
+                    embeds[idx] = cache[v.hash()]
+                else:
+                    embeds[idx] = cache[v]
+            return torch.cat(embeds, dim=0)
 
         h, _ = self.tree_lstm.batch(terms, embedder)
         return h
@@ -81,14 +211,16 @@ class ActionEmbedder(nn.Module):
             if action.hash() in seen:
                 return []
             seen[action.hash()] = True
-
             if type(action.value) is Term:
-                return [action.value]
+                if action.value.hash() not in seen:
+                    seen[action.value.hash()] = True
+                    return [action.value]
+                else:
+                    return []
             else:
                 left = []
                 if action.left is not None:
                     left = dfs(action.left)
-
                 right = []
                 if action.right is not None:
                     right = dfs(action.right)
@@ -100,6 +232,43 @@ class ActionEmbedder(nn.Module):
             terms += dfs(a)
 
         return terms
+
+    def extract_types(
+            self,
+            actions: typing.List[Action],
+    ) -> typing.List[Type]:
+        seen = {}
+
+        def dfs(action):
+            if action.hash() in seen:
+                return []
+            seen[action.hash()] = True
+            if type(action.value) is Type:
+                if action.value.hash() not in seen:
+                    seen[action.value.hash()] = True
+                    return [action.value]
+                else:
+                    return []
+            else:
+                left = []
+                if action.left is not None:
+                    left = dfs(action.left)
+                right = []
+                if action.right is not None:
+                    right = dfs(action.right)
+
+                return left + right
+
+        types = []
+        for a in actions:
+            types += dfs(a)
+
+        return types
+
+    def parameters_count(
+            self,
+    ):
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
     def forward(
             self,
@@ -113,12 +282,19 @@ class ActionEmbedder(nn.Module):
 
         cache = {}
 
+        # TODO(stan): optmize by sharing extraction
         terms = self.extract_terms(flat)
+        types = self.extract_types(flat)
 
         if len(terms) > 0:
             terms_embeds = self.term_embedder(terms)
             for i, tm in enumerate(terms):
                 cache[tm.hash()] = terms_embeds[i].unsqueeze(0)
+
+        if len(types) > 0:
+            types_embeds = self.term_embedder.type_embedder(types)
+            for i, ty in enumerate(types):
+                cache[ty.hash()] = types_embeds[i].unsqueeze(0)
 
         tokens_embeds = self.action_token_embedder(
             torch.tensor(
@@ -133,6 +309,8 @@ class ActionEmbedder(nn.Module):
             embeds = [[]] * len(values)
             for idx, v in enumerate(values):
                 if type(v) is Term:
+                    embeds[idx] = cache[v.hash()]
+                elif type(v) is Type:
                     embeds[idx] = cache[v.hash()]
                 else:
                     embeds[idx] = cache[v]
@@ -195,11 +373,3 @@ def test():
         traces.append(tr)
 
     embeds = embedder(traces[0:32])
-    extract = embedder([[Action.from_action('EXTRACT')]])
-
-    targets = embeds.clone().detach()
-
-    for i, idx in enumerate(indices[0:32]):
-        embeds[i][idx] = extract[0][0]
-
-    targets.size()

@@ -123,14 +123,15 @@ class Term(BVT):
                     return \
                         '(\\(' + left + '). ' + right + ') (' + args[0] + ')'
             if term.token() == '__c' or term.token() == '__v':
-                assert type(term.right) is Type
+                assert type(term.right.value) is Type
                 token = term.left.token()
                 if len(args) == 0:
                     return token
                 else:
                     if term.token() == '__v':
                         tm = \
-                            '((' + token + ':' + term.right.type_string() + ')'
+                            '((' + token + ':' + \
+                            term.right.value.type_string() + ')'
                     if term.token() == '__c':
                         tm = '((' + token + ')'
                     for a in args:
@@ -428,7 +429,7 @@ class ProofTraceKernel():
                 return Term(
                     self._term_tokens['__c'],
                     Term(self._term_tokens[chld[0]], None, None, chld[0]),
-                    self.type(chld[1]),
+                    Term(self.type(chld[1]), None, None, None),
                     '__c',
                 )
             if t[0] == 'v':
@@ -439,7 +440,7 @@ class ProofTraceKernel():
                 return Term(
                     self._term_tokens['__v'],
                     Term(self._term_tokens[chld[0]], None, None, chld[0]),
-                    self.type(chld[1]),
+                    Term(self.type(chld[1]), None, None, None),
                     '__v',
                 )
 
@@ -679,7 +680,7 @@ class ProofTrace():
         # Recursive function used to build instantiations substitutions
         def build_subst(subst):
             if len(subst) == 0:
-                return None
+                return Action.from_action('SUBST', None, None)
             else:
                 return Action.from_action(
                     'SUBST',
@@ -694,7 +695,7 @@ class ProofTrace():
         # Recursive function used to build type instantiations substitutions
         def build_subst_type(subst_type):
             if len(subst_type) == 0:
-                return None
+                return Action.from_action('SUBST_TYPE', None, None)
             else:
                 return Action.from_action(
                     'SUBST_TYPE',
@@ -971,6 +972,8 @@ class ProofTraceLMDataset(ProofTraceDataset):
             actions = tr.actions()
             for pos in range(len(actions)):
                 if pos < self._sequence_length:
+                    if actions[pos] is None:
+                        import pdb; pdb.set_trace()
                     if actions[pos].value not in \
                             [
                                 ACTION_TOKENS['TARGET'],
