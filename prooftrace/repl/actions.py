@@ -38,6 +38,19 @@ class Term(Argument):
         return self._term
 
 
+class Subst(Argument):
+    def __init__(
+            self,
+            subst: typing.List[typing.List[str]],
+    ) -> None:
+        self._subst = subst
+
+    def subst(
+            self,
+    ) -> typing.List[typing.List[str]]:
+        return self._subst
+
+
 class Action():
     """ Actions are sent to the REPL to generate a new proof
     """
@@ -312,7 +325,31 @@ class INST(Action):
             args: typing.List[Argument],
     ) -> None:
         super(INST, self).__init__(args)
-        assert len(args) == 3
+        assert len(args) == 2
         assert type(args[0]) is ProofIndex
-        assert type(args[1]) is Term
-        assert type(args[2]) is Term
+        assert type(args[1]) is Subst
+
+    def run(
+            self,
+            repl,
+    ) -> int:
+        thm_var = repl.next_var()
+
+        cmd = "let {} = INST ({}::[]) {};;".format(
+            thm_var,
+            "::".join(
+                [
+                    "(`" + s[0] + "`, `" + s[1] + "`)"
+                    for s in self._args[1].subst()
+                ],
+            ),
+            self.var_for_theorem(repl, self._args[0].index()),
+        )
+        print(cmd)
+        out = repl.run(cmd)
+        print(out)
+        assert re.search(
+            'val ' + thm_var + ' : thm =.*\r\n$', out, flags=re.DOTALL
+        )
+
+        return self.proof_index(repl, thm_var)

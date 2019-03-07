@@ -5,8 +5,8 @@ import pexpect.replwrap
 # import pickle
 
 from prooftrace.repl.actions import \
-    ProofIndex, Term, \
-    REFL, TRANS, MK_COMB, ABS, BETA, ASSUME, EQ_MP, DEDUCT_ANTISYM_RULE
+    ProofIndex, Term, Subst, \
+    REFL, TRANS, MK_COMB, ABS, BETA, ASSUME, EQ_MP, DEDUCT_ANTISYM_RULE, INST
 
 from utils.config import Config
 from utils.log import Log
@@ -83,84 +83,56 @@ def test():
     print("ProofTrace REPL testing \\o/")
     print("----------------------------")
 
-    # child = pexpect.spawn(
-    #     ocaml_path,
-    #     args=['-I', camlp5_path, 'camlp5o.cma'],
-    #     echo=False,
-    # )
-    # child.expect('\r\n# ')
-    # child.sendline ('2+3;;')
-
-    # repl = REPL(config)
-
-    # Log.out("Preparing REPL")
-    # repl.prepare()
-    # Log.out("Done")
-
-    # out = repl._ocaml.run_command("2+3;;")
-    # print(out)
-
-    # p = \
-    #   'data/prooftrace/small/train_traces/33892_LEFT_EXISTS_IMP_THM.actions'
-    # ptra = None
-    # with open(p, 'rb') as f:
-    #     ptra = pickle.load(f)
-
-    # print(ptra.actions()[0].left.left.value.term_string())
-    # i = 2
-    # while ptra.actions()[i].value == 6:
-    #     print(ptra.actions()[i].left.value.term_string())
-    #     i += 1
-
     repl = REPL(config)
 
     repl.prepare()
     Log.out("PREPARED")
 
-    try:
-        proof_index = REFL([Term('q')]).run(repl)
-        Log.out("REFL `q` = [64]", {
-            "proof_index": proof_index,
-        })
+    proof_index = REFL([Term('q')]).run(repl)
+    Log.out("REFL `q` = [64]", {
+        "proof_index": proof_index,
+    })
 
-        proof_index = TRANS([ProofIndex(79), ProofIndex(80)]).run(repl)
-        Log.out("TRANS 79 80 = [81]", {
-            "proof_index": proof_index,
-        })
+    proof_index = TRANS([ProofIndex(79), ProofIndex(80)]).run(repl)
+    Log.out("TRANS 79 80 = [81]", {
+        "proof_index": proof_index,
+    })
 
-        proof_index = MK_COMB([ProofIndex(74), ProofIndex(75)]).run(repl)
-        Log.out("MK_COMB 74 75 = [76]", {
-            "proof_index": proof_index,
-        })
+    proof_index = MK_COMB([ProofIndex(74), ProofIndex(75)]).run(repl)
+    Log.out("MK_COMB 74 75 = [76]", {
+        "proof_index": proof_index,
+    })
 
-        proof_index = ABS([ProofIndex(498), Term('Q')]).run(repl)
-        Log.out("ABS 498 `Q` = [499]", {
-            "proof_index": proof_index,
-        })
+    proof_index = ABS([ProofIndex(498), Term('Q')]).run(repl)
+    Log.out("ABS 498 `Q` = [499]", {
+        "proof_index": proof_index,
+    })
 
-        proof_index = BETA([Term('(\\x.T) x')]).run(repl)
-        Log.out("BETA `(\\x.T) x` = [430]", {
-            "proof_index": proof_index,
-        })
+    proof_index = BETA([Term('(\\x.T) x')]).run(repl)
+    Log.out("BETA `(\\x.T) x` = [430]", {
+        "proof_index": proof_index,
+    })
 
-        proof_index = ASSUME([Term('(!) P')]).run(repl)
-        Log.out("BETA `(!) P` = [422]", {
-            "proof_index": proof_index,
-        })
+    proof_index = ASSUME([Term('(!) P')]).run(repl)
+    Log.out("ASSUME `(!) P` = [422]", {
+        "proof_index": proof_index,
+    })
 
-        proof_index = EQ_MP([ProofIndex(432), ProofIndex(429)]).run(repl)
-        Log.out("EQ_MP 432 429 = [433]", {
-            "proof_index": proof_index,
-        })
+    proof_index = EQ_MP([ProofIndex(432), ProofIndex(429)]).run(repl)
+    Log.out("EQ_MP 432 429 = [433]", {
+        "proof_index": proof_index,
+    })
 
-        proof_index = DEDUCT_ANTISYM_RULE([
-            ProofIndex(413), ProofIndex(417)
-        ]).run(repl)
-        Log.out("DEDUCT_ANTISYM_RULE 413 417 = [418]", {
-            "proof_index": proof_index,
-        })
+    proof_index = DEDUCT_ANTISYM_RULE([
+        ProofIndex(413), ProofIndex(417)
+    ]).run(repl)
+    Log.out("DEDUCT_ANTISYM_RULE 413 417 = [418]", {
+        "proof_index": proof_index,
+    })
 
-    except Exception as e:
-        print(e)
-        import pdb
-        pdb.set_trace()
+    proof_index = INST([
+        ProofIndex(35), Subst([['f', '(\\p. (\\q. q))']]),
+    ]).run(repl)
+    Log.out("INST 35 [[`f`, `(\\p. (\\q. q))`]] = [36]", {
+        "proof_index": proof_index,
+    })
