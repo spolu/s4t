@@ -355,8 +355,8 @@ def train():
         type=str, help="path to the config file",
     )
     parser.add_argument(
-        '--dataset_dir',
-        type=str, help="test dataset directory",
+        '--dataset_size',
+        type=str, help="config override",
     )
     parser.add_argument(
         '--save_dir',
@@ -403,10 +403,10 @@ def train():
     if args.distributed_world_size is not None:
         config.override('distributed_world_size', args.distributed_world_size)
 
-    if args.dataset_dir is not None:
+    if args.dataset_size is not None:
         config.override(
-            'prooftrace_dataset_dir',
-            os.path.expanduser(args.dataset_dir),
+            'prooftrace_dataset_size',
+            args.dataset_size,
         )
     if args.tensorboard_log_dir is not None:
         config.override(
@@ -436,10 +436,9 @@ def train():
         torch.cuda.set_device(torch.device(config.get('device')))
 
     train_dataset = ProofTraceLMDataset(
-        os.path.join(
-            os.path.expanduser(config.get('prooftrace_dataset_dir')),
-            'train_traces',
-        ),
+        os.path.expanduser(config.get('prooftrace_dataset_dir')),
+        config.get('prooftrace_dataset_size'),
+        False,
         config.get('prooftrace_sequence_length'),
     )
 
@@ -463,8 +462,8 @@ def test():
         type=str, help="path to the config file",
     )
     parser.add_argument(
-        '--dataset_dir',
-        type=str, help="test dataset directory",
+        '--dataset_size',
+        type=str, help="config override",
     )
     parser.add_argument(
         '--load_dir',
@@ -483,10 +482,10 @@ def test():
     if args.device is not None:
         config.override('device', args.device)
 
-    if args.dataset_dir is not None:
+    if args.dataset_size is not None:
         config.override(
-            'prooftrace_dataset_dir',
-            os.path.expanduser(args.dataset_dir),
+            'prooftrace_dataset_size',
+            args.dataset_size,
         )
     if args.load_dir is not None:
         config.override(
@@ -498,10 +497,9 @@ def test():
         torch.cuda.set_device(torch.device(config.get('device')))
 
     test_dataset = ProofTraceLMDataset(
-        os.path.join(
-            os.path.expanduser(config.get('prooftrace_dataset_dir')),
-            'test_traces',
-        ),
+        os.path.expanduser(config.get('prooftrace_dataset_dir')),
+        config.get('prooftrace_dataset_size'),
+        True,
         config.get('prooftrace_sequence_length'),
     )
 

@@ -36,11 +36,6 @@ class P(nn.Module):
             num_layers=self.lstm_layer_count, batch_first=True,
         )
 
-        # position_decoder = nn.Linear(
-        #     self.hidden_size, self.sequence_length, bias=False,
-        # )
-        # position_decoder.weight = self.position_embedding.weight
-
         self.action_head = nn.Sequential(
             nn.Linear(2 * self.lstm_hidden_size, self.lstm_hidden_size),
             nn.Linear(self.lstm_hidden_size, len(ACTION_TOKENS)),

@@ -6,10 +6,9 @@ import typing
 
 from dataset.prooftrace import Term, Action, ACTION_TOKENS, ProofTraceLMDataset
 
-from generic.tree_lstm import BinaryTreeLSTM, BVT
+from generic.tree_lstm import BinaryTreeLSTM
 
 from utils.config import Config
-# from utils.log import Log
 
 
 class TermEmbedder(nn.Module):
@@ -155,32 +154,30 @@ def test():
         type=str, help="path to the config file",
     )
     parser.add_argument(
-        '--dataset_dir',
-        type=str, help="prooftrace dataset directory",
+        '--dataset_size',
+        type=str, help="congif override",
     )
 
     args = parser.parse_args()
 
     config = Config.from_file(args.config_path)
 
-    if args.dataset_dir is not None:
+    if args.dataset_size is not None:
         config.override(
-            'prooftrace_dataset_dir',
-            os.path.expanduser(args.dataset_dir),
+            'prooftrace_dataset_size',
+            args.dataset_size,
         )
 
     # train_set = ProofTraceLMDataset(
-    #     os.path.join(
-    #         os.path.expanduser(config.get('prooftrace_dataset_dir')),
-    #         'train_traces',
-    #     ),
+    #     os.path.expanduser(config.get('prooftrace_dataset_dir')),
+    #     config.get('prooftrace_dataset_size'),
+    #     False,
     #     config.get('prooftrace_sequence_length'),
     # )
     test_set = ProofTraceLMDataset(
-        os.path.join(
-            os.path.expanduser(config.get('prooftrace_dataset_dir')),
-            'test_traces',
-        ),
+        os.path.expanduser(config.get('prooftrace_dataset_dir')),
+        config.get('prooftrace_dataset_size'),
+        True,
         config.get('prooftrace_sequence_length'),
     )
 

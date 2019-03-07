@@ -134,6 +134,7 @@ class ProofTraceKernel():
     def __init__(
             self,
             dataset_dir: str,
+            dataset_size: str,
     ) -> None:
         self._proofs = {}
         self._theorems = {}
@@ -153,11 +154,13 @@ class ProofTraceKernel():
         }
         self._term_cache = {}
 
-        self._dataset_dir = os.path.abspath(dataset_dir)
+        self._dataset_dir = os.path.abspath(
+            os.path.join(dataset_dir, dataset_size),
+        )
 
         Log.out(
             "Loading ProofTrace dataset", {
-                'dataset_dir': dataset_dir,
+                'dataset_dir': self._dataset_dir,
             })
 
         assert os.path.isdir(dataset_dir)
@@ -727,9 +730,20 @@ class ProofTraceDataset(Dataset):
     def __init__(
             self,
             dataset_dir: str,
+            dataset_size: str,
+            test: bool,
             trace_max_length=-1,
     ) -> None:
         self._traces = []
+
+        if test:
+            dataset_dir = os.path.join(
+                dataset_dir, dataset_size, 'test_traces'
+            )
+        else:
+            dataset_dir = os.path.join(
+                dataset_dir, dataset_size, 'train_traces'
+            )
 
         assert os.path.isdir(dataset_dir)
         files = [
@@ -780,6 +794,7 @@ class ProofTraceLMDataset(ProofTraceDataset):
     def __init__(
             self,
             dataset_dir: str,
+            dataset_size: str,
             sequence_length: int,
             trace_max_length=-1,
     ) -> None:
@@ -788,6 +803,7 @@ class ProofTraceLMDataset(ProofTraceDataset):
 
         super(ProofTraceLMDataset, self).__init__(
             dataset_dir,
+            dataset_size,
             trace_max_length,
         )
 
@@ -848,23 +864,24 @@ def extract():
         type=str, help="path to the config file",
     )
     parser.add_argument(
-        '--dataset_dir',
-        type=str, help="prooftrace dataset directory",
+        '--dataset_size',
+        type=str, help="config override",
     )
 
     args = parser.parse_args()
 
     config = Config.from_file(args.config_path)
 
-    if args.dataset_dir is not None:
+    if args.dataset_size is not None:
         config.override(
-            'prooftrace_dataset_dir',
-            os.path.expanduser(args.dataset_dir),
+            'prooftrace_dataset_size',
+            args.dataset_size,
         )
 
     sys.setrecursionlimit(4096)
     kernel = ProofTraceKernel(
         os.path.expanduser(config.get('prooftrace_dataset_dir')),
+        config.get('prooftrace_dataset_size'),
     )
 
     Log.out("Starting cross steps detection")
@@ -959,10 +976,12 @@ def extract():
 
     traces_path_train = os.path.join(
         os.path.expanduser(config.get('prooftrace_dataset_dir')),
+        config.get('prooftrace_dataset_size'),
         "train_traces",
     )
     traces_path_test = os.path.join(
         os.path.expanduser(config.get('prooftrace_dataset_dir')),
+        config.get('prooftrace_dataset_size'),
         "test_traces",
     )
 
@@ -1008,23 +1027,24 @@ def dump_shared():
         type=str, help="path to the config file",
     )
     parser.add_argument(
-        '--dataset_dir',
-        type=str, help="prooftrace dataset directory",
+        '--dataset_size',
+        type=str, help="congif override",
     )
 
     args = parser.parse_args()
 
     config = Config.from_file(args.config_path)
 
-    if args.dataset_dir is not None:
+    if args.dataset_size is not None:
         config.override(
-            'prooftrace_dataset_dir',
-            os.path.expanduser(args.dataset_dir),
+            'prooftrace_dataset_size',
+            args.dataset_size,
         )
 
     sys.setrecursionlimit(4096)
     kernel = ProofTraceKernel(
         os.path.expanduser(config.get('prooftrace_dataset_dir')),
+        config.get('prooftrace_dataset_size'),
     )
 
     Log.out("Starting cross steps detection")
