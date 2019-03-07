@@ -795,6 +795,7 @@ class ProofTraceLMDataset(ProofTraceDataset):
             self,
             dataset_dir: str,
             dataset_size: str,
+            test: bool,
             sequence_length: int,
             trace_max_length=-1,
     ) -> None:
@@ -804,6 +805,7 @@ class ProofTraceLMDataset(ProofTraceDataset):
         super(ProofTraceLMDataset, self).__init__(
             dataset_dir,
             dataset_size,
+            test,
             trace_max_length,
         )
 
@@ -823,7 +825,6 @@ class ProofTraceLMDataset(ProofTraceDataset):
 
         Log.out(
             "Loaded extracted ProofTraces LM Dataset", {
-                'dataset_dir': dataset_dir,
                 'cases': len(self._cases),
             })
 
