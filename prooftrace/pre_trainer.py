@@ -289,14 +289,11 @@ class PreTrainer:
 
                 hiddens = self._model(embeds)
 
-                # extracts = torch.cat([
-                #     embeds[i][idx[i]].unsqueeze(0) for i in range(len(idx))
-                # ], dim=0)
-                # targets = torch.cat([
-                #     ground[i][idx[i]].unsqueeze(0) for i in range(len(idx))
-                # ], dim=0)
                 predictions = torch.cat([
                     hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
+                ], dim=0)
+                targets = torch.cat([
+                    hiddens[i][0].unsqueeze(0) for i in range(len(idx))
                 ], dim=0)
 
                 actions = torch.tensor([
@@ -309,11 +306,8 @@ class PreTrainer:
                     trc[i].index(trc[i][idx[i]].right) for i in range(len(idx))
                 ], dtype=torch.int64).to(self._device)
 
-                # trg_loss = F.mse_loss(predictions, targets)
-                # ext_loss = F.mse_loss(predictions, extracts)
-
                 prd_actions, prd_lefts, prd_rights = \
-                    self._inner_model.head(predictions)
+                    self._inner_model.head(predictions, targets)
 
                 act_loss = self._loss(prd_actions, actions)
                 lft_loss = self._loss(prd_lefts, lefts)
