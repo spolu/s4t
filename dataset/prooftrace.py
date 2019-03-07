@@ -23,18 +23,48 @@ ACTION_TOKENS = {
     'HYPOTHESIS': 4,
     'CONCLUSION': 5,
     'SUBST': 6,
-    'SUBST_PAIR': 7,
-    'TERM': 8,
-    'REFL': 9,
-    'TRANS': 10,
-    'MK_COMB': 11,
-    'ABS': 12,
-    'BETA': 13,
-    'ASSUME': 14,
-    'EQ_MP': 15,
-    'DEDUCT_ANTISYM_RULE': 16,
-    'INST': 17,
+    'SUBST_TYPE': 7,
+    'SUBST_PAIR': 8,
+    'TERM': 9,
+    'REFL': 10,
+    'TRANS': 11,
+    'MK_COMB': 12,
+    'ABS': 13,
+    'BETA': 14,
+    'ASSUME': 15,
+    'EQ_MP': 16,
+    'DEDUCT_ANTISYM_RULE': 17,
+    'INST': 18,
+    'INST_TYPE': 19,
 }
+
+
+class Type(BVT):
+    def __init__(
+            self,
+            value,
+            left,
+            right,
+            token: str,
+    ):
+        super(Type, self).__init__(
+            value, left, right
+        )
+        # `self._token` stores the associated string token so that we can
+        # reconstruct type strings directly from their BVT.
+        self._token = token
+
+    def token(
+            self,
+    ) -> str:
+        return self._token
+
+    def type_string(
+            self,
+    ) -> str:
+        """ `type_string` formats the Type BVT as a HOL Light type string
+        """
+        pass
 
 
 class Term(BVT):
@@ -77,8 +107,6 @@ class Term(BVT):
             if term.token() == '__c' or term.token() == '__v':
                 assert term.right is None
                 token = term.left.token()[1:]
-                if token == '_comma_':
-                    token = ','
                 if len(args) == 0:
                     return token
                 else:
@@ -140,11 +168,15 @@ class ProofTraceKernel():
         self._theorems = {}
         self._names = {}
 
-        # Rewrites to remove INST_TYPE from proofs.
-        self._rewrites = {}
-
         # Proof steps that are re-used >1 time.
         self._shared = {}
+
+        self._type_tokens = {
+            '__c': 0,
+            '__v': 1,
+            '__a': 2,
+        }
+        self._type_cache = {}
 
         self._term_tokens = {
             '__C': 0,
@@ -200,32 +232,6 @@ class ProofTraceKernel():
         ), 'r') as f:
             for line in f:
                 data = json.loads(line)
-
-                # Store type instantiations (or empty instantiations) rewrites.
-                if data['pr'][0] == 'INST_TYPE' or (
-                        data['pr'][0] == 'INST' and len(data['pr'][2]) == 0
-                ):
-                    ptr = data['pr'][1]
-                    while ptr in self._rewrites:
-                        ptr = self._rewrites[ptr]
-                    self._rewrites[data['id']] = ptr
-
-                # Apply rewrites to binary operators.
-                if data['pr'][0] in [
-                        'TRANS', 'MK_COMB', 'EQ_MP', 'DEDUCT_ANTISYM_RULE'
-                ]:
-                    if data['pr'][1] in self._rewrites:
-                        data['pr'][1] = self._rewrites[data['pr'][1]]
-                    if data['pr'][2] in self._rewrites:
-                        data['pr'][2] = self._rewrites[data['pr'][2]]
-
-                # Apply rewrites to unary operators.
-                if data['pr'][0] in [
-                        'ABS', 'INST',
-                ]:
-                    if data['pr'][1] in self._rewrites:
-                        data['pr'][1] = self._rewrites[data['pr'][1]]
-
                 self._proofs[data['id']] = data['pr']
 
     def process_names(
@@ -260,6 +266,111 @@ class ProofTraceKernel():
 
         return False
 
+    def type_hash(
+            self,
+            typ,
+    ):
+        h = xxhash.xxh64()
+        h.update(typ)
+        return str(h.digest())
+
+    def term_hash(
+            self,
+            term,
+    ):
+        h = xxhash.xxh64()
+        h.update(term)
+        return str(h.digest())
+
+    def subst_hash(
+            self,
+            subst,
+    ):
+        h = xxhash.xxh64()
+        for s in subst:
+            assert len(s) == 2
+            h.update(s[0])
+            h.update(s[1])
+        return str(h.digest())
+
+    def subst_type_hash(
+            self,
+            subst_type,
+    ):
+        h = xxhash.xxh64()
+        for s in subst_type:
+            assert len(s) == 2
+            h.update(s[0])
+            h.update(s[1])
+        return str(h.digest())
+
+    def split(
+            self,
+            t,
+            seps=['(', ')'],
+    ):
+        stack = []
+        for i, c in enumerate(t):
+            if c == seps[0]:
+                stack.append(i)
+            elif c == seps[1] and stack:
+                start = stack.pop()
+                if len(stack) == 0:
+                    yield t[start + 1: i]
+
+    def type(
+            self,
+            ty: str,
+    ) -> Type:
+        """ Construct a Type BVT from a type string.
+
+        Tokenizes constants appearing in types using self._type_tokens.
+        """
+        def build_args(args):
+            if len(args) == 0:
+                return None
+            else:
+                return Type(
+                    self._type_tokens['__a'],
+                    args[0],
+                    build_args(args[1:]),
+                    '__a',
+                )
+
+        def construct(t):
+            if t[0] == 'v':
+                chld = list(self.split(t, ['[', ']']))
+                assert len(chld) == 1
+                if chld[0] not in self._type_tokens:
+                    self._type_tokens[chld[0]] = len(self._type_tokens)
+                return Type(
+                    self._type_tokens['__v'],
+                    Type(self._type_tokens[chld[0]], None, None, chld[0]),
+                    None,
+                    '__v',
+                )
+            if t[0] == 'c':
+                chld = list(self.split(t, ['[', ']']))
+                assert len(chld) == 2
+                if chld[0] not in self._type_tokens:
+                    self._type_tokens[chld[0]] = len(self._type_tokens)
+                args = [
+                    self.type(ty)
+                    for ty in list(self.split(chld[1], ['[', ']']))
+                ]
+                return Type(
+                    self._type_tokens['__c'],
+                    Type(self._type_tokens[chld[0]], None, None, chld[0]),
+                    build_args(args),
+                    '__c',
+                )
+
+        h = self.type_hash(ty)
+        if h not in self._type_cache:
+            self._type_cache[h] = construct(ty)
+
+        return self._type_cache[h]
+
     def term(
             self,
             tm: str,
@@ -268,27 +379,10 @@ class ProofTraceKernel():
 
         Tokenizes constants appearing in terms using self._term_tokens.
         """
-        if tm in self._term_cache:
-            return self._term_cache[tm]
-
-        def split(t):
-            stack = []
-            for i, c in enumerate(t):
-                if c == '(':
-                    stack.append(i)
-                elif c == ',':
-                    start = stack.pop()
-                    if len(stack) == 0:
-                        yield t[start + 1: i]
-                    stack.append(i)
-                elif c == ')' and stack:
-                    start = stack.pop()
-                    if len(stack) == 0:
-                        yield t[start + 1: i]
-
         def construct(t):
             if t[0] == 'C':
-                chld = list(split(t))
+                chld = list(self.split(t, ['(', ')']))
+                assert len(chld) == 2
                 return Term(
                     self._term_tokens['__C'],
                     construct(chld[0]),
@@ -296,7 +390,8 @@ class ProofTraceKernel():
                     '__C',
                 )
             if t[0] == 'A':
-                chld = list(split(t))
+                chld = list(self.split(t, ['(', ')']))
+                assert len(chld) == 2
                 return Term(
                     self._term_tokens['__A'],
                     construct(chld[0]),
@@ -304,28 +399,33 @@ class ProofTraceKernel():
                     '__A',
                 )
             if t[0] == 'c':
-                if t not in self._term_tokens:
-                    self._term_tokens[t] = len(self._term_tokens)
+                chld = list(self.split(t, ['(', ')']))
+                assert len(chld) == 2
+                if chld[0] not in self._term_tokens:
+                    self._term_tokens[chld[0]] = len(self._term_tokens)
                 return Term(
                     self._term_tokens['__c'],
-                    Term(self._term_tokens[t], None, None, t),
-                    None,
+                    Term(self._term_tokens[chld[0]], None, None, chld[0]),
+                    self.type(chld[1]),
                     '__c',
                 )
             if t[0] == 'v':
-                if t not in self._term_tokens:
-                    self._term_tokens[t] = len(self._term_tokens)
+                chld = list(self.split(t, ['(', ')']))
+                assert len(chld) == 2
+                if chld[0] not in self._term_tokens:
+                    self._term_tokens[chld[0]] = len(self._term_tokens)
                 return Term(
                     self._term_tokens['__v'],
-                    Term(self._term_tokens[t], None, None, t),
-                    None,
+                    Term(self._term_tokens[chld[0]], None, None, chld[0]),
+                    self.type(chld[1]),
                     '__v',
                 )
 
-        term = construct(tm)
-        self._term_cache[tm] = term
+        h = self.term_hash(tm)
+        if h not in self._term_cache:
+            self._term_cache[h] = construct(tm)
 
-        return term
+        return self._term_cache[h]
 
 
 class ProofTraceActions():
@@ -372,6 +472,7 @@ class ProofTrace():
         self._premises = {}
         self._terms = {}
         self._substs = {}
+        self._subst_types = {}
 
         self._steps = {}
         self._sequence = []
@@ -386,6 +487,7 @@ class ProofTrace():
         #         'step_count': len(self._steps),
         #         'terms_count': len(self._terms),
         #         'substs_count': len(self._substs),
+        #         'subst_types_count': len(self._subst_types),
         #     })
 
     def name(
@@ -393,40 +495,22 @@ class ProofTrace():
     ):
         return str(self._index) + '_' + self._kernel._names[self._index]
 
-    def term_hash(
-            self,
-            term,
-    ):
-        h = xxhash.xxh64()
-        h.update(term)
-        return h.digest()
-
-    def subst_hash(
-            self,
-            subst,
-    ):
-        h = xxhash.xxh64()
-        for s in subst:
-            assert len(s) == 2
-            h.update(s[0])
-            h.update(s[1])
-        return h.digest()
-
     def record_term(
             self,
             term,
     ):
-        h = self.term_hash(term)
+        h = self._kernel.term_hash(term)
         if h in self._terms:
             assert term == self._terms[h]
         else:
             self._terms[h] = term
+        return h
 
     def record_subst(
             self,
             subst,
     ):
-        h = self.subst_hash(subst)
+        h = self._kernel.subst_hash(subst)
         if h in self._substs:
             assert len(subst) == len(self._substs[h])
             for i, s in enumerate(subst):
@@ -434,6 +518,21 @@ class ProofTrace():
                 assert s[1] == self._substs[h][i][1]
         else:
             self._substs[h] = subst
+        return h
+
+    def record_subst_type(
+            self,
+            subst_type,
+    ):
+        h = self._kernel.subst_type_hash(subst_type)
+        if h in self._subst_types:
+            assert len(subst_type) == len(self._subst_types[h])
+            for i, s in enumerate(subst_type):
+                assert s[0] == self._subst_types[h][i][0]
+                assert s[1] == self._subst_types[h][i][1]
+        else:
+            self._subst_types[h] = subst_type
+        return h
 
     def record_premise(
             self,
@@ -457,10 +556,10 @@ class ProofTrace():
                 self.record_premise(index)
                 return
 
-        step = self._kernel._proofs[index]
+        step = self._kernel._proofs[index].copy()
 
         if step[0] == 'REFL':
-            self.record_term(step[1])
+            step[1] = self.record_term(step[1])
 
         elif step[0] == 'TRANS':
             self.walk(step[1])
@@ -472,13 +571,13 @@ class ProofTrace():
 
         elif step[0] == 'ABS':
             self.walk(step[1])
-            self.record_term(step[2])
+            step[2] = self.record_term(step[2])
 
         elif step[0] == 'BETA':
-            self.record_term(step[1])
+            step[1] = self.record_term(step[1])
 
         elif step[0] == 'ASSUME':
-            self.record_term(step[1])
+            step[1] = self.record_term(step[1])
 
         elif step[0] == 'EQ_MP':
             self.walk(step[1])
@@ -490,10 +589,11 @@ class ProofTrace():
 
         elif step[0] == 'INST':
             self.walk(step[1])
-            self.record_subst(step[2])
+            step[2] = self.record_subst(step[2])
 
         elif step[0] == 'INST_TYPE':
-            assert False
+            self.walk(step[1])
+            step[2] = self.record_subst_type(step[2])
 
         elif step[0] == 'AXIOM':
             self.record_premise(index)
@@ -518,8 +618,9 @@ class ProofTrace():
     ):
         yield 'index', self._index
         yield 'target', self._kernel._theorems[self._index]
-        yield 'terms', list(self._terms.values())
-        yield 'substs', list(self._substs.values())
+        yield 'terms', self._terms,
+        yield 'substs', self._substs,
+        yield 'subst_types', self._subst_types,
         yield 'premises', self._premises
         yield 'steps', self._steps
 
@@ -529,8 +630,9 @@ class ProofTrace():
         sequence = []
 
         cache = {
-            'terms': {},
             'substs': {},
+            'subst_types': {},
+            'terms': {},
             'indices': {},
         }
 
@@ -567,6 +669,21 @@ class ProofTrace():
                     build_subst(subst[1:]),
                 )
 
+        # Recursive function used to build type instantiations substitutions
+        def build_subst_type(subst_type):
+            if len(subst_type) == 0:
+                return None
+            else:
+                return Action.from_action(
+                    'SUBST_TYPE',
+                    Action.from_action(
+                        'SUBST_PAIR',
+                        Action.from_term(self._kernel.type(subst_type[0][0])),
+                        Action.from_term(self._kernel.type(subst_type[0][1])),
+                    ),
+                    build_subst_type(subst_type[1:]),
+                )
+
         # Start by recording the target theorem (TARGET action).
         t = self._kernel._theorems[self._index]
 
@@ -585,8 +702,19 @@ class ProofTrace():
         # include very similar terms (optimize TreeLSTM cache hit).
         for subst in self._substs.values():
             action = build_subst(subst)
-            cache['substs'][self.subst_hash(subst)] = action
+            cache['substs'][
+                self._kernel.subst_hash(subst)
+            ] = action
             substs.append(action)
+
+        subst_types = []
+        # We then record subst_type.
+        for subst_type in self._subst_types.values():
+            action = build_subst_type(subst_type)
+            cache['subst_types'][
+                self._kernel.subst_type_hash(subst_type)
+            ] = action
+            subst_types.append(action)
 
         terms = []
         # We then record terms as they are generally deeper than premises but
@@ -597,7 +725,9 @@ class ProofTrace():
                 Action.from_term(self._kernel.term(term)),
                 None,
             )
-            cache['terms'][self.term_hash(term)] = action
+            cache['terms'][
+                self._kernel.term_hash(term)
+            ] = action
             terms.append(action)
 
         # Terms are unordered so we order them by depth to optimize cache hit
@@ -608,7 +738,7 @@ class ProofTrace():
             reverse=True,
         )
 
-        sequence = [target, empty] + substs + terms
+        sequence = [target, empty] + substs + subst_types + terms
 
         for idx in self._premises:
             p = self._premises[idx]
@@ -634,7 +764,7 @@ class ProofTrace():
                 actions = [
                     Action.from_action(
                         'REFL',
-                        cache['terms'][self.term_hash(step[1])],
+                        cache['terms'][step[1]],
                         empty,
                     ),
                 ]
@@ -659,14 +789,14 @@ class ProofTrace():
                     Action.from_action(
                         'ABS',
                         cache['indices'][step[1]],
-                        cache['terms'][self.term_hash(step[2])],
+                        cache['terms'][step[2]],
                     ),
                 ]
             elif step[0] == 'BETA':
                 actions = [
                     Action.from_action(
                         'BETA',
-                        cache['terms'][self.term_hash(step[1])],
+                        cache['terms'][step[1]],
                         empty,
                     ),
                 ]
@@ -674,7 +804,7 @@ class ProofTrace():
                 actions = [
                     Action.from_action(
                         'ASSUME',
-                        cache['terms'][self.term_hash(step[1])],
+                        cache['terms'][step[1]],
                         empty,
                     ),
                 ]
@@ -699,12 +829,18 @@ class ProofTrace():
                     Action.from_action(
                         'INST',
                         cache['indices'][step[1]],
-                        cache['substs'][self.subst_hash(step[2])]
+                        cache['substs'][step[2]]
                     ),
                 ]
 
             elif step[0] == 'INST_TYPE':
-                assert False
+                actions = [
+                    Action.from_action(
+                        'INST_TYPE',
+                        cache['indices'][step[1]],
+                        cache['subst_types'][step[2]]
+                    ),
+                ]
 
             elif step[0] == 'AXIOM':
                 assert False
@@ -818,6 +954,7 @@ class ProofTraceLMDataset(ProofTraceDataset):
                                 ACTION_TOKENS['TARGET'],
                                 ACTION_TOKENS['EMPTY'],
                                 ACTION_TOKENS['SUBST'],
+                                ACTION_TOKENS['SUBST_TYPE'],
                                 ACTION_TOKENS['TERM'],
                                 ACTION_TOKENS['PREMISE'],
                             ]:
@@ -949,6 +1086,12 @@ def extract():
     Log.histogram(
         "ProofTraces Substs",
         [len(pr._substs) for pr in traces],
+        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
+        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
+    )
+    Log.histogram(
+        "ProofTraces SubstTypes",
+        [len(pr._subst_types) for pr in traces],
         buckets=[64, 128, 256, 512, 1024, 2048, 4096],
         labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
     )
