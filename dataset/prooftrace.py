@@ -64,7 +64,24 @@ class Type(BVT):
     ) -> str:
         """ `type_string` formats the Type BVT as a HOL Light type string
         """
-        pass
+        def dump(typ):
+            assert typ.left is not None
+            if typ.token() == '__v':
+                token = typ.left.token()
+                return token
+            if typ.token() == '__a':
+                if typ.right is None:
+                    return "(" + dump(typ.left) + ")"
+                else:
+                    return "(" + dump(typ.left) + ")," + dump(typ.right)
+            if typ.token() == '__c':
+                token = typ.left.token()
+                if typ.right is None:
+                    return token
+                else:
+                    return "(" + dump(typ.right) + ")" + token
+
+        return dump(self)
 
 
 class Term(BVT):
@@ -101,16 +118,21 @@ class Term(BVT):
                 right = dump(term.right, [])
                 left = dump(term.left, [])
                 if len(args) == 0:
-                    return '\\' + left + '. ' + right
+                    return '\\(' + left + '). ' + right
                 else:
-                    return '(\\' + left + '. ' + right + ') (' + args[0] + ')'
+                    return \
+                        '(\\(' + left + '). ' + right + ') (' + args[0] + ')'
             if term.token() == '__c' or term.token() == '__v':
-                assert term.right is None
-                token = term.left.token()[1:]
+                assert type(term.right) is Type
+                token = term.left.token()
                 if len(args) == 0:
                     return token
                 else:
-                    tm = '((' + token + ')'
+                    if term.token() == '__v':
+                        tm = \
+                            '((' + token + ':' + term.right.type_string() + ')'
+                    if term.token() == '__c':
+                        tm = '((' + token + ')'
                     for a in args:
                         tm += ' (' + a + ')'
                     tm += ')'
@@ -1148,9 +1170,9 @@ def extract():
         with open(actions_path, 'wb') as f:
             pickle.dump(ptra, f)
 
-        trace_path = os.path.join(path, tr.name() + '.trace')
-        with open(trace_path, 'w') as f:
-            json.dump(dict(tr), f, sort_keys=False, indent=2)
+        # trace_path = os.path.join(path, tr.name() + '.trace')
+        # with open(trace_path, 'w') as f:
+        #     json.dump(dict(tr), f, sort_keys=False, indent=2)
 
     Log.out("Dumped all traces", {
         "traces_path_train": traces_path_train,
@@ -1158,9 +1180,10 @@ def extract():
         "trace_count": len(traces),
         "train_size": train_size,
         "term_token_count": len(kernel._term_tokens),
+        "type_token_count": len(kernel._type_tokens),
     })
 
-    # small term_token_count: 400
+    # small: term_token_count=427 type_token_count=70
     # medium term_token_count: 13404
 
 
