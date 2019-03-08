@@ -38,6 +38,8 @@ ACTION_TOKENS = {
     'INST_TYPE': 19,
 }
 
+INV_ACTION_TOKENS = {v: k for k, v in ACTION_TOKENS.items()}
+
 
 class Type(BVT):
     def __init__(
@@ -68,7 +70,10 @@ class Type(BVT):
             assert typ.left is not None
             if typ.token() == '__v':
                 token = typ.left.token()
-                return token
+                if token[0] == '?':
+                    return '(_?_'+token[1:] + ')'
+                else:
+                    return token
             if typ.token() == '__a':
                 if typ.right is None:
                     return "(" + dump(typ.left) + ")"
@@ -126,14 +131,12 @@ class Term(BVT):
                 assert type(term.right.value) is Type
                 token = term.left.token()
                 if len(args) == 0:
-                    return token
+                    return '((' + token + ')' + \
+                        term.right.value.type_string() + ')'
                 else:
-                    if term.token() == '__v':
-                        tm = \
-                            '((' + token + \
-                            term.right.value.type_string() + ')'
-                    if term.token() == '__c':
-                        tm = '((' + token + ')'
+                    tm = \
+                        '(((' + token + ')' + \
+                        term.right.value.type_string() + ')'
                     for a in args:
                         tm += ' (' + a + ')'
                     tm += ')'
@@ -789,6 +792,7 @@ class ProofTrace():
                         'REFL',
                         cache['terms'][step[1]],
                         empty,
+                        idx,
                     ),
                 ]
             elif step[0] == 'TRANS':
@@ -797,6 +801,7 @@ class ProofTrace():
                         'TRANS',
                         cache['indices'][step[1]],
                         cache['indices'][step[2]],
+                        idx,
                     ),
                 ]
             elif step[0] == 'MK_COMB':
@@ -805,6 +810,7 @@ class ProofTrace():
                         'MK_COMB',
                         cache['indices'][step[1]],
                         cache['indices'][step[2]],
+                        idx,
                     ),
                 ]
             elif step[0] == 'ABS':
@@ -813,6 +819,7 @@ class ProofTrace():
                         'ABS',
                         cache['indices'][step[1]],
                         cache['terms'][step[2]],
+                        idx,
                     ),
                 ]
             elif step[0] == 'BETA':
@@ -821,6 +828,7 @@ class ProofTrace():
                         'BETA',
                         cache['terms'][step[1]],
                         empty,
+                        idx,
                     ),
                 ]
             elif step[0] == 'ASSUME':
@@ -829,6 +837,7 @@ class ProofTrace():
                         'ASSUME',
                         cache['terms'][step[1]],
                         empty,
+                        idx,
                     ),
                 ]
             elif step[0] == 'EQ_MP':
@@ -837,6 +846,7 @@ class ProofTrace():
                         'EQ_MP',
                         cache['indices'][step[1]],
                         cache['indices'][step[2]],
+                        idx,
                     ),
                 ]
             elif step[0] == 'DEDUCT_ANTISYM_RULE':
@@ -845,6 +855,7 @@ class ProofTrace():
                         'DEDUCT_ANTISYM_RULE',
                         cache['indices'][step[1]],
                         cache['indices'][step[2]],
+                        idx,
                     ),
                 ]
             elif step[0] == 'INST':
@@ -852,7 +863,8 @@ class ProofTrace():
                     Action.from_action(
                         'INST',
                         cache['indices'][step[1]],
-                        cache['substs'][step[2]]
+                        cache['substs'][step[2]],
+                        idx,
                     ),
                 ]
 
@@ -861,7 +873,8 @@ class ProofTrace():
                     Action.from_action(
                         'INST_TYPE',
                         cache['indices'][step[1]],
-                        cache['subst_types'][step[2]]
+                        cache['subst_types'][step[2]],
+                        idx,
                     ),
                 ]
 
@@ -968,8 +981,8 @@ class ProofTraceLMDataset(ProofTraceDataset):
             trace_max_length,
         )
 
-        for idx, tr in enumerate(self._traces):
-            actions = tr.actions()
+        for idx, ptra in enumerate(self._traces):
+            actions = ptra.actions()
             for pos in range(len(actions)):
                 if pos < self._sequence_length:
                     if actions[pos].value not in \

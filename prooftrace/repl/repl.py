@@ -2,7 +2,12 @@ import argparse
 import os
 import pexpect
 import pexpect.replwrap
-# import pickle
+import pickle
+import re
+
+from dataset.prooftrace import \
+    ACTION_TOKENS, INV_ACTION_TOKENS, \
+    Action, ProofTraceActions
 
 from prooftrace.repl.actions import \
     ProofIndex, Term, Subst, SubstType, \
@@ -48,6 +53,7 @@ class REPL():
         self.run(
             "#use \"{}\";;".format(hol_ml_path),
             timeout=None,
+            noprint=True,
         )
 
     def next_var(
@@ -60,8 +66,153 @@ class REPL():
             self,
             cmd: str,
             timeout=-1,
+            noprint=False,
     ) -> str:
-        return self._ocaml.run_command(cmd, timeout)
+        out = self._ocaml.run_command(cmd, timeout)
+        if not noprint:
+            Log.out("Running", {
+                "command": cmd,
+                "output": out,
+            })
+        return out
+
+    def apply(
+            self,
+            action: Action,
+    ) -> int:
+        action_token = INV_ACTION_TOKENS[action.value]
+        repl_action = None
+
+        if action_token == 'REFL':
+            repl_action = REFL([
+                Term(action.left.left.value.term_string())
+            ])
+        elif action_token == 'TRANS':
+            repl_action = TRANS([
+                ProofIndex(action.left.index()),
+                ProofIndex(action.right.index()),
+            ])
+        elif action_token == 'MK_COMB':
+            repl_action = MK_COMB([
+                ProofIndex(action.left.index()),
+                ProofIndex(action.right.index()),
+            ])
+        elif action_token == 'ABS':
+            repl_action = ABS([
+                ProofIndex(action.left.index()),
+                Term(action.right.left.value.term_string())
+            ])
+        elif action_token == 'BETA':
+            repl_action = BETA([
+                Term(action.left.left.value.term_string())
+            ])
+        elif action_token == 'ASSUME':
+            repl_action = ASSUME([
+                Term(action.left.left.value.term_string())
+            ])
+        elif action_token == 'EQ_MP':
+            repl_action = EQ_MP([
+                ProofIndex(action.left.index()),
+                ProofIndex(action.right.index()),
+            ])
+        elif action_token == 'DEDUCT_ANTISYM_RULE':
+            repl_action = DEDUCT_ANTISYM_RULE([
+                ProofIndex(action.left.index()),
+                ProofIndex(action.right.index()),
+            ])
+        elif action_token == 'INST':
+            def build_subst(subst):
+                if subst is None:
+                    return []
+                if INV_ACTION_TOKENS[subst.value] == 'SUBST_PAIR':
+                    return [[
+                        subst.left.value.term_string(),
+                        subst.right.value.term_string(),
+                    ]]
+                if INV_ACTION_TOKENS[subst.value] == 'SUBST':
+                    return (
+                        build_subst(subst.left) +
+                        build_subst(subst.right)
+                    )
+                assert False
+
+            repl_action = INST([
+                ProofIndex(action.left.index()),
+                Subst(build_subst(action.right)),
+            ])
+        elif action_token == 'INST_TYPE':
+            def build_subst_type(subst_type):
+                if subst_type is None:
+                    return []
+                if INV_ACTION_TOKENS[subst_type.value] == 'SUBST_PAIR':
+                    return [[
+                        subst_type.left.value.type_string(),
+                        subst_type.right.value.type_string(),
+                    ]]
+                if INV_ACTION_TOKENS[subst_type.value] == 'SUBST_TYPE':
+                    return (
+                        build_subst_type(subst_type.left) +
+                        build_subst_type(subst_type.right)
+                    )
+                assert False
+
+            repl_action = INST_TYPE([
+                ProofIndex(action.left.index()),
+                SubstType(build_subst_type(action.right)),
+            ])
+        else:
+            assert False
+
+        return repl_action.run(self)
+
+    def replay(
+            self,
+            ptra: ProofTraceActions,
+    ) -> None:
+        for a in ptra.actions():
+            if a.value not in \
+                    [
+                        ACTION_TOKENS['TARGET'],
+                        ACTION_TOKENS['EMPTY'],
+                        ACTION_TOKENS['SUBST'],
+                        ACTION_TOKENS['SUBST_TYPE'],
+                        ACTION_TOKENS['TERM'],
+                        ACTION_TOKENS['PREMISE'],
+                    ]:
+                from_proof_index = a.index()
+
+                # Log.out("Replaying action", {
+                #     "action":  INV_ACTION_TOKENS[a.value],
+                #     "from_proof_index": from_proof_index,
+                # })
+
+                a._index = self.apply(a)
+
+                Log.out("Replayed action", {
+                    "action":  INV_ACTION_TOKENS[a.value],
+                    "from_proof_index": from_proof_index,
+                    "to_proof_index": a.index(),
+                })
+
+                # from_thm_var = self.next_var()
+                # out = self.run("let Proof(_, {}, _) = proof_at {};;".format(
+                #     from_thm_var,
+                #     from_proof_index,
+                # ))
+                # from_thm = re.search(
+                #     'val ' + from_thm_var + ' : thm =(.*)\r\n$', out,
+                #     flags=re.DOTALL
+                # ).group(1)
+
+                # to_thm_var = self.next_var()
+                # out = self.run("let Proof(_, {}, _) = proof_at {};;".format(
+                #     to_thm_var,
+                #     a.index(),
+                # ))
+                # to_thm = re.search(
+                #     'val ' + to_thm_var + ' : thm =(.*)\r\n$', out,
+                #     flags=re.DOTALL
+                # ).group(1)
 
 
 class Pool():
@@ -86,8 +237,9 @@ def test():
 
     repl = REPL(config)
 
+    Log.out("Preparing HOL Light")
     repl.prepare()
-    Log.out("PREPARED")
+    Log.out("Prepared")
 
     proof_index = REFL([Term('q')]).run(repl)
     Log.out("REFL `q` = [64]", {
@@ -149,3 +301,14 @@ def test():
     Log.out("INST_TYPE 462 [[`:A`, `:bool`]] = [496]", {
         "proof_index": proof_index,
     })
+
+    path = "./data/prooftrace/small/test_traces/" + \
+        "115216_CHOICE_PAIRED_THM.actions"
+    with open(path, 'rb') as f:
+        ptra = pickle.load(f)
+
+    Log.out("Replaying ProofTraceActions", {
+        "path": path,
+    })
+
+    repl.replay(ptra)

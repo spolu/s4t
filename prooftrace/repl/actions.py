@@ -91,7 +91,7 @@ class Action():
             thm_var,
         ))
 
-        match = re.search('^val ' + proof_var + ' : int = (\\d+)\r\n$', out)
+        match = re.search('val ' + proof_var + ' : int = (\\d+)\r\n$', out)
         assert match
 
         return int(match.group(1))
