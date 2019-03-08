@@ -34,3 +34,8 @@ mkdir -p ~/tmp/prooftrace/`git rev-parse HEAD` && MASTER_ADDR=127.0.0.1 MASTER_P
 [20190308_1145_05.347773]      >4096 ****                             486
 [20190308_1145_05.347773] ------------------------------------------------
 ```
+
+# TODO REPL
+
+- [ ] optimize command execution with lets
+- [ ] prevent large command bug by separating instantiations or maybe only long ones?
