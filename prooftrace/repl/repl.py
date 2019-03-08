@@ -68,9 +68,12 @@ class REPL():
             timeout=-1,
             noprint=False,
     ) -> str:
+        Log.out("Running", {
+            "command": cmd,
+        })
         out = self._ocaml.run_command(cmd, timeout)
         if not noprint:
-            Log.out("Running", {
+            Log.out("Run", {
                 "command": cmd,
                 "output": out,
             })

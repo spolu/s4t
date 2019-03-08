@@ -75,7 +75,7 @@ class TermEmbedder(nn.Module):
         self.tree_lstm = BinaryTreeLSTM(self.hidden_size)
         self.tree_lstm.to(self.device)
 
-    def extract_types(
+    def extract_values(
             self,
             terms: typing.List[Term],
     ) -> typing.List[Type]:
@@ -83,62 +83,38 @@ class TermEmbedder(nn.Module):
 
         def dfs(term):
             if term.hash() in seen:
-                return []
+                return [], []
             seen[term.hash()] = True
 
             if type(term.value) is Type:
                 if term.value.hash() not in seen:
                     seen[term.value.hash()] = True
-                    return [term.value]
+                    return [term.value], []
                 else:
-                    return []
+                    return [], []
             else:
-                left = []
+                left = [], []
                 if term.left is not None:
                     left = dfs(term.left)
-                right = []
-                if term.right is not None:
-                    right = dfs(term.right)
-                return left + right
-
-        types = []
-        for t in terms:
-            types += dfs(t)
-
-        return types
-
-    def extract_tokens(
-            self,
-            terms: typing.List[Term],
-    ) -> typing.List[int]:
-        seen = {}
-
-        def dfs(term):
-            if term.hash() in seen:
-                return []
-            seen[term.hash()] = True
-
-            if type(term.value) is not Type:
-                left = []
-                if term.left is not None:
-                    left = dfs(term.left)
-                right = []
+                right = [], []
                 if term.right is not None:
                     right = dfs(term.right)
 
                 if term.value not in seen:
                     seen[term.value] = True
-                    return left + right + [term.value]
+                    return (left[0] + right[0]), \
+                        (left[1] + right[1] + [term.value])
                 else:
-                    return left + right + []
-            else:
-                return []
+                    return (left[0] + right[0]), (left[1] + right[1])
 
+        types = []
         tokens = []
         for t in terms:
-            tokens += dfs(t)
+            extract = dfs(t)
+            types += extract[0]
+            tokens += extract[1]
 
-        return tokens
+        return types, tokens
 
     def parameters_count(
             self,
@@ -151,9 +127,7 @@ class TermEmbedder(nn.Module):
     ):
         cache = {}
 
-        # TODO(stan): optmize by sharing extraction
-        types = self.extract_types(terms)
-        tokens = self.extract_tokens(terms)
+        types, tokens = self.extract_values(terms)
 
         if len(types) > 0:
             types_embeds = self.type_embedder(types)
@@ -201,7 +175,7 @@ class ActionEmbedder(nn.Module):
         self.tree_lstm = BinaryTreeLSTM(self.hidden_size)
         self.tree_lstm.to(self.device)
 
-    def extract_terms(
+    def extract_values(
             self,
             actions: typing.List[Action],
     ) -> typing.List[Term]:
@@ -209,61 +183,38 @@ class ActionEmbedder(nn.Module):
 
         def dfs(action):
             if action.hash() in seen:
-                return []
+                return [], []
             seen[action.hash()] = True
             if type(action.value) is Term:
                 if action.value.hash() not in seen:
                     seen[action.value.hash()] = True
-                    return [action.value]
+                    return [action.value], []
                 else:
-                    return []
-            else:
-                left = []
-                if action.left is not None:
-                    left = dfs(action.left)
-                right = []
-                if action.right is not None:
-                    right = dfs(action.right)
-
-                return left + right
-
-        terms = []
-        for a in actions:
-            terms += dfs(a)
-
-        return terms
-
-    def extract_types(
-            self,
-            actions: typing.List[Action],
-    ) -> typing.List[Type]:
-        seen = {}
-
-        def dfs(action):
-            if action.hash() in seen:
-                return []
-            seen[action.hash()] = True
-            if type(action.value) is Type:
+                    return [], []
+            elif type(action.value) is Type:
                 if action.value.hash() not in seen:
                     seen[action.value.hash()] = True
-                    return [action.value]
+                    return [], [action.value]
                 else:
-                    return []
+                    return [], []
             else:
-                left = []
+                left = [], []
                 if action.left is not None:
                     left = dfs(action.left)
-                right = []
+                right = [], []
                 if action.right is not None:
                     right = dfs(action.right)
 
-                return left + right
+                return (left[0] + right[0]), (left[1] + right[1])
 
+        terms = []
         types = []
         for a in actions:
-            types += dfs(a)
+            extract = dfs(a)
+            terms += extract[0]
+            types += extract[1]
 
-        return types
+        return terms, types
 
     def parameters_count(
             self,
@@ -282,9 +233,7 @@ class ActionEmbedder(nn.Module):
 
         cache = {}
 
-        # TODO(stan): optmize by sharing extraction
-        terms = self.extract_terms(flat)
-        types = self.extract_types(flat)
+        terms, types = self.extract_values(flat)
 
         if len(terms) > 0:
             terms_embeds = self.term_embedder(terms)
