@@ -81,7 +81,7 @@ class Type(BVT):
                 else:
                     return "(" + dump(typ.right) + ")" + token
 
-        return dump(self)
+        return ':' + dump(self)
 
 
 class Term(BVT):
@@ -130,7 +130,7 @@ class Term(BVT):
                 else:
                     if term.token() == '__v':
                         tm = \
-                            '((' + token + ':' + \
+                            '((' + token + \
                             term.right.value.type_string() + ')'
                     if term.token() == '__c':
                         tm = '((' + token + ')'
@@ -972,8 +972,6 @@ class ProofTraceLMDataset(ProofTraceDataset):
             actions = tr.actions()
             for pos in range(len(actions)):
                 if pos < self._sequence_length:
-                    if actions[pos] is None:
-                        import pdb; pdb.set_trace()
                     if actions[pos].value not in \
                             [
                                 ACTION_TOKENS['TARGET'],

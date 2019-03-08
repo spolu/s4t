@@ -51,6 +51,19 @@ class Subst(Argument):
         return self._subst
 
 
+class SubstType(Argument):
+    def __init__(
+            self,
+            subst_type: typing.List[typing.List[str]],
+    ) -> None:
+        self._subst_type = subst_type
+
+    def subst_type(
+            self,
+    ) -> typing.List[typing.List[str]]:
+        return self._subst_type
+
+
 class Action():
     """ Actions are sent to the REPL to generate a new proof
     """
@@ -335,19 +348,49 @@ class INST(Action):
     ) -> int:
         thm_var = repl.next_var()
 
-        cmd = "let {} = INST ({}::[]) {};;".format(
+        out = repl.run("let {} = INST ({}::[]) {};;".format(
             thm_var,
             "::".join(
                 [
-                    "(`" + s[0] + "`, `" + s[1] + "`)"
+                    "(`" + s[1] + "`, `" + s[0] + "`)"
                     for s in self._args[1].subst()
                 ],
             ),
             self.var_for_theorem(repl, self._args[0].index()),
+        ))
+        assert re.search(
+            'val ' + thm_var + ' : thm =.*\r\n$', out, flags=re.DOTALL
         )
-        print(cmd)
-        out = repl.run(cmd)
-        print(out)
+
+        return self.proof_index(repl, thm_var)
+
+
+class INST_TYPE(Action):
+    def __init__(
+            self,
+            args: typing.List[Argument],
+    ) -> None:
+        super(INST_TYPE, self).__init__(args)
+        assert len(args) == 2
+        assert type(args[0]) is ProofIndex
+        assert type(args[1]) is SubstType
+
+    def run(
+            self,
+            repl,
+    ) -> int:
+        thm_var = repl.next_var()
+
+        out = repl.run("let {} = INST_TYPE ({}::[]) {};;".format(
+            thm_var,
+            "::".join(
+                [
+                    "(`" + s[1] + "`, `" + s[0] + "`)"
+                    for s in self._args[1].subst_type()
+                ],
+            ),
+            self.var_for_theorem(repl, self._args[0].index()),
+        ))
         assert re.search(
             'val ' + thm_var + ' : thm =.*\r\n$', out, flags=re.DOTALL
         )

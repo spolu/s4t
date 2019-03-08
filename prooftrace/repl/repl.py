@@ -5,8 +5,9 @@ import pexpect.replwrap
 # import pickle
 
 from prooftrace.repl.actions import \
-    ProofIndex, Term, Subst, \
-    REFL, TRANS, MK_COMB, ABS, BETA, ASSUME, EQ_MP, DEDUCT_ANTISYM_RULE, INST
+    ProofIndex, Term, Subst, SubstType, \
+    REFL, TRANS, MK_COMB, ABS, BETA, ASSUME, EQ_MP, DEDUCT_ANTISYM_RULE, \
+    INST, INST_TYPE
 
 from utils.config import Config
 from utils.log import Log
@@ -131,8 +132,20 @@ def test():
     })
 
     proof_index = INST([
-        ProofIndex(35), Subst([['f', '(\\p. (\\q. q))']]),
+        ProofIndex(35), Subst([
+            ['f:bool->bool->bool', '(\\p:bool. (\\q:bool. q))'],
+        ]),
     ]).run(repl)
-    Log.out("INST 35 [[`f`, `(\\p. (\\q. q))`]] = [36]", {
+    Log.out("INST 35 " +
+            "[[`f:bool->bool->bool`, `(\\p:bool. (\\q. q:bool))`]] = [36]", {
+                "proof_index": proof_index,
+            })
+
+    proof_index = INST_TYPE([
+        ProofIndex(462), SubstType([
+            [':A', ':bool'],
+        ]),
+    ]).run(repl)
+    Log.out("INST_TYPE 462 [[`:A`, `:bool`]] = [496]", {
         "proof_index": proof_index,
     })
