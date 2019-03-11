@@ -79,7 +79,7 @@ class Type(BVT):
                     assert ifx is None
                     return dump(typ.left, None)
                 elif ifx is not None:
-                    return dump(typ.left, None) + "->" + dump(typ.right, None)
+                    return dump(typ.left, None) + ifx + dump(typ.right, None)
                 else:
                     return dump(typ.left, None) + "," + dump(typ.right, None)
             if typ.token() == '__c':
@@ -87,6 +87,9 @@ class Type(BVT):
                 if token == 'fun':
                     assert typ.right is not None
                     return "(" + dump(typ.right, "->") + ")"
+                if token == 'prod':
+                    assert typ.right is not None
+                    return "(" + dump(typ.right, "#") + ")"
                 if typ.right is None:
                     return token
                 else:
