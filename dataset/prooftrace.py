@@ -145,12 +145,22 @@ class Term(BVT):
                     return '(' + token + \
                         term.right.value.type_string() + ')'
                 else:
-                    tm = '((' + token + \
-                        term.right.value.type_string() + ')'
-                    for a in args:
-                        tm += ' ' + a
-                    tm += ')'
-                    return tm
+                    # This is an attempt at simplyfing terms as much as
+                    # possible to avoid parsing timeouts in HOL Light.
+                    if term.left.token() in [
+                            "=", "==>"
+                    ] and len(args) == 2:
+                        tm = '(' + args[0] + ' ' + \
+                            term.left.token() + \
+                            ' ' + args[1] + ')'
+                        return tm
+                    else:
+                        tm = '((' + token + \
+                            term.right.value.type_string() + ')'
+                        for a in args:
+                            tm += ' ' + a
+                        tm += ')'
+                        return tm
 
         return dump(self, [])
 
