@@ -79,40 +79,6 @@ class Action():
     ) -> int:
         raise Exception("Not implemented.")
 
-    def proof_index(
-            self,
-            repl,
-            thm_var,
-    ) -> int:
-        proof_var = repl.next_var()
-
-        out = repl.run("let Proof({}, _, _) = proof_of {};;".format(
-            proof_var,
-            thm_var,
-        ))
-
-        match = re.search('val ' + proof_var + ' : int = (\\d+)\r\n$', out)
-        assert match
-
-        return int(match.group(1))
-
-    def var_for_theorem(
-            self,
-            repl,
-            proof_index,
-    ) -> str:
-        thm_var = repl.next_var()
-
-        out = repl.run("let Proof(_, {}, _) = proof_at {};;".format(
-            thm_var,
-            proof_index,
-        ))
-        assert re.search(
-            'val ' + thm_var + ' : thm =.*\r\n$', out, flags=re.DOTALL
-        )
-
-        return thm_var
-
 
 class REFL(Action):
     def __init__(
@@ -127,17 +93,17 @@ class REFL(Action):
             self,
             repl,
     ) -> int:
-        thm_var = repl.next_var()
-
-        out = repl.run("let {} = REFL `{}`;;".format(
-            thm_var,
-            self._args[0].term(),
-        ))
-        assert re.search(
-            'val ' + thm_var + ' : thm =.*\r\n$', out, flags=re.DOTALL
+        out = repl.run(
+            ("let th = REFL `{}` in (" +
+             "let Proof(idx,_, _) = (proof_of th) in idx" +
+             ");;").format(
+                 self._args[0].term(),
+            ),
         )
+        match = re.search('val it : int = (\\d+)\r\n$', out)
+        assert match
 
-        return self.proof_index(repl, thm_var)
+        return int(match.group(1))
 
 
 class TRANS(Action):
@@ -154,18 +120,20 @@ class TRANS(Action):
             self,
             repl,
     ) -> int:
-        thm_var = repl.next_var()
-
-        out = repl.run("let {} = TRANS {} {};;".format(
-            thm_var,
-            self.var_for_theorem(repl, self._args[0].index()),
-            self.var_for_theorem(repl, self._args[1].index()),
-        ))
-        assert re.search(
-            'val ' + thm_var + ' : thm =.*\r\n$', out, flags=re.DOTALL
+        out = repl.run(
+            ("let Proof(_,th0,_) = proof_at {} in ("
+             "let Proof(_,th1,_) = proof_at {} in ("
+             "let th = TRANS th0 th1 in (" +
+             "let Proof(idx,_, _) = (proof_of th) in idx" +
+             ")));;").format(
+                 self._args[0].index(),
+                 self._args[1].index(),
+            ),
         )
+        match = re.search('val it : int = (\\d+)\r\n$', out)
+        assert match
 
-        return self.proof_index(repl, thm_var)
+        return int(match.group(1))
 
 
 class MK_COMB(Action):
@@ -182,18 +150,20 @@ class MK_COMB(Action):
             self,
             repl,
     ) -> int:
-        thm_var = repl.next_var()
-
-        out = repl.run("let {} = MK_COMB ({}, {});;".format(
-            thm_var,
-            self.var_for_theorem(repl, self._args[0].index()),
-            self.var_for_theorem(repl, self._args[1].index()),
-        ))
-        assert re.search(
-            'val ' + thm_var + ' : thm =.*\r\n$', out, flags=re.DOTALL
+        out = repl.run(
+            ("let Proof(_,th0,_) = proof_at {} in ("
+             "let Proof(_,th1,_) = proof_at {} in ("
+             "let th = MK_COMB (th0, th1) in (" +
+             "let Proof(idx,_, _) = (proof_of th) in idx" +
+             ")));;").format(
+                 self._args[0].index(),
+                 self._args[1].index(),
+            ),
         )
+        match = re.search('val it : int = (\\d+)\r\n$', out)
+        assert match
 
-        return self.proof_index(repl, thm_var)
+        return int(match.group(1))
 
 
 class ABS(Action):
@@ -210,18 +180,19 @@ class ABS(Action):
             self,
             repl,
     ) -> int:
-        thm_var = repl.next_var()
-
-        out = repl.run("let {} = ABS `{}` {};;".format(
-            thm_var,
-            self._args[1].term(),
-            self.var_for_theorem(repl, self._args[0].index()),
-        ))
-        assert re.search(
-            'val ' + thm_var + ' : thm =.*\r\n$', out, flags=re.DOTALL
+        out = repl.run(
+            ("let Proof(_,th0,_) = proof_at {} in ("
+             "let th = ABS `{}` th0 in (" +
+             "let Proof(idx,_, _) = (proof_of th) in idx" +
+             "));;").format(
+                 self._args[0].index(),
+                 self._args[1].term(),
+            ),
         )
+        match = re.search('val it : int = (\\d+)\r\n$', out)
+        assert match
 
-        return self.proof_index(repl, thm_var)
+        return int(match.group(1))
 
 
 class BETA(Action):
@@ -237,17 +208,17 @@ class BETA(Action):
             self,
             repl,
     ) -> int:
-        thm_var = repl.next_var()
-
-        out = repl.run("let {} = BETA `{}`;;".format(
-            thm_var,
-            self._args[0].term(),
-        ))
-        assert re.search(
-            'val ' + thm_var + ' : thm =.*\r\n$', out, flags=re.DOTALL
+        out = repl.run(
+            ("let th = BETA `{}` in (" +
+             "let Proof(idx,_, _) = (proof_of th) in idx" +
+             ");;").format(
+                 self._args[0].term(),
+            ),
         )
+        match = re.search('val it : int = (\\d+)\r\n$', out)
+        assert match
 
-        return self.proof_index(repl, thm_var)
+        return int(match.group(1))
 
 
 class ASSUME(Action):
@@ -263,17 +234,17 @@ class ASSUME(Action):
             self,
             repl,
     ) -> int:
-        thm_var = repl.next_var()
-
-        out = repl.run("let {} = ASSUME `{}`;;".format(
-            thm_var,
-            self._args[0].term(),
-        ))
-        assert re.search(
-            'val ' + thm_var + ' : thm =.*\r\n$', out, flags=re.DOTALL
+        out = repl.run(
+            ("let th = ASSUME `{}` in (" +
+             "let Proof(idx,_, _) = (proof_of th) in idx" +
+             ");;").format(
+                 self._args[0].term(),
+            ),
         )
+        match = re.search('val it : int = (\\d+)\r\n$', out)
+        assert match
 
-        return self.proof_index(repl, thm_var)
+        return int(match.group(1))
 
 
 class EQ_MP(Action):
@@ -290,18 +261,20 @@ class EQ_MP(Action):
             self,
             repl,
     ) -> int:
-        thm_var = repl.next_var()
-
-        out = repl.run("let {} = EQ_MP {} {};;".format(
-            thm_var,
-            self.var_for_theorem(repl, self._args[0].index()),
-            self.var_for_theorem(repl, self._args[1].index()),
-        ))
-        assert re.search(
-            'val ' + thm_var + ' : thm =.*\r\n$', out, flags=re.DOTALL
+        out = repl.run(
+            ("let Proof(_,th0,_) = proof_at {} in ("
+             "let Proof(_,th1,_) = proof_at {} in ("
+             "let th = EQ_MP th0 th1 in (" +
+             "let Proof(idx,_, _) = (proof_of th) in idx" +
+             ")));;").format(
+                 self._args[0].index(),
+                 self._args[1].index(),
+            ),
         )
+        match = re.search('val it : int = (\\d+)\r\n$', out)
+        assert match
 
-        return self.proof_index(repl, thm_var)
+        return int(match.group(1))
 
 
 class DEDUCT_ANTISYM_RULE(Action):
@@ -318,18 +291,20 @@ class DEDUCT_ANTISYM_RULE(Action):
             self,
             repl,
     ) -> int:
-        thm_var = repl.next_var()
-
-        out = repl.run("let {} = DEDUCT_ANTISYM_RULE {} {};;".format(
-            thm_var,
-            self.var_for_theorem(repl, self._args[0].index()),
-            self.var_for_theorem(repl, self._args[1].index()),
-        ))
-        assert re.search(
-            'val ' + thm_var + ' : thm =.*\r\n$', out, flags=re.DOTALL
+        out = repl.run(
+            ("let Proof(_,th0,_) = proof_at {} in ("
+             "let Proof(_,th1,_) = proof_at {} in ("
+             "let th = DEDUCT_ANTISYM_RULE th0 th1 in (" +
+             "let Proof(idx,_, _) = (proof_of th) in idx" +
+             ")));;").format(
+                 self._args[0].index(),
+                 self._args[1].index(),
+            ),
         )
+        match = re.search('val it : int = (\\d+)\r\n$', out)
+        assert match
 
-        return self.proof_index(repl, thm_var)
+        return int(match.group(1))
 
 
 class INST(Action):
@@ -346,23 +321,23 @@ class INST(Action):
             self,
             repl,
     ) -> int:
-        thm_var = repl.next_var()
-
-        out = repl.run("let {} = INST ({}::[]) {};;".format(
-            thm_var,
-            "::".join(
-                [
-                    "(`" + s[1] + "`, `" + s[0] + "`)"
-                    for s in self._args[1].subst()
-                ],
-            ),
-            self.var_for_theorem(repl, self._args[0].index()),
-        ))
-        assert re.search(
-            'val ' + thm_var + ' : thm =.*\r\n$', out, flags=re.DOTALL
+        out = repl.run(
+            "let Proof(_,th0,_) = proof_at {} in (".format(
+                self._args[0].index(),
+            ) +
+            "let th = INST (" +
+            "::".join([
+                "(`" + s[1] + "`,`" + s[0] + "`)"
+                for s in self._args[1].subst()
+            ]) +
+            "::[]) th0 in (" +
+            "let Proof(idx,_, _) = (proof_of th) in idx" +
+            "));;",
         )
+        match = re.search('val it : int = (\\d+)\r\n$', out)
+        assert match
 
-        return self.proof_index(repl, thm_var)
+        return int(match.group(1))
 
 
 class INST_TYPE(Action):
@@ -379,20 +354,20 @@ class INST_TYPE(Action):
             self,
             repl,
     ) -> int:
-        thm_var = repl.next_var()
-
-        out = repl.run("let {} = INST_TYPE ({}::[]) {};;".format(
-            thm_var,
-            "::".join(
-                [
-                    "(`" + s[1] + "`, `" + s[0] + "`)"
-                    for s in self._args[1].subst_type()
-                ],
-            ),
-            self.var_for_theorem(repl, self._args[0].index()),
-        ))
-        assert re.search(
-            'val ' + thm_var + ' : thm =.*\r\n$', out, flags=re.DOTALL
+        out = repl.run(
+            "let Proof(_,th0,_) = proof_at {} in (".format(
+                self._args[0].index(),
+            ) +
+            "let th = INST_TYPE (" +
+            "::".join([
+                "(`" + s[1] + "`,`" + s[0] + "`)"
+                for s in self._args[1].subst_type()
+            ]) +
+            "::[]) th0 in (" +
+            "let Proof(idx,_, _) = (proof_of th) in idx" +
+            "));;",
         )
+        match = re.search('val it : int = (\\d+)\r\n$', out)
+        assert match
 
-        return self.proof_index(repl, thm_var)
+        return int(match.group(1))

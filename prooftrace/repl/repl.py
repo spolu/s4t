@@ -53,7 +53,7 @@ class REPL():
         self.run(
             "#use \"{}\";;".format(hol_ml_path),
             timeout=None,
-            noprint=True,
+            no_print=True,
         )
 
     def next_var(
@@ -65,14 +65,14 @@ class REPL():
     def run(
             self,
             cmd: str,
-            timeout=-1,
-            noprint=False,
+            timeout=4,
+            no_print=False,
     ) -> str:
         Log.out("Running", {
             "command": cmd,
         })
         out = self._ocaml.run_command(cmd, timeout)
-        if not noprint:
+        if not no_print:
             Log.out("Run", {
                 "command": cmd,
                 "output": out,
@@ -184,10 +184,10 @@ class REPL():
                     ]:
                 from_proof_index = a.index()
 
-                # Log.out("Replaying action", {
-                #     "action":  INV_ACTION_TOKENS[a.value],
-                #     "from_proof_index": from_proof_index,
-                # })
+                Log.out("Replaying action", {
+                    "action":  INV_ACTION_TOKENS[a.value],
+                    "from_proof_index": from_proof_index,
+                })
 
                 a._index = self.apply(a)
 
@@ -244,74 +244,77 @@ def test():
     repl.prepare()
     Log.out("Prepared")
 
-    proof_index = REFL([Term('q')]).run(repl)
-    Log.out("REFL `q` = [64]", {
-        "proof_index": proof_index,
-    })
+    # proof_index = REFL([Term('q')]).run(repl)
+    # Log.out("REFL `q` = [64]", {
+    #     "proof_index": proof_index,
+    # })
 
-    proof_index = TRANS([ProofIndex(79), ProofIndex(80)]).run(repl)
-    Log.out("TRANS 79 80 = [81]", {
-        "proof_index": proof_index,
-    })
+    # proof_index = TRANS([ProofIndex(79), ProofIndex(80)]).run(repl)
+    # Log.out("TRANS 79 80 = [81]", {
+    #     "proof_index": proof_index,
+    # })
 
-    proof_index = MK_COMB([ProofIndex(74), ProofIndex(75)]).run(repl)
-    Log.out("MK_COMB 74 75 = [76]", {
-        "proof_index": proof_index,
-    })
+    # proof_index = MK_COMB([ProofIndex(74), ProofIndex(75)]).run(repl)
+    # Log.out("MK_COMB 74 75 = [76]", {
+    #     "proof_index": proof_index,
+    # })
 
-    proof_index = ABS([ProofIndex(498), Term('Q')]).run(repl)
-    Log.out("ABS 498 `Q` = [499]", {
-        "proof_index": proof_index,
-    })
+    # proof_index = ABS([ProofIndex(498), Term('Q')]).run(repl)
+    # Log.out("ABS 498 `Q` = [499]", {
+    #     "proof_index": proof_index,
+    # })
 
-    proof_index = BETA([Term('(\\x.T) x')]).run(repl)
-    Log.out("BETA `(\\x.T) x` = [430]", {
-        "proof_index": proof_index,
-    })
+    # proof_index = BETA([Term('(\\x.T) x')]).run(repl)
+    # Log.out("BETA `(\\x.T) x` = [430]", {
+    #     "proof_index": proof_index,
+    # })
 
-    proof_index = ASSUME([Term('(!) P')]).run(repl)
-    Log.out("ASSUME `(!) P` = [422]", {
-        "proof_index": proof_index,
-    })
+    # proof_index = ASSUME([Term('(!) P')]).run(repl)
+    # Log.out("ASSUME `(!) P` = [422]", {
+    #     "proof_index": proof_index,
+    # })
 
-    proof_index = EQ_MP([ProofIndex(432), ProofIndex(429)]).run(repl)
-    Log.out("EQ_MP 432 429 = [433]", {
-        "proof_index": proof_index,
-    })
+    # proof_index = EQ_MP([ProofIndex(432), ProofIndex(429)]).run(repl)
+    # Log.out("EQ_MP 432 429 = [433]", {
+    #     "proof_index": proof_index,
+    # })
 
-    proof_index = DEDUCT_ANTISYM_RULE([
-        ProofIndex(413), ProofIndex(417)
-    ]).run(repl)
-    Log.out("DEDUCT_ANTISYM_RULE 413 417 = [418]", {
-        "proof_index": proof_index,
-    })
+    # proof_index = DEDUCT_ANTISYM_RULE([
+    #     ProofIndex(413), ProofIndex(417)
+    # ]).run(repl)
+    # Log.out("DEDUCT_ANTISYM_RULE 413 417 = [418]", {
+    #     "proof_index": proof_index,
+    # })
 
-    proof_index = INST([
-        ProofIndex(35), Subst([
-            ['f:bool->bool->bool', '(\\p:bool. (\\q:bool. q))'],
-        ]),
-    ]).run(repl)
-    Log.out("INST 35 " +
-            "[[`f:bool->bool->bool`, `(\\p:bool. (\\q. q:bool))`]] = [36]", {
-                "proof_index": proof_index,
-            })
+    # proof_index = INST([
+    #     ProofIndex(35), Subst([
+    #         ['f:bool->bool->bool', '(\\p:bool. (\\q:bool. q))'],
+    #     ]),
+    # ]).run(repl)
+    # Log.out("INST 35 " +
+    #         "[[`f:bool->bool->bool`, `(\\p:bool. (\\q. q:bool))`]] = [36]", {
+    #             "proof_index": proof_index,
+    #         })
 
-    proof_index = INST_TYPE([
-        ProofIndex(462), SubstType([
-            [':A', ':bool'],
-        ]),
-    ]).run(repl)
-    Log.out("INST_TYPE 462 [[`:A`, `:bool`]] = [496]", {
-        "proof_index": proof_index,
-    })
+    # proof_index = INST_TYPE([
+    #     ProofIndex(462), SubstType([
+    #         [':A', ':bool'],
+    #     ]),
+    # ]).run(repl)
+    # Log.out("INST_TYPE 462 [[`:A`, `:bool`]] = [496]", {
+    #     "proof_index": proof_index,
+    # })
 
-    path = "./data/prooftrace/small/test_traces/" + \
-        "115216_CHOICE_PAIRED_THM.actions"
+    path = "./data/prooftrace/small/" + \
+        "test_traces/113466_EXISTS_TRIPLED_THM.actions"
+    # "test_traces/115216_CHOICE_PAIRED_THM.actions"
+    # "train_traces/40114_bool_INDUCT.actions"
     with open(path, 'rb') as f:
         ptra = pickle.load(f)
 
     Log.out("Replaying ProofTraceActions", {
         "path": path,
+        "actions_count": len(ptra.actions()),
     })
 
     repl.replay(ptra)

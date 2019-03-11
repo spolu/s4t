@@ -66,7 +66,7 @@ class Type(BVT):
     ) -> str:
         """ `type_string` formats the Type BVT as a HOL Light type string
         """
-        def dump(typ):
+        def dump(typ, ifx):
             assert typ.left is not None
             if typ.token() == '__v':
                 token = typ.left.token()
@@ -76,17 +76,23 @@ class Type(BVT):
                     return token
             if typ.token() == '__a':
                 if typ.right is None:
-                    return "(" + dump(typ.left) + ")"
+                    assert ifx is None
+                    return dump(typ.left, None)
+                elif ifx is not None:
+                    return dump(typ.left, None) + "->" + dump(typ.right, None)
                 else:
-                    return "(" + dump(typ.left) + ")," + dump(typ.right)
+                    return dump(typ.left, None) + "," + dump(typ.right, None)
             if typ.token() == '__c':
                 token = typ.left.token()
+                if token == 'fun':
+                    assert typ.right is not None
+                    return "(" + dump(typ.right, "->") + ")"
                 if typ.right is None:
                     return token
                 else:
-                    return "(" + dump(typ.right) + ")" + token
+                    return "(" + dump(typ.right, None) + ")" + token
 
-        return ':' + dump(self)
+        return ':' + dump(self, None)
 
 
 class Term(BVT):
