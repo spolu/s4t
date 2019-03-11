@@ -4,6 +4,7 @@ import pexpect
 import pexpect.replwrap
 import pickle
 import re
+import sys
 
 from dataset.prooftrace import \
     ACTION_TOKENS, INV_ACTION_TOKENS, \
@@ -72,11 +73,11 @@ class REPL():
         #     "command": cmd,
         # })
         out = self._ocaml.run_command(cmd, timeout)
-        # if not no_print:
-        #     Log.out("Run", {
-        #         "command": cmd,
-        #         "output": out,
-        #     })
+        if not no_print:
+            Log.out("Run", {
+                "command": cmd,
+                "output": out,
+            })
         return out
 
     def apply(
@@ -306,7 +307,9 @@ def test():
     # })
 
     # p = "./data/prooftrace/small/" + \
-    #     "test_traces/134420_IND_SUC_0_EXISTS.actions"
+    #     "test_traces/137154_ZERO_DEF.actions"
+    # # "test_traces/131615_ONTO.actions"
+    # # "test_traces/134420_IND_SUC_0_EXISTS.actions"
     # # "test_traces/115216_CHOICE_PAIRED_THM.actions"
     # # "test_traces/113466_EXISTS_TRIPLED_THM.actions"
     # # "train_traces/40114_bool_INDUCT.actions"
@@ -320,8 +323,8 @@ def test():
 
     #     try:
     #         repl.replay(ptra)
-    #     except AssertionError as err:
-    #         Log.out("Assertion Error: {}".format(err))
+    #     except AssertionError:
+    #         Log.out("Replay FAILURE")
 
     files = [
         os.path.join("./data/prooftrace/small/test_traces", f)
@@ -340,5 +343,5 @@ def test():
 
         try:
             repl.replay(ptra)
-        except AssertionError as err:
-            Log.out("Assertion Error: {}".format(err))
+        except AssertionError:
+            Log.out("Replay FAILURE")

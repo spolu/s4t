@@ -329,8 +329,8 @@ class INST(Action):
             "::".join([
                 "(`" + s[1] + "`,`" + s[0] + "`)"
                 for s in self._args[1].subst()
-            ]) +
-            "::[]) th0 in (" +
+            ] + ['[]']) +
+            ") th0 in (" +
             "let Proof(idx,_, _) = (proof_of th) in idx" +
             "));;",
         )
@@ -362,8 +362,8 @@ class INST_TYPE(Action):
             "::".join([
                 "(`" + s[1] + "`,`" + s[0] + "`)"
                 for s in self._args[1].subst_type()
-            ]) +
-            "::[]) th0 in (" +
+            ] + ['[]']) +
+            ") th0 in (" +
             "let Proof(idx,_, _) = (proof_of th) in idx" +
             "));;",
         )
