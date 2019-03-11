@@ -148,7 +148,7 @@ class Term(BVT):
                     # This is an attempt at simplyfing terms as much as
                     # possible to avoid parsing timeouts in HOL Light.
                     if term.left.token() in [
-                            "=", "==>"
+                            "=", "==>", "/\\", "\\/",
                     ] and len(args) == 2:
                         tm = '(' + args[0] + ' ' + \
                             term.left.token() + \
