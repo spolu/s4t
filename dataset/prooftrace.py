@@ -139,12 +139,14 @@ class Term(BVT):
             if term.token() == '__c' or term.token() == '__v':
                 assert type(term.right.value) is Type
                 token = term.left.token()
+                if term.token() == "__c":
+                    token = "(" + token + ")"
                 if len(args) == 0:
-                    return '((' + token + ')' + \
+                    return '(' + token + \
                         term.right.value.type_string() + ')'
                 else:
                     tm = \
-                        '(((' + token + ')' + \
+                        '((' + token + \
                         term.right.value.type_string() + ')'
                     for a in args:
                         tm += ' (' + a + ')'
