@@ -225,18 +225,16 @@ def test():
     Log.out("Prepared")
 
     p = "./data/prooftrace/small/" + \
-        "test_traces/111905_EXISTS_PAIRED_THM.actions"
+        "test_traces/139594_SHARED_139594.actions"
 
     # "test_traces/113466_EXISTS_TRIPLED_THM.actions"
     # "test_traces/111905_EXISTS_PAIRED_THM.actions"
     # "test_traces/136772_SHARED_136772.actions"
     # "test_traces/139594_SHARED_139594.actions"
 
-    # "test_traces/139594_SHARED_139594.actions"
     # "test_traces/137154_ZERO_DEF.actions"
     # "test_traces/131615_ONTO.actions"
     # "test_traces/134420_IND_SUC_0_EXISTS.actions"
-    # "test_traces/113466_EXISTS_TRIPLED_THM.actions"
     # "train_traces/40114_bool_INDUCT.actions"
 
     with open(p, 'rb') as f:

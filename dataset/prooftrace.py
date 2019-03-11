@@ -145,7 +145,8 @@ class Term(BVT):
                     return '(' + token + \
                         term.right.value.type_string() + ')'
                 else:
-                    tm = '(' + token
+                    tm = '((' + token + \
+                        term.right.value.type_string() + ')'
                     for a in args:
                         tm += ' ' + a
                     tm += ')'
