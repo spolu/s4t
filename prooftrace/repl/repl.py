@@ -68,15 +68,15 @@ class REPL():
             timeout=4,
             no_print=False,
     ) -> str:
-        Log.out("Running", {
-            "command": cmd,
-        })
+        # Log.out("Running", {
+        #     "command": cmd,
+        # })
         out = self._ocaml.run_command(cmd, timeout)
-        if not no_print:
-            Log.out("Run", {
-                "command": cmd,
-                "output": out,
-            })
+        # if not no_print:
+        #     Log.out("Run", {
+        #         "command": cmd,
+        #         "output": out,
+        #     })
         return out
 
     def apply(
@@ -184,13 +184,10 @@ class REPL():
                     ]:
                 from_proof_index = a.index()
 
-                if from_proof_index == 131534:
-                    import pdb; pdb.set_trace()
-
-                Log.out("Replaying action", {
-                    "action":  INV_ACTION_TOKENS[a.value],
-                    "from_proof_index": from_proof_index,
-                })
+                # Log.out("Replaying action", {
+                #     "action":  INV_ACTION_TOKENS[a.value],
+                #     "from_proof_index": from_proof_index,
+                # })
 
                 a._index = self.apply(a)
 
@@ -308,33 +305,13 @@ def test():
     #     "proof_index": proof_index,
     # })
 
-    p = "./data/prooftrace/small/" + \
-        "test_traces/115216_CHOICE_PAIRED_THM.actions"
-    # "test_traces/134420_IND_SUC_0_EXISTS.actions"
-    # "test_traces/113466_EXISTS_TRIPLED_THM.actions"
-    # "train_traces/40114_bool_INDUCT.actions"
-    with open(p, 'rb') as f:
-        ptra = pickle.load(f)
-
-        Log.out("Replaying ProofTraceActions", {
-            "path": p,
-            "actions_count": len(ptra.actions()),
-        })
-
-        try:
-            repl.replay(ptra)
-        except AssertionError as err:
-            Log.out("Assertion Error: {}".format(err))
-
-    # files = [
-    #     os.path.join("./data/prooftrace/small/test_traces", f)
-    #     for f in os.listdir("./data/prooftrace/small/test_traces")
-    # ]
-    # for p in files:
-    #     if re.search("\\.actions$", p) is None:
-    #         continue
-    #     with open(p, 'rb') as f:
-    #         ptra = pickle.load(f)
+    # p = "./data/prooftrace/small/" + \
+    #     "test_traces/134420_IND_SUC_0_EXISTS.actions"
+    # # "test_traces/115216_CHOICE_PAIRED_THM.actions"
+    # # "test_traces/113466_EXISTS_TRIPLED_THM.actions"
+    # # "train_traces/40114_bool_INDUCT.actions"
+    # with open(p, 'rb') as f:
+    #     ptra = pickle.load(f)
 
     #     Log.out("Replaying ProofTraceActions", {
     #         "path": p,
@@ -345,3 +322,23 @@ def test():
     #         repl.replay(ptra)
     #     except AssertionError as err:
     #         Log.out("Assertion Error: {}".format(err))
+
+    files = [
+        os.path.join("./data/prooftrace/small/test_traces", f)
+        for f in os.listdir("./data/prooftrace/small/test_traces")
+    ]
+    for p in files:
+        if re.search("\\.actions$", p) is None:
+            continue
+        with open(p, 'rb') as f:
+            ptra = pickle.load(f)
+
+        Log.out("Replaying ProofTraceActions", {
+            "path": p,
+            "actions_count": len(ptra.actions()),
+        })
+
+        try:
+            repl.replay(ptra)
+        except AssertionError as err:
+            Log.out("Assertion Error: {}".format(err))
