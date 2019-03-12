@@ -221,6 +221,8 @@ class ProofTraceKernel():
             '__c': 0,
             '__v': 1,
             '__a': 2,
+            'fun': 3,
+            'bool': 4,
         }
         self._type_cache = {}
 
@@ -229,6 +231,7 @@ class ProofTraceKernel():
             '__A': 1,
             '__c': 2,
             '__v': 3,
+            '=': 4,
         }
         self._term_cache = {}
 

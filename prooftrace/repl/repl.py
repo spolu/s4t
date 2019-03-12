@@ -171,7 +171,13 @@ class REPL():
         else:
             assert False
 
-        return repl_action.run(self)
+        try:
+            return repl_action.run(self)
+        except AssertionError:
+            Log.out("Action replay failure", {
+                'action_token': action_token,
+            })
+            raise
 
     def replay(
             self,
@@ -242,8 +248,7 @@ def test():
     # p = "./data/prooftrace/{}/".format(
     #     config.get("prooftrace_dataset_size"),
     # ) + \
-    #     "test_traces/13250313_GCD_LMUL.actions"
-
+    #     "test_traces/14850733_FLOOR_UNIQUE.actions"
     # # "test_traces/113466_EXISTS_TRIPLED_THM.actions"
     # # "test_traces/111905_EXISTS_PAIRED_THM.actions"
     # # "test_traces/136772_SHARED_136772.actions"
