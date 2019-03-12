@@ -134,22 +134,16 @@ class Kernel():
         return Term(
             0,
             Term(
-                0,
-                Term(2,
-                     self.token_term('='),
-                     Term(
-                         self.fun_type(
-                             ty,
-                             self.fun_type(ty, self.bool_type())
-                         ),
-                         None, None, None,
-                     ),
-                     '__c'),
-                left,
-                '__C',
-            ),
-            right,
-            '__C',
+                0, Term(
+                    2, self.token_term('='),
+                    Term(
+                        self.fun_type(
+                            ty,
+                            self.fun_type(ty, self.bool_type()),
+                        ), None, None, None,
+                    ), '__c'
+                ), left, '__C',
+            ), right, '__C',
         )
 
     def term_union(
