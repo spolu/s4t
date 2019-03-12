@@ -120,9 +120,19 @@ class Term(BVT):
 
     def term_string(
             self,
+            anonymous: bool = False,
     ) -> str:
         """ `term_string` formats the Term BVT as a HOL Light term string
         """
+        mem = {}
+
+        def vtoken(token):
+            if not anonymous:
+                return token
+            if token not in mem:
+                mem[token] = 'v' + str(len(mem))
+            return mem[token]
+
         def dump(term, args):
             if term.token() == '__C':
                 right = dump(term.right, [])
@@ -138,7 +148,12 @@ class Term(BVT):
                         '((\\' + left + '. ' + right + ') ' + args[0] + ')'
             if term.token() == '__c' or term.token() == '__v':
                 assert type(term.right.value) is Type
-                token = term.left.token()
+
+                if term.token() == '__v':
+                    token = vtoken(term.left.token())
+                else:
+                    token = term.left.token()
+
                 if term.token() == "__c":
                     token = "(" + token + ")"
                 if len(args) == 0:
