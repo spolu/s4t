@@ -1,12 +1,8 @@
 import argparse
 import typing
 import os
-import pickle
-import re
 
-from dataset.prooftrace import \
-    INV_ACTION_TOKENS, \
-    Type, Term
+from dataset.prooftrace import ProofTraceKernel, Type, Term
 
 from utils.config import Config
 from utils.log import Log
@@ -37,6 +33,14 @@ class Thm():
             self,
     ) -> typing.List[Term]:
         return self._hypotheses
+
+    def thm_string(
+            self,
+    ) -> str:
+        return "{} |- {}".format(
+            ", ".join(sorted([h.term_string() for h in self._hypotheses])),
+            self._conclusion.term_string(),
+        )
 
 
 class KernelException(Exception):
@@ -304,21 +308,93 @@ class Kernel():
             self,
             term: Term,
     ) -> Thm:
-        pass
+        self._next_thm_index += 1
+        index = self._next_thm_index
+
+        assume(self.type_of(term).type_string() == ':bool')
+
+        thm = Thm(
+            index,
+            [term],
+            term,
+        )
+
+        self._theorems[index] = thm
+
+        return thm
 
     def EQ_MP(
             self,
             idx1: int,
             idx2: int,
     ) -> Thm:
-        pass
+        assume(idx1 in self._theorems)
+        assume(idx2 in self._theorems)
+
+        thm1 = self._theorems[idx1]
+        thm2 = self._theorems[idx2]
+
+        c1 = thm1.concl()
+        c2 = thm2.concl()
+
+        assume(c1.token() == '__C')
+        assume(c1.left.token() == '__C')
+        assume(c1.left.left.token() == '__c')
+        assume(c1.left.left.left.token() == '=')
+
+        l1 = c1.left.right
+        r1 = c1.right
+
+        assume(l1.term_string(True) == c2.term_string(True))
+
+        self._next_thm_index += 1
+        index = self._next_thm_index
+
+        thm = Thm(
+            index,
+            self.term_union(thm1.hyp(), thm2.hyp()),
+            r1,
+        )
+
+        self._theorems[index] = thm
+
+        return thm
 
     def DEDUCT_ANTISYM_RULE(
             self,
             idx1: int,
             idx2: int,
     ) -> Thm:
-        pass
+        assume(idx1 in self._theorems)
+        assume(idx2 in self._theorems)
+
+        thm1 = self._theorems[idx1]
+        thm2 = self._theorems[idx2]
+
+        c1 = thm1.concl()
+        c2 = thm2.concl()
+
+        self._next_thm_index += 1
+        index = self._next_thm_index
+
+        thm = Thm(
+            index,
+            self.term_union(
+                filter(
+                    lambda h1: h1.term_string(True) != c2.term_string(True),
+                    thm1.hyp(),
+                ),
+                filter(
+                    lambda h2: h2.term_string(True) != c1.term_string(True),
+                    thm2.hyp(),
+                ),
+            ),
+            self.safe_mk_eq(c1, c2),
+        )
+
+        self._theorems[index] = thm
+
+        return thm
 
     def subst(
             self,
@@ -398,78 +474,81 @@ def test():
             args.dataset_size,
         )
 
+    k = ProofTraceKernel(
+        os.path.expanduser(config.get('prooftrace_dataset_dir')),
+        config.get('prooftrace_dataset_size'),
+    )
+
     print("==============================")
     print("ProofTrace Kernel testing \\o/")
     print("------------------------------")
 
     kernel = Kernel()
 
-    dataset_dir = "./data/prooftrace/{}/test_traces".format(
-        config.get("prooftrace_dataset_size"),
-    )
-    files = [os.path.join(dataset_dir, f) for f in os.listdir(dataset_dir)]
-    for p in files:
-        if re.search("\\.actions$", p) is None:
-            continue
-        with open(p, 'rb') as f:
-            ptra = pickle.load(f)
+    for i in range(len(k._proofs)):
+        step = k._proofs[i]
 
-        Log.out("Replaying ProofTraceActions", {
-            "path": p,
-            "actions_count": len(ptra.actions()),
+        thm = None
+
+        if step[0] == 'DEFINITION':
+            thm = Thm(
+                i,
+                [k.term(hy) for hy in k._theorems[i]['hy']],
+                k.term(k._theorems[i]['cc']),
+            )
+
+        if step[0] == 'REFL':
+            thm = kernel.REFL(k.term(step[1]))
+
+        if step[0] == 'TRANS':
+            thm = kernel.TRANS(
+                step[1],
+                step[2],
+            )
+
+        if step[0] == 'MK_COMB':
+            thm = kernel.MK_COMB(
+                step[1],
+                step[2],
+            )
+
+        if step[0] == 'ASSUME':
+            thm = kernel.ASSUME(k.term(step[1]))
+
+        if step[0] == 'EQ_MP':
+            thm = kernel.EQ_MP(
+                step[1],
+                step[2],
+            )
+
+        if step[0] == 'DEDUCT_ANTISYM_RULE':
+            thm = kernel.DEDUCT_ANTISYM_RULE(
+                step[1],
+                step[2],
+            )
+
+        if thm is None:
+            Log.out("NOT IMPLEMENTED", {
+                'action': step[0],
+            })
+            return
+
+        # Reinsert the theorem where it belongs in the kernel
+        thm._index = i
+        kernel.PREMISE(thm)
+
+        org = Thm(
+            i,
+            [k.term(hy) for hy in k._theorems[i]['hy']],
+            k.term(k._theorems[i]['cc']),
+        )
+
+        Log.out("{} {}".format(i, step[0]), {
+            'thm': thm.thm_string(),
         })
 
-        for a in ptra.actions():
-            action_token = INV_ACTION_TOKENS[a.value]
-            if action_token == 'PREMISE':
-                def hypotheses(action):
-                    if action is None:
-                        return []
-                    else:
-                        action_token = INV_ACTION_TOKENS[action.value]
-                        assert action_token == 'HYPOTHESIS'
-                        return hypotheses(action.right) + [action.left.value]
-                thm = kernel.PREMISE(
-                    Thm(
-                        a.index(),
-                        hypotheses(a.left.right),
-                        a.left.left.value,
-                    ),
-                )
-
-                a._index = thm.index()
-                Log.out("PREMISE", {
-                    'index': thm.index(),
-                })
-
-            if action_token == 'REFL':
-                thm = kernel.REFL(a.left.left.value)
-
-                a._index = thm.index()
-                Log.out("REFL", {
-                    'index': thm.index(),
-                })
-
-            if action_token == 'TRANS':
-                thm = kernel.TRANS(
-                    a.left.index(),
-                    a.right.index(),
-                )
-
-                a._index = thm.index()
-                Log.out("TRANS", {
-                    'index': thm.index(),
-                })
-
-            if action_token == 'MK_COMB':
-                thm = kernel.MK_COMB(
-                    a.left.index(),
-                    a.right.index(),
-                )
-
-                a._index = thm.index()
-                Log.out("MK_COMB", {
-                    'index': thm.index(),
-                })
-
-            print(action_token)
+        if thm.thm_string() != org.thm_string():
+            Log.out("DIVERGENCE", {
+                'org': org.thm_string(),
+            })
+            return
