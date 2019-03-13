@@ -62,7 +62,7 @@ class Kernel():
             token,
     ) -> Type:
         if token == '=':
-            return Term(4, None, None, '=')
+            return Term(5, None, None, '=')
         assert False
 
     def token_type(
@@ -70,9 +70,9 @@ class Kernel():
             token,
     ) -> Type:
         if token == 'fun':
-            return Type(3, None, None, 'fun')
-        if token == 'bool':
             return Type(4, None, None, 'fun')
+        if token == 'bool':
+            return Type(3, None, None, 'fun')
         assert False
 
     def fun_type(
@@ -152,10 +152,10 @@ class Kernel():
             s2: typing.List[Term],
     ) -> typing.List[Term]:
         u = [t for t in s1]
-        hh = [t.hash() for t in s1]
+        hh = [t.term_string(True) for t in s1]
 
         for t in s2:
-            if t.hash() not in hh:
+            if t.term_string(True) not in hh:
                 u.append(t)
 
         return u
@@ -320,12 +320,53 @@ class Kernel():
     ) -> Thm:
         pass
 
+    def subst(
+            self,
+            tm,
+            subst,
+    ):
+        for s in subst:
+            assume(s[0].token() == '__v')
+
+        def vsubst(tm, subst):
+            if len(subst) == 0:
+                return tm
+
+            if tm.token() == '__v':
+                for s in subst:
+                    if s[0].term_string() == tm.term_string():
+                        return s[1]
+                return tm
+            if tm.token() == '__c':
+                return tm
+            if tm.token() == '__C':
+                ltm = vsubst(tm.left, subst)
+                rtm = vsubst(tm.right, subst)
+                if ltm.hash() == tm.left.hash() and \
+                        rtm.hash() == tm.right.hash():
+                    return tm
+                else:
+                    return Term(0, ltm, rtm, '__C')
+            if tm.token() == '__A':
+                v = tm.left
+                s = vsubst(
+                    tm.right,
+                    filter(lambda s: s[0].hash() != v.hash(), subst),
+                )
+                if s.hash() == tm.right.hash():
+                    return tm
+                # TOOD(stan) variant if bounded
+                return Term(1, tm.left, s, '__A')
+
+        return vsubst(tm, subst)
+
     def INST(
             self,
             idx1: int,
             subst: typing.List[typing.List[Term]],
     ) -> Thm:
-        pass
+        assume(idx1 in self._theorems)
+        thm1 = self._theorems[idx1]
 
     def INST_TYPE(
             self,
