@@ -156,13 +156,26 @@ class Kernel():
             s2: typing.List[Term],
     ) -> typing.List[Term]:
         u = [t for t in s1]
-        hh = [t.term_string(True) for t in s1]
+        hh = [t.term_string() for t in s1]
 
         for t in s2:
-            if t.term_string(True) not in hh:
+            if t.term_string() not in hh:
                 u.append(t)
 
         return u
+
+    def _theorem(
+            self,
+            hyp: typing.List[Term],
+            concl: Term,
+    ) -> Thm:
+        self._next_thm_index += 1
+        index = self._next_thm_index
+
+        thm = Thm(index, hyp, concl)
+        self._theorems[index] = thm
+
+        return thm
 
     def PREMISE(
             self,
@@ -177,18 +190,10 @@ class Kernel():
             self,
             term: Term,
     ) -> Thm:
-        self._next_thm_index += 1
-        index = self._next_thm_index
-
-        thm = Thm(
-            index,
+        return self._theorem(
             [],
             self.safe_mk_eq(term, term),
         )
-
-        self._theorems[index] = thm
-
-        return thm
 
     def TRANS(
             self,
@@ -222,18 +227,10 @@ class Kernel():
 
         assume(m1.term_string(True) == m2.term_string(True))
 
-        self._next_thm_index += 1
-        index = self._next_thm_index
-
-        thm = Thm(
-            index,
+        return self._theorem(
             self.term_union(thm1.hyp(), thm2.hyp()),
             Term(0, eql, r, '__C'),
         )
-
-        self._theorems[index] = thm
-
-        return thm
 
     def MK_COMB(
             self,
@@ -275,11 +272,7 @@ class Kernel():
 
         assume(ty.type_string() == tyr2.type_string())
 
-        self._next_thm_index += 1
-        index = self._next_thm_index
-
-        thm = Thm(
-            index,
+        return self._theorem(
             self.term_union(thm1.hyp(), thm2.hyp()),
             self.safe_mk_eq(
                 Term(0, l1, l2, '__C'),
@@ -287,41 +280,66 @@ class Kernel():
             ),
         )
 
-        self._theorems[index] = thm
-
-        return thm
-
     def ABS(
             self,
             idx1: int,
-            term: Term,
+            v: Term,
     ) -> Thm:
-        pass
+        assume(v.token() == '__v')
+
+        assume(idx1 in self._theorems)
+        thm1 = self._theorems[idx1]
+        c1 = thm1.concl()
+
+        assume(c1.token() == '__C')
+        assume(c1.left.token() == '__C')
+        assume(c1.left.left.token() == '__c')
+        assume(c1.left.left.left.token() == '=')
+
+        l1 = c1.left.right
+        r1 = c1.right
+
+        assume(len(list(filter(
+            lambda t: self.free_in(v, t),
+            thm1.hyp(),
+        ))) == 0)
+
+        return self._theorem(
+            thm1.hyp(),
+            self.safe_mk_eq(
+                Term(1, v, l1, '__A'),
+                Term(1, v, r1, '__A'),
+            ),
+        )
 
     def BETA(
             self,
             term: Term,
     ) -> Thm:
-        pass
+        assume(term.token() == '__C')
+        assume(term.left.token() == '__A')
+
+        v = term.left.left
+        bod = term.left.right
+        arg = term.right
+
+        assume(v.term_string() == arg.term_string())
+
+        return self._theorem(
+            [],
+            self.safe_mk_eq(term, bod),
+        )
 
     def ASSUME(
             self,
             term: Term,
     ) -> Thm:
-        self._next_thm_index += 1
-        index = self._next_thm_index
-
         assume(self.type_of(term).type_string() == ':bool')
 
-        thm = Thm(
-            index,
+        return self._theorem(
             [term],
             term,
         )
-
-        self._theorems[index] = thm
-
-        return thm
 
     def EQ_MP(
             self,
@@ -347,18 +365,10 @@ class Kernel():
 
         assume(l1.term_string(True) == c2.term_string(True))
 
-        self._next_thm_index += 1
-        index = self._next_thm_index
-
-        thm = Thm(
-            index,
+        return self._theorem(
             self.term_union(thm1.hyp(), thm2.hyp()),
             r1,
         )
-
-        self._theorems[index] = thm
-
-        return thm
 
     def DEDUCT_ANTISYM_RULE(
             self,
@@ -374,27 +384,57 @@ class Kernel():
         c1 = thm1.concl()
         c2 = thm2.concl()
 
-        self._next_thm_index += 1
-        index = self._next_thm_index
-
-        thm = Thm(
-            index,
+        return self._theorem(
             self.term_union(
-                filter(
-                    lambda h1: h1.term_string(True) != c2.term_string(True),
+                list(filter(
+                    lambda h1: h1.term_string() != c2.term_string(),
                     thm1.hyp(),
-                ),
-                filter(
-                    lambda h2: h2.term_string(True) != c1.term_string(True),
+                )),
+                list(filter(
+                    lambda h2: h2.term_string() != c1.term_string(),
                     thm2.hyp(),
-                ),
+                )),
             ),
             self.safe_mk_eq(c1, c2),
         )
 
-        self._theorems[index] = thm
+    def free_in(
+            self,
+            v: Term,
+            term: Term,
+    ) -> bool:
+        assume(v.token() == '__v')
 
-        return thm
+        def vfree_in(v, tm):
+            if tm.token() == '__A':
+                return v.term_string() != tm.left.term_string() and \
+                    vfree_in(v, tm.right)
+            if tm.token() == '__C':
+                return vfree_in(v, tm.left) or vfree_in(v, tm.right)
+            return v.term_string() == tm.term_string()
+
+        return vfree_in(v, term)
+
+    def variant(
+            self,
+            avoid: typing.List[Term],
+            v: Term,
+    ):
+        assume(v.token() == '__v')
+
+        if len(list(filter(
+            lambda t: self.free_in(v, t),
+            avoid,
+        ))) == 0:
+            return v
+
+        token = v.left.token() + '\''
+
+        # TODO(stan): separate Tokenizer in ProofTraceKernel, thread it here
+        return self.variant(
+            avoid,
+            Term(3, Term(-1, None, None, token), v.right, '__v'),
+        )
 
     def subst(
             self,
@@ -411,6 +451,8 @@ class Kernel():
             if tm.token() == '__v':
                 for s in subst:
                     if s[0].term_string() == tm.term_string():
+                        assume(self.type_of(tm).type_string() ==
+                               self.type_of(s[1]).type_string())
                         return s[1]
                 return tm
             if tm.token() == '__c':
@@ -425,14 +467,20 @@ class Kernel():
                     return Term(0, ltm, rtm, '__C')
             if tm.token() == '__A':
                 v = tm.left
-                s = vsubst(
+                b = vsubst(
                     tm.right,
-                    filter(lambda s: s[0].hash() != v.hash(), subst),
+                    list(filter(lambda s: s[0].hash() != v.hash(), subst)),
                 )
-                if s.hash() == tm.right.hash():
+                if b.hash() == tm.right.hash():
                     return tm
-                # TOOD(stan) variant if bounded
-                return Term(1, tm.left, s, '__A')
+                if len(list(filter(
+                        lambda s: (self.free_in(v, s[1]) and
+                                   self.free_in(s[0], b)),
+                        subst,
+                ))) > 0:
+                    vv = self.variant([b], v)
+                    return Term(1, vv, vsubst(b, subst + [v, vv]), '__A')
+                return Term(1, v, b, '__A')
 
         return vsubst(tm, subst)
 
@@ -443,6 +491,11 @@ class Kernel():
     ) -> Thm:
         assume(idx1 in self._theorems)
         thm1 = self._theorems[idx1]
+
+        return self._theorem(
+            [self.subst(h, subst) for h in thm1.hyp()],
+            self.subst(thm1.concl(), subst),
+        )
 
     def INST_TYPE(
             self,
@@ -512,6 +565,12 @@ def test():
                 step[2],
             )
 
+        if step[0] == 'ABS':
+            thm = kernel.ABS(step[1], k.term(step[2]))
+
+        if step[0] == 'BETA':
+            thm = kernel.BETA(k.term(step[1]))
+
         if step[0] == 'ASSUME':
             thm = kernel.ASSUME(k.term(step[1]))
 
@@ -525,6 +584,12 @@ def test():
             thm = kernel.DEDUCT_ANTISYM_RULE(
                 step[1],
                 step[2],
+            )
+
+        if step[0] == 'INST':
+            thm = kernel.INST(
+                step[1],
+                [[k.term(s[0]), k.term(s[1])] for s in step[2]],
             )
 
         if thm is None:

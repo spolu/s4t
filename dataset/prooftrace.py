@@ -138,14 +138,16 @@ class Term(BVT):
                 right = dump(term.right, [])
                 return dump(term.left, [right] + args)
             if term.token() == '__A':
-                assert len(args) <= 1
                 right = dump(term.right, [])
                 left = dump(term.left, [])
                 if len(args) == 0:
                     return '(\\' + left + '. ' + right + ')'
                 else:
-                    return \
-                        '((\\' + left + '. ' + right + ') ' + args[0] + ')'
+                    tm = '((\\' + left + '. ' + right + ')'
+                    for a in args:
+                        tm += ' ' + a
+                    tm += ')'
+                    return tm
             if term.token() == '__c' or term.token() == '__v':
                 assert type(term.right.value) is Type
 
