@@ -216,7 +216,7 @@ class PreTrainer:
             lft_loss = self._loss(prd_lefts, lefts)
             rgt_loss = self._loss(prd_rights, rights)
 
-            (act_loss + 0.5 * (lft_loss + rgt_loss)).backward()
+            (act_loss + lft_loss + rgt_loss).backward()
 
             if it % self._accumulation_step_count == 0:
                 self._optimizer.step()
