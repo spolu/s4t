@@ -164,6 +164,19 @@ class Kernel():
 
         return u
 
+    def term_unique(
+            self,
+            s: typing.List[Term],
+    ) -> typing.List[Term]:
+        out = []
+        dmp = []
+        for t in s:
+            tt = t.term_string()
+            if tt not in dmp:
+                out.append(t)
+                dmp.append(tt)
+        return out
+
     def _theorem(
             self,
             hyp: typing.List[Term],
@@ -387,11 +400,11 @@ class Kernel():
         return self._theorem(
             self.term_union(
                 list(filter(
-                    lambda h1: h1.term_string() != c2.term_string(),
+                    lambda h1: h1.term_string(True) != c2.term_string(True),
                     thm1.hyp(),
                 )),
                 list(filter(
-                    lambda h2: h2.term_string() != c1.term_string(),
+                    lambda h2: h2.term_string(True) != c1.term_string(True),
                     thm2.hyp(),
                 )),
             ),
@@ -414,6 +427,30 @@ class Kernel():
             return v.term_string() == tm.term_string()
 
         return vfree_in(v, term)
+
+    def frees(
+            self,
+            term: Term,
+    ) -> typing.List[Term]:
+        def vfrees(tm):
+            if tm.token() == '__v':
+                return [tm]
+            if tm.token() == '__c':
+                return []
+            if tm.token() == '__A':
+                bfs = vfrees(tm.right)
+                vfs = []
+                for v in bfs:
+                    if v.term_string() != tm.left.term_string():
+                        vfs.append(v)
+                return vfs
+            if tm.token() == '__C':
+                return self.term_union(
+                    vfrees(tm.left),
+                    vfrees(tm.right),
+                )
+
+        return vfrees(term)
 
     def variant(
             self,
@@ -438,8 +475,8 @@ class Kernel():
 
     def subst(
             self,
-            tm,
-            subst,
+            tm: Term,
+            subst: typing.List[typing.List[Term]],
     ):
         for s in subst:
             assume(s[0].token() == '__v')
@@ -447,7 +484,6 @@ class Kernel():
         def vsubst(tm, subst):
             if len(subst) == 0:
                 return tm
-
             if tm.token() == '__v':
                 for s in subst:
                     if s[0].term_string() == tm.term_string():
@@ -467,19 +503,19 @@ class Kernel():
                     return Term(0, ltm, rtm, '__C')
             if tm.token() == '__A':
                 v = tm.left
-                b = vsubst(
-                    tm.right,
-                    list(filter(lambda s: s[0].hash() != v.hash(), subst)),
-                )
+                fsubst = list(filter(lambda s: s[0].hash() != v.hash(), subst))
+                b = vsubst(tm.right, fsubst)
                 if b.hash() == tm.right.hash():
                     return tm
                 if len(list(filter(
                         lambda s: (self.free_in(v, s[1]) and
-                                   self.free_in(s[0], b)),
-                        subst,
+                                   self.free_in(s[0], tm.right)),
+                        fsubst,
                 ))) > 0:
                     vv = self.variant([b], v)
-                    return Term(1, vv, vsubst(b, subst + [v, vv]), '__A')
+                    return Term(1, vv, vsubst(
+                        tm.right, fsubst + [v, vv]
+                    ), '__A')
                 return Term(1, v, b, '__A')
 
         return vsubst(tm, subst)
@@ -493,16 +529,119 @@ class Kernel():
         thm1 = self._theorems[idx1]
 
         return self._theorem(
-            [self.subst(h, subst) for h in thm1.hyp()],
+            self.term_unique(
+                [self.subst(h, subst) for h in thm1.hyp()],
+            ),
             self.subst(thm1.concl(), subst),
         )
+
+    def subst_type(
+            self,
+            tm: Term,
+            subst_type: typing.List[typing.List[Type]],
+    ):
+        for s in subst_type:
+            assume(s[0].token() == '__v')
+
+        def tsubst(ty, subst_type):
+            if len(subst_type) == 0:
+                return ty
+            if ty is None:
+                return None
+            if ty.token() == '__v':
+                for s in subst_type:
+                    if s[0].type_string() == ty.type_string():
+                        return s[1]
+            if ty.token() == '__a':
+                lty = tsubst(ty.left, subst_type)
+                rty = tsubst(ty.right, subst_type)
+                if lty.hash() == ty.left.hash() and \
+                        (ty.right is None or rty.hash() == ty.right.hash()):
+                    return ty
+                return Type(2, lty, rty, '__a')
+            if ty.token() == '__c':
+                rty = tsubst(ty.right, subst_type)
+                if ty.right is None or rty.hash() == ty.right.hash():
+                    return ty
+                return Type(0, ty.left, rty, '__c')
+
+        class Clash(Exception):
+            def __init__(
+                    self,
+                    term: Term,
+            ) -> None:
+                self.term = term
+
+        def inst(tm, subst_type, env):
+            if tm.token() == '__v':
+                ty = tsubst(tm.right.value, subst_type)
+                stm = Term(3, tm.left, Term(ty, None, None, None), '__v')
+                if ty.hash() == tm.right.value.hash():
+                    stm = tm
+                ttm = tm
+                for s in env:
+                    if s[0].term_string() == stm.term_string():
+                        ttm = s[1]
+                if ttm.term_string() != tm.term_string():
+                    raise Clash(stm)
+                return stm
+            if tm.token() == '__c':
+                ty = tsubst(tm.right.value, subst_type)
+                if ty.hash() == tm.right.value.hash():
+                    return tm
+                return Term(2, tm.left, Term(ty, None, None, None), '__c')
+            if tm.token() == '__C':
+                ltm = inst(tm.left, subst_type, env)
+                rtm = inst(tm.right, subst_type, env)
+                if ltm.hash() == tm.left.hash() and \
+                        rtm.hash() == tm.right.hash():
+                    return tm
+                else:
+                    return Term(0, ltm, rtm, '__C')
+            if tm.token() == '__A':
+                v = inst(tm.left, subst_type, [])
+                try:
+                    b = inst(tm.right, subst_type, env + [[v, tm.left]])
+                    if v.hash() == tm.left.hash() and \
+                            b.hash() == tm.right.hash():
+                        return tm
+                    else:
+                        return Term(1, v, b, '__A')
+                except Clash as e:
+                    assume(e.term.term_string() == v.term_string())
+                    frees = [inst(v, subst_type, [])
+                             for v in self.frees(tm.right)]
+                    vv = self.variant(frees, v)
+                    assume(vv.token() == '__v')
+                    assume(v.token() == '__v')
+                    z = Term(3, vv.left, tm.left.right, '__v')
+                    return inst(
+                        Term(1, z, self.subst(
+                            tm.right, [[tm.left, z]]
+                        ), '__A'),
+                        subst_type,
+                        env,
+                    )
+
+        if len(subst_type) == 0:
+            return tm
+
+        return inst(tm, subst_type, [])
 
     def INST_TYPE(
             self,
             idx1: int,
             subst_type: typing.List[typing.List[Type]],
     ) -> Thm:
-        pass
+        assume(idx1 in self._theorems)
+        thm1 = self._theorems[idx1]
+
+        return self._theorem(
+            self.term_unique(
+                [self.subst_type(h, subst_type) for h in thm1.hyp()],
+            ),
+            self.subst_type(thm1.concl(), subst_type),
+        )
 
 
 def test():
@@ -592,6 +731,12 @@ def test():
                 [[k.term(s[0]), k.term(s[1])] for s in step[2]],
             )
 
+        if step[0] == 'INST_TYPE':
+            thm = kernel.INST_TYPE(
+                step[1],
+                [[k.type(s[0]), k.type(s[1])] for s in step[2]],
+            )
+
         if thm is None:
             Log.out("NOT IMPLEMENTED", {
                 'action': step[0],
@@ -616,4 +761,5 @@ def test():
             Log.out("DIVERGENCE", {
                 'org': org.thm_string(),
             })
+            import pdb; pdb.set_trace()
             return

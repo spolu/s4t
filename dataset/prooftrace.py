@@ -124,22 +124,26 @@ class Term(BVT):
     ) -> str:
         """ `term_string` formats the Term BVT as a HOL Light term string
         """
-        mem = {}
-
-        def vtoken(token):
+        def v_term(term, bounded=[]):
+            assert term.token() == '__v'
+            typ = term.right.value.type_string()
+            term = '(' + term.left.token() + typ + ')'
             if not anonymous:
-                return token
-            if token not in mem:
-                mem[token] = 'v' + str(len(mem))
-            return mem[token]
+                return term
+            if term in bounded:
+                for i in reversed(range(len(bounded))):
+                    if term == bounded[i]:
+                        return '(b' + str(i) + typ + ')'
+            return term
 
-        def dump(term, args):
+        def dump(term, args, bounded):
             if term.token() == '__C':
-                right = dump(term.right, [])
-                return dump(term.left, [right] + args)
+                right = dump(term.right, [], bounded)
+                return dump(term.left, [right] + args, bounded)
             if term.token() == '__A':
-                right = dump(term.right, [])
-                left = dump(term.left, [])
+                assert term.left.token() == '__v'
+                right = dump(term.right, [], bounded+[v_term(term.left)])
+                left = dump(term.left, [], bounded+[v_term(term.left)])
                 if len(args) == 0:
                     return '(\\' + left + '. ' + right + ')'
                 else:
@@ -148,22 +152,15 @@ class Term(BVT):
                         tm += ' ' + a
                     tm += ')'
                     return tm
-            if term.token() == '__c' or term.token() == '__v':
+            if term.token() == '__c':
                 assert type(term.right.value) is Type
 
-                if term.token() == '__v':
-                    token = vtoken(term.left.token())
-                else:
-                    token = term.left.token()
-
-                if term.token() == "__c":
-                    token = "(" + token + ")"
                 if len(args) == 0:
-                    return '(' + token + \
+                    return '((' + term.left.token() + ')' + \
                         term.right.value.type_string() + ')'
                 else:
                     # This is an attempt at simplyfing terms as much as
-                    # possible to avoid parsing timeouts in HOL Light.
+                    # possible to make them readable.
                     if term.left.token() in [
                             "=", "==>", "/\\", "\\/",
                     ] and len(args) == 2:
@@ -172,14 +169,25 @@ class Term(BVT):
                             ' ' + args[1] + ')'
                         return tm
                     else:
-                        tm = '((' + token + \
+                        tm = '(((' + term.left.token() + ')' + \
                             term.right.value.type_string() + ')'
                         for a in args:
                             tm += ' ' + a
                         tm += ')'
                         return tm
+            if term.token() == '__v':
+                assert type(term.right.value) is Type
 
-        return dump(self, [])
+                if len(args) == 0:
+                    return v_term(term, bounded)
+                else:
+                    tm = '(' + v_term(term)
+                    for a in args:
+                        tm += ' ' + a
+                    tm += ')'
+                    return tm
+
+        return dump(self, [], [])
 
 
 class Action(BVT):
