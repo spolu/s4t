@@ -121,13 +121,10 @@ class Term(BVT):
     def term_string(
             self,
             anonymous_b: bool = False,
-            anonymous_v: bool = False,
     ) -> str:
         """ `term_string` formats the Term BVT as a HOL Light term string
         """
-        mem = {}
-
-        def v_term(term, bounded=[], bounding=False):
+        def v_term(term, bounded=[]):
             assert term.token() == '__v'
             typ = term.right.value.type_string()
             term = '(' + term.left.token() + typ + ')'
@@ -139,13 +136,7 @@ class Term(BVT):
                 for i in reversed(range(len(bounded))):
                     if term == bounded[i]:
                         return '(b' + str(i) + typ + ')'
-            else:
-                if not anonymous_v or bounding:
-                    return term
-
-                if term not in mem:
-                    mem[term] = '(v' + str(len(mem)) + typ + ')'
-                return mem[term]
+            return term
 
         def dump(term, args, bounded):
             if term.token() == '__C':
@@ -153,12 +144,9 @@ class Term(BVT):
                 return dump(term.left, [right] + args, bounded)
             if term.token() == '__A':
                 assert term.left.token() == '__v'
-                right = dump(term.right, [], bounded+[
-                    v_term(term.left, [], True),
-                ])
-                left = dump(term.left, [], bounded+[
-                    v_term(term.left, [], True),
-                ])
+                left = dump(term.left, [], [])
+                right = dump(term.right, [], bounded+[left])
+                left = dump(term.left, [], bounded+[left])
                 if len(args) == 0:
                     return '(\\' + left + '. ' + right + ')'
                 else:
@@ -196,7 +184,7 @@ class Term(BVT):
                 if len(args) == 0:
                     return v_term(term, bounded)
                 else:
-                    tm = '(' + v_term(term)
+                    tm = '(' + v_term(term, bounded)
                     for a in args:
                         tm += ' ' + a
                     tm += ')'

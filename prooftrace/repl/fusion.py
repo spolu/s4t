@@ -238,7 +238,7 @@ class Kernel():
         r = c2.right
         m2 = c2.left.right
 
-        assume(m1.term_string(True, True) == m2.term_string(True, True))
+        assume(m1.term_string(True) == m2.term_string(True))
 
         return self._theorem(
             self.term_union(thm1.hyp(), thm2.hyp()),
@@ -376,7 +376,7 @@ class Kernel():
         l1 = c1.left.right
         r1 = c1.right
 
-        assume(l1.term_string(True, True) == c2.term_string(True, True))
+        assume(l1.term_string(True) == c2.term_string(True))
 
         return self._theorem(
             self.term_union(thm1.hyp(), thm2.hyp()),
@@ -683,7 +683,9 @@ def test():
 
         thm = None
 
-        if step[0] == 'DEFINITION' or step[0] == 'AXIOM':
+        if step[0] == 'DEFINITION' or \
+                step[0] == 'TYPE_DEFINITION' or \
+                step[0] == 'AXIOM':
             thm = Thm(
                 i,
                 [k.term(hy) for hy in k._theorems[i]['hy']],
