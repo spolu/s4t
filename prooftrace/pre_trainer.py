@@ -83,6 +83,7 @@ class PreTrainer:
             shuffle=(self._train_sampler is None),
             sampler=self._train_sampler,
             collate_fn=lm_collate,
+            num_workers=16,
         )
 
         Log.out('Training initialization', {
@@ -108,6 +109,7 @@ class PreTrainer:
             batch_size=batch_size,
             shuffle=True,
             collate_fn=lm_collate,
+            num_workers=8,
         )
 
     def load(

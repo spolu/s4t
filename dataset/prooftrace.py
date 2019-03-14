@@ -957,15 +957,19 @@ class ProofTrace():
         )
 
 
-class ProofTraceDataset(Dataset):
+class ProofTraceLMDataset():
     def __init__(
             self,
             dataset_dir: str,
             dataset_size: str,
             test: bool,
+            sequence_length: int,
             trace_max_length=-1,
     ) -> None:
-        self._traces = []
+        self._sequence_length = sequence_length
+
+        self._cases = []
+        self._ptra_files = []
 
         if test:
             dataset_dir = os.path.join(
@@ -988,76 +992,38 @@ class ProofTraceDataset(Dataset):
             if re.search("\\.actions$", p) is None:
                 continue
             with open(p, 'rb') as f:
-                trace = pickle.load(f)
-                if trace_max_length <= -1 or trace.len() <= trace_max_length:
-                    self._traces.append(trace)
+                ptra = pickle.load(f)
+                if trace_max_length <= -1 or ptra.len() <= trace_max_length:
+                    self._ptra_files.append(p)
 
-            processed += 1
+                    actions = ptra.actions()
+                    for pos in range(len(actions)):
+                        if pos < self._sequence_length:
+                            if actions[pos].value not in \
+                                    [
+                                        ACTION_TOKENS['TARGET'],
+                                        ACTION_TOKENS['EMPTY'],
+                                        ACTION_TOKENS['SUBST'],
+                                        ACTION_TOKENS['SUBST_TYPE'],
+                                        ACTION_TOKENS['TERM'],
+                                        ACTION_TOKENS['PREMISE'],
+                                    ]:
+                                self._cases.append((processed, pos))
+
+                    processed += 1
 
             if processed % 100 == 0:
                 Log.out(
-                    "Loading extracted ProofTraces", {
+                    "Loading extracted ProofTraces LM Dataset", {
                         'dataset_dir': dataset_dir,
                         'total': len(files),
                         'processed': processed,
                     })
 
         Log.out(
-            "Loaded extracted ProofTraces", {
-                'dataset_dir': dataset_dir,
-                'trace_max_length': trace_max_length,
-                'traces_count': len(self._traces),
-            })
-
-    def __len__(
-            self,
-    ) -> int:
-        return len(self._traces)
-
-    def __getitem__(
-            self,
-            idx: int,
-    ):
-        return self._traces[idx].actions()
-
-
-class ProofTraceLMDataset(ProofTraceDataset):
-    def __init__(
-            self,
-            dataset_dir: str,
-            dataset_size: str,
-            test: bool,
-            sequence_length: int,
-            trace_max_length=-1,
-    ) -> None:
-        self._sequence_length = sequence_length
-        self._cases = []
-
-        super(ProofTraceLMDataset, self).__init__(
-            dataset_dir,
-            dataset_size,
-            test,
-            trace_max_length,
-        )
-
-        for idx, ptra in enumerate(self._traces):
-            actions = ptra.actions()
-            for pos in range(len(actions)):
-                if pos < self._sequence_length:
-                    if actions[pos].value not in \
-                            [
-                                ACTION_TOKENS['TARGET'],
-                                ACTION_TOKENS['EMPTY'],
-                                ACTION_TOKENS['SUBST'],
-                                ACTION_TOKENS['SUBST_TYPE'],
-                                ACTION_TOKENS['TERM'],
-                                ACTION_TOKENS['PREMISE'],
-                            ]:
-                        self._cases.append((idx, pos))
-
-        Log.out(
             "Loaded extracted ProofTraces LM Dataset", {
                 'cases': len(self._cases),
+                'processed': processed,
             })
 
     def __len__(
@@ -1069,7 +1035,10 @@ class ProofTraceLMDataset(ProofTraceDataset):
             self,
             idx: int,
     ):
-        trace = self._traces[self._cases[idx][0]].actions()[
+        with open(self._ptra_files[self._cases[idx][0]], 'rb') as f:
+            ptra = pickle.load(f)
+
+        trace = ptra.actions()[
             :self._cases[idx][1]+1
         ]
 
