@@ -503,7 +503,10 @@ class Kernel():
                     return Term(0, ltm, rtm, '__C')
             if tm.token() == '__A':
                 v = tm.left
-                fsubst = list(filter(lambda s: s[0].hash() != v.hash(), subst))
+                fsubst = list(filter(
+                    lambda s: s[0].term_string() != v.term_string(),
+                    subst,
+                ))
                 b = vsubst(tm.right, fsubst)
                 if b.hash() == tm.right.hash():
                     return tm
@@ -756,13 +759,17 @@ def test():
             k.term(k._theorems[i]['cc']),
         )
 
-        Log.out("{} {}".format(i, step[0]), {
-            'thm': thm.thm_string(),
+        Log.out("STEP", {
+            'index': i,
+            'rule': step[0],
         })
 
         if thm.thm_string() != org.thm_string():
             Log.out("DIVERGENCE", {
                 'org': org.thm_string(),
+            })
+            Log.out("DIVERGENCE", {
+                'thm': org.thm_string(),
             })
             import pdb; pdb.set_trace()
             return
