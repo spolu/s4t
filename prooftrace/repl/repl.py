@@ -9,10 +9,7 @@ from dataset.prooftrace import \
     ACTION_TOKENS, INV_ACTION_TOKENS, \
     Action, ProofTraceActions
 
-from prooftrace.repl.actions import \
-    ProofIndex, Term, Subst, SubstType, \
-    REFL, TRANS, MK_COMB, ABS, BETA, ASSUME, EQ_MP, DEDUCT_ANTISYM_RULE, \
-    INST, INST_TYPE
+from prooftrace.repl.fusion import Fusion
 
 from utils.config import Config
 from utils.log import Log
@@ -25,64 +22,21 @@ class REPL():
     ) -> None:
         self._config = config
 
-        ocaml_path = os.path.expanduser(
-            config.get("prooftrace_repl_ocaml_path"),
-        )
-        camlp5_path = os.path.expanduser(
-            config.get("prooftrace_repl_camlp5_path"),
-        )
+        with open(
+                os.path.join(
+                    os.path.expanduser(config.get('prooftrace_dataset_dir')),
+                    config.get('prooftrace_dataset_size'),
+                    'traces.tokenizer',
+                ), 'rb') as f:
+            self._t = pickle.load(f)
 
-        self._ocaml = pexpect.spawn('/bin/bash', echo=False)
-        self._ocaml.sendline('stty -icanon')
-        self._ocaml.sendline(
-            ocaml_path + " -I " + camlp5_path + " camlp5o.cma"
-        )
-        self._ocaml.expect_exact(["# "])
-
-        self._var_index = 0
-
-    def prepare(
-            self,
-            dataset_size
-    ):
-        hol_ml_path = os.path.expanduser(
-            os.path.join(
-                self._config.get("prooftrace_repl_hol_light_path"),
-                "hol_{}.ml".format(dataset_size),
-            )
+        self._kernel = ProofTraceKernel(
+            os.path.expanduser(config.get('prooftrace_dataset_dir')),
+            config.get('prooftrace_dataset_size'),
+            self._t,
         )
 
-        self.run(
-            "#use \"{}\";;".format(hol_ml_path),
-            timeout=None,
-            no_print=True,
-        )
-
-    def next_var(
-            self,
-    ) -> str:
-        self._var_index += 1
-        return "___" + str(self._var_index)
-
-    def run(
-            self,
-            cmd: str,
-            timeout=4,
-            no_print=False,
-    ) -> str:
-        # Log.out("Running", {
-        #     "command": cmd,
-        # })
-        self._ocaml.sendline(cmd)
-        res = self._ocaml.expect_exact(["# "], timeout=timeout)
-        assert res == 0
-        out = self._ocaml.before.decode('utf-8')
-        # if not no_print:
-        #     Log.out("Run", {
-        #         "command": cmd,
-        #         "output": out,
-        #     })
-        return out
+        self._fusion = Fusion(self._t)
 
     def apply(
             self,
@@ -92,6 +46,7 @@ class REPL():
         repl_action = None
 
         if action_token == 'REFL':
+            thm = kernel.REFL(k.term
             repl_action = REFL([
                 Term(action.left.left.value.term_string())
             ])

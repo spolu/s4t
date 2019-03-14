@@ -46,7 +46,7 @@ class Thm():
         )
 
 
-class KernelException(Exception):
+class FusionException(Exception):
     pass
 
 
@@ -54,16 +54,16 @@ def assume(
         condition: bool,
 ):
     if not condition:
-        raise KernelException()
+        raise FusionException()
 
 
-class Kernel():
+class Fusion():
     def __init__(
             self,
             tokenizer: ProofTraceTokenizer,
     ):
         self._theorems = {}
-        self._next_thm_index = 9999999
+        self._next_thm_index = 19999999
 
         self._t = tokenizer
 
@@ -680,11 +680,6 @@ def test():
             args.dataset_size,
         )
 
-    k = ProofTraceKernel(
-        os.path.expanduser(config.get('prooftrace_dataset_dir')),
-        config.get('prooftrace_dataset_size'),
-    )
-
     with open(
             os.path.join(
                 os.path.expanduser(config.get('prooftrace_dataset_dir')),
@@ -693,13 +688,17 @@ def test():
             ), 'rb') as f:
         tokenizer = pickle.load(f)
 
-    k._t = tokenizer
+    k = ProofTraceKernel(
+        os.path.expanduser(config.get('prooftrace_dataset_dir')),
+        config.get('prooftrace_dataset_size'),
+        tokenizer,
+    )
 
     print("==============================")
-    print("ProofTrace Kernel testing \\o/")
+    print("ProofTrace Fusion testing \\o/")
     print("------------------------------")
 
-    kernel = Kernel(tokenizer)
+    fusion = Fusion(tokenizer)
 
     for i in range(len(k._proofs)):
         step = k._proofs[i]
@@ -716,49 +715,49 @@ def test():
             )
 
         if step[0] == 'REFL':
-            thm = kernel.REFL(k.term(step[1]))
+            thm = fusion.REFL(k.term(step[1]))
 
         if step[0] == 'TRANS':
-            thm = kernel.TRANS(
+            thm = fusion.TRANS(
                 step[1],
                 step[2],
             )
 
         if step[0] == 'MK_COMB':
-            thm = kernel.MK_COMB(
+            thm = fusion.MK_COMB(
                 step[1],
                 step[2],
             )
 
         if step[0] == 'ABS':
-            thm = kernel.ABS(step[1], k.term(step[2]))
+            thm = fusion.ABS(step[1], k.term(step[2]))
 
         if step[0] == 'BETA':
-            thm = kernel.BETA(k.term(step[1]))
+            thm = fusion.BETA(k.term(step[1]))
 
         if step[0] == 'ASSUME':
-            thm = kernel.ASSUME(k.term(step[1]))
+            thm = fusion.ASSUME(k.term(step[1]))
 
         if step[0] == 'EQ_MP':
-            thm = kernel.EQ_MP(
+            thm = fusion.EQ_MP(
                 step[1],
                 step[2],
             )
 
         if step[0] == 'DEDUCT_ANTISYM_RULE':
-            thm = kernel.DEDUCT_ANTISYM_RULE(
+            thm = fusion.DEDUCT_ANTISYM_RULE(
                 step[1],
                 step[2],
             )
 
         if step[0] == 'INST':
-            thm = kernel.INST(
+            thm = fusion.INST(
                 step[1],
                 [[k.term(s[0]), k.term(s[1])] for s in step[2]],
             )
 
         if step[0] == 'INST_TYPE':
-            thm = kernel.INST_TYPE(
+            thm = fusion.INST_TYPE(
                 step[1],
                 [[k.type(s[0]), k.type(s[1])] for s in step[2]],
             )
@@ -769,9 +768,9 @@ def test():
             })
             return
 
-        # Reinsert the theorem where it belongs in the kernel
+        # Reinsert the theorem where it belongs in the fusion kernel
         thm._index = i
-        kernel.PREMISE(thm)
+        fusion.PREMISE(thm)
 
         org = Thm(
             i,

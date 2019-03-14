@@ -21,12 +21,17 @@ class P(nn.Module):
             config.get('prooftrace_sequence_length')
         self.hidden_size = \
             config.get('prooftrace_hidden_size')
-        self.transformer_hidden_size = \
-            config.get('prooftrace_transformer_hidden_size')
         self.attention_head_count = \
             config.get('prooftrace_transformer_attention_head_count')
-        self.layer_count = \
+
+        self.transformer_layer_count = \
             config.get('prooftrace_transformer_layer_count')
+        self.transformer_hidden_size = \
+            config.get('prooftrace_transformer_hidden_size')
+        self.lstm_layer_count = \
+            config.get('prooftrace_transformer_layer_count')
+        self.lstm_hidden_size = \
+            config.get('prooftrace_lstm_hidden_size')
 
         self.embedder = ActionEmbedder(config)
         self.embedder.to(self.device)
@@ -35,12 +40,12 @@ class P(nn.Module):
             self.sequence_length, self.hidden_size
         )
 
-        layers = [
+        torso = [
             nn.Linear(self.hidden_size, self.transformer_hidden_size),
         ]
 
-        for _ in range(self.layer_count):
-            layers += [
+        for _ in range(self.transformer_layer_count):
+            torso += [
                 TransformerBlock(
                     self.sequence_length,
                     self.transformer_hidden_size,
@@ -49,7 +54,15 @@ class P(nn.Module):
                 ),
             ]
 
-        self.layers = nn.Sequential(*layers)
+        torso += [
+            nn.Linear(self.transformer_hidden_size, self.lstm_hidden_size),
+        ]
+        self.torso = nn.Sequential(*torso)
+
+        self.lstm = nn.LSTM(
+            self.lstm_hidden_size, self.lstm_hidden_size,
+            num_layers=self.lstm_layer_count, batch_first=True,
+        )
 
         # position_decoder = nn.Linear(
         #     self.hidden_size, self.sequence_length, bias=False,
@@ -58,23 +71,23 @@ class P(nn.Module):
 
         self.action_head = nn.Sequential(
             nn.Linear(
-                self.transformer_hidden_size, self.transformer_hidden_size,
+                self.lstm_hidden_size, self.lstm_hidden_size,
             ),
-            nn.Linear(self.transformer_hidden_size, len(ACTION_TOKENS)),
+            nn.Linear(self.lstm_hidden_size, len(ACTION_TOKENS)),
             nn.LogSoftmax(dim=1),
         )
         self.left_head = nn.Sequential(
             nn.Linear(
-                self.transformer_hidden_size, self.transformer_hidden_size,
+                self.lstm_hidden_size, self.lstm_hidden_size,
             ),
-            nn.Linear(self.transformer_hidden_size, self.sequence_length),
+            nn.Linear(self.lstm_hidden_size, self.sequence_length),
             nn.LogSoftmax(dim=1),
         )
         self.right_head = nn.Sequential(
             nn.Linear(
-                self.transformer_hidden_size, self.transformer_hidden_size,
+                self.lstm_hidden_size, self.lstm_hidden_size,
             ),
-            nn.Linear(self.transformer_hidden_size, self.sequence_length),
+            nn.Linear(self.lstm_hidden_size, self.sequence_length),
             nn.LogSoftmax(dim=1),
         )
 
@@ -112,6 +125,7 @@ class P(nn.Module):
         )
         pos_embeds = self.position_embedding(pos_embeds)
 
-        hiddens = self.layers(embeds + pos_embeds)
+        hiddens = self.torso(embeds + pos_embeds)
+        hiddens, _ = self.lstm(hiddens)
 
         return hiddens

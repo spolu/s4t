@@ -258,6 +258,7 @@ class ProofTraceKernel():
             self,
             dataset_dir: str,
             dataset_size: str,
+            tokenizer: ProofTraceTokenizer = None,
     ) -> None:
         self._proofs = {}
         self._theorems = {}
@@ -266,7 +267,10 @@ class ProofTraceKernel():
         # Proof steps that are re-used >1 time.
         self._shared = {}
 
-        self._t = ProofTraceTokenizer()
+        if tokenizer is None:
+            self._t = ProofTraceTokenizer()
+        else:
+            self._t = tokenizer
 
         self._type_cache = {}
         self._term_cache = {}
@@ -957,7 +961,7 @@ class ProofTrace():
         )
 
 
-class ProofTraceLMDataset():
+class ProofTraceLMDataset(Dataset):
     def __init__(
             self,
             dataset_dir: str,
