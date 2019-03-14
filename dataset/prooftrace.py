@@ -232,6 +232,27 @@ class Action(BVT):
         return Action(term)
 
 
+class ProofTraceTokenizer():
+    def __init__(
+            self,
+    ) -> None:
+        self._type_tokens = {
+            '__c': 0,
+            '__v': 1,
+            '__a': 2,
+            'bool': 3,
+            'fun': 4,
+        }
+        self._term_tokens = {
+            '__C': 0,
+            '__A': 1,
+            '__c': 2,
+            '__v': 3,
+            'T': 4,
+            '=': 5,
+        }
+
+
 class ProofTraceKernel():
     def __init__(
             self,
@@ -245,23 +266,9 @@ class ProofTraceKernel():
         # Proof steps that are re-used >1 time.
         self._shared = {}
 
-        self._type_tokens = {
-            '__c': 0,
-            '__v': 1,
-            '__a': 2,
-            'bool': 3,
-            'fun': 4,
-        }
-        self._type_cache = {}
+        self._t = ProofTraceTokenizer()
 
-        self._term_tokens = {
-            '__C': 0,
-            '__A': 1,
-            '__c': 2,
-            '__v': 3,
-            'T': 4,
-            '=': 5,
-        }
+        self._type_cache = {}
         self._term_cache = {}
 
         self._dataset_dir = os.path.abspath(
@@ -409,7 +416,7 @@ class ProofTraceKernel():
                 return None
             else:
                 return Type(
-                    self._type_tokens['__a'],
+                    self._t._type_tokens['__a'],
                     args[0],
                     build_args(args[1:]),
                     '__a',
@@ -419,26 +426,26 @@ class ProofTraceKernel():
             if t[0] == 'v':
                 chld = list(self.split(t, ['[', ']']))
                 assert len(chld) == 1
-                if chld[0] not in self._type_tokens:
-                    self._type_tokens[chld[0]] = len(self._type_tokens)
+                if chld[0] not in self._t._type_tokens:
+                    self._t._type_tokens[chld[0]] = len(self._t._type_tokens)
                 return Type(
-                    self._type_tokens['__v'],
-                    Type(self._type_tokens[chld[0]], None, None, chld[0]),
+                    self._t._type_tokens['__v'],
+                    Type(self._t._type_tokens[chld[0]], None, None, chld[0]),
                     None,
                     '__v',
                 )
             if t[0] == 'c':
                 chld = list(self.split(t, ['[', ']']))
                 assert len(chld) == 2
-                if chld[0] not in self._type_tokens:
-                    self._type_tokens[chld[0]] = len(self._type_tokens)
+                if chld[0] not in self._t._type_tokens:
+                    self._t._type_tokens[chld[0]] = len(self._t._type_tokens)
                 args = [
                     self.type(ty)
                     for ty in list(self.split(chld[1], ['[', ']']))
                 ]
                 return Type(
-                    self._type_tokens['__c'],
-                    Type(self._type_tokens[chld[0]], None, None, chld[0]),
+                    self._t._type_tokens['__c'],
+                    Type(self._t._type_tokens[chld[0]], None, None, chld[0]),
                     build_args(args),
                     '__c',
                 )
@@ -455,14 +462,14 @@ class ProofTraceKernel():
     ) -> Term:
         """ Construct a Term BVT from a term string.
 
-        Tokenizes constants appearing in terms using self._term_tokens.
+        Tokenizes constants appearing in terms using self._t._term_tokens.
         """
         def construct(t):
             if t[0] == 'C':
                 chld = list(self.split(t, ['(', ')']))
                 assert len(chld) == 2
                 return Term(
-                    self._term_tokens['__C'],
+                    self._t._term_tokens['__C'],
                     construct(chld[0]),
                     construct(chld[1]),
                     '__C',
@@ -471,7 +478,7 @@ class ProofTraceKernel():
                 chld = list(self.split(t, ['(', ')']))
                 assert len(chld) == 2
                 return Term(
-                    self._term_tokens['__A'],
+                    self._t._term_tokens['__A'],
                     construct(chld[0]),
                     construct(chld[1]),
                     '__A',
@@ -479,22 +486,22 @@ class ProofTraceKernel():
             if t[0] == 'c':
                 chld = list(self.split(t, ['(', ')']))
                 assert len(chld) == 2
-                if chld[0] not in self._term_tokens:
-                    self._term_tokens[chld[0]] = len(self._term_tokens)
+                if chld[0] not in self._t._term_tokens:
+                    self._t._term_tokens[chld[0]] = len(self._t._term_tokens)
                 return Term(
-                    self._term_tokens['__c'],
-                    Term(self._term_tokens[chld[0]], None, None, chld[0]),
+                    self._t._term_tokens['__c'],
+                    Term(self._t._term_tokens[chld[0]], None, None, chld[0]),
                     Term(self.type(chld[1]), None, None, None),
                     '__c',
                 )
             if t[0] == 'v':
                 chld = list(self.split(t, ['(', ')']))
                 assert len(chld) == 2
-                if chld[0] not in self._term_tokens:
-                    self._term_tokens[chld[0]] = len(self._term_tokens)
+                if chld[0] not in self._t._term_tokens:
+                    self._t._term_tokens[chld[0]] = len(self._t._term_tokens)
                 return Term(
-                    self._term_tokens['__v'],
-                    Term(self._term_tokens[chld[0]], None, None, chld[0]),
+                    self._t._term_tokens['__v'],
+                    Term(self._t._term_tokens[chld[0]], None, None, chld[0]),
                     Term(self.type(chld[1]), None, None, None),
                     '__v',
                 )
@@ -1245,8 +1252,19 @@ def extract():
         "traces_path_test": traces_path_test,
         "trace_count": len(traces),
         "train_size": train_size,
-        "term_token_count": len(kernel._term_tokens),
-        "type_token_count": len(kernel._type_tokens),
+    })
+
+    with open(
+            os.path.join(
+                os.path.expanduser(config.get('prooftrace_dataset_dir')),
+                config.get('prooftrace_dataset_size'),
+                'traces.tokenizer',
+            ), 'wb') as f:
+        pickle.dump(kernel._t, f)
+
+    Log.out("Dumped tokenizer", {
+        "term_token_count": len(kernel._t._term_tokens),
+        "type_token_count": len(kernel._t._type_tokens),
     })
 
     # small: term_token_count=427 type_token_count=70

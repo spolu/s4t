@@ -1,8 +1,11 @@
 import argparse
 import typing
 import os
+import pickle
 
-from dataset.prooftrace import ProofTraceKernel, Type, Term
+from dataset.prooftrace import \
+    ProofTraceKernel, ProofTraceTokenizer, \
+    Type, Term
 
 from utils.config import Config
 from utils.log import Log
@@ -57,9 +60,12 @@ def assume(
 class Kernel():
     def __init__(
             self,
+            tokenizer: ProofTraceTokenizer,
     ):
         self._theorems = {}
         self._next_thm_index = 9999999
+
+        self._t = tokenizer
 
     def token_term(
             self,
@@ -467,10 +473,14 @@ class Kernel():
 
         token = v.left.token() + '\''
 
-        # TODO(stan): separate Tokenizer in ProofTraceKernel, thread it here
+        if token not in self._t._term_tokens:
+            self._t._term_tokens[token] = len(self._t._term_tokens)
+
         return self.variant(
             avoid,
-            Term(3, Term(-1, None, None, token), v.right, '__v'),
+            Term(3, Term(
+                self._t._term_tokens[token], None, None, token
+            ), v.right, '__v'),
         )
 
     def subst(
@@ -675,11 +685,21 @@ def test():
         config.get('prooftrace_dataset_size'),
     )
 
+    with open(
+            os.path.join(
+                os.path.expanduser(config.get('prooftrace_dataset_dir')),
+                config.get('prooftrace_dataset_size'),
+                'traces.tokenizer',
+            ), 'rb') as f:
+        tokenizer = pickle.load(f)
+
+    k._t = tokenizer
+
     print("==============================")
     print("ProofTrace Kernel testing \\o/")
     print("------------------------------")
 
-    kernel = Kernel()
+    kernel = Kernel(tokenizer)
 
     for i in range(len(k._proofs)):
         step = k._proofs[i]
@@ -771,5 +791,4 @@ def test():
             Log.out("DIVERGENCE", {
                 'thm': org.thm_string(),
             })
-            import pdb; pdb.set_trace()
             return
