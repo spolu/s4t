@@ -120,21 +120,32 @@ class Term(BVT):
 
     def term_string(
             self,
-            anonymous: bool = False,
+            anonymous_b: bool = False,
+            anonymous_v: bool = False,
     ) -> str:
         """ `term_string` formats the Term BVT as a HOL Light term string
         """
-        def v_term(term, bounded=[]):
+        mem = {}
+
+        def v_term(term, bounded=[], bounding=False):
             assert term.token() == '__v'
             typ = term.right.value.type_string()
             term = '(' + term.left.token() + typ + ')'
-            if not anonymous:
+
+            if not anonymous_b:
                 return term
+
             if term in bounded:
                 for i in reversed(range(len(bounded))):
                     if term == bounded[i]:
                         return '(b' + str(i) + typ + ')'
-            return term
+            else:
+                if not anonymous_v or bounding:
+                    return term
+
+                if term not in mem:
+                    mem[term] = '(v' + str(len(mem)) + typ + ')'
+                return mem[term]
 
         def dump(term, args, bounded):
             if term.token() == '__C':
@@ -142,8 +153,12 @@ class Term(BVT):
                 return dump(term.left, [right] + args, bounded)
             if term.token() == '__A':
                 assert term.left.token() == '__v'
-                right = dump(term.right, [], bounded+[v_term(term.left)])
-                left = dump(term.left, [], bounded+[v_term(term.left)])
+                right = dump(term.right, [], bounded+[
+                    v_term(term.left, [], True),
+                ])
+                left = dump(term.left, [], bounded+[
+                    v_term(term.left, [], True),
+                ])
                 if len(args) == 0:
                     return '(\\' + left + '. ' + right + ')'
                 else:
