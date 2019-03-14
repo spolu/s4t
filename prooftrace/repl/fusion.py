@@ -63,7 +63,7 @@ class Fusion():
             tokenizer: ProofTraceTokenizer,
     ):
         self._theorems = {}
-        self._next_thm_index = 19999999
+        self._next_thm_index = 99999999
 
         self._t = tokenizer
 

@@ -2,6 +2,7 @@ import argparse
 import os
 import json
 import pickle
+import random
 import re
 import shutil
 import sys
@@ -21,21 +22,20 @@ ACTION_TOKENS = {
     'EXTRACT': 2,
     'PREMISE': 3,
     'HYPOTHESIS': 4,
-    'CONCLUSION': 5,
-    'SUBST': 6,
-    'SUBST_TYPE': 7,
-    'SUBST_PAIR': 8,
-    'TERM': 9,
-    'REFL': 10,
-    'TRANS': 11,
-    'MK_COMB': 12,
-    'ABS': 13,
-    'BETA': 14,
-    'ASSUME': 15,
-    'EQ_MP': 16,
-    'DEDUCT_ANTISYM_RULE': 17,
-    'INST': 18,
-    'INST_TYPE': 19,
+    'SUBST': 5,
+    'SUBST_TYPE': 6,
+    'SUBST_PAIR': 7,
+    'TERM': 8,
+    'REFL': 9,
+    'TRANS': 10,
+    'MK_COMB': 11,
+    'ABS': 12,
+    'BETA': 13,
+    'ASSUME': 14,
+    'EQ_MP': 15,
+    'DEDUCT_ANTISYM_RULE': 16,
+    'INST': 17,
+    'INST_TYPE': 18,
 }
 
 INV_ACTION_TOKENS = {v: k for k, v in ACTION_TOKENS.items()}
@@ -252,6 +252,121 @@ class ProofTraceTokenizer():
             '=': 5,
         }
 
+    def split(
+            self,
+            t,
+            seps=['(', ')'],
+    ):
+        stack = []
+        for i, c in enumerate(t):
+            if c == seps[0]:
+                stack.append(i)
+            elif c == seps[1] and stack:
+                start = stack.pop()
+                if len(stack) == 0:
+                    yield t[start + 1: i]
+
+    def type(
+            self,
+            ty: str,
+    ) -> Type:
+        """ Construct a Type BVT from a type string.
+
+        Tokenizes constants appearing in types using self._type_tokens.
+        """
+        def build_args(args):
+            if len(args) == 0:
+                return None
+            else:
+                return Type(
+                    self._type_tokens['__a'],
+                    args[0],
+                    build_args(args[1:]),
+                    '__a',
+                )
+
+        def construct(t):
+            if t[0] == 'v':
+                chld = list(self.split(t, ['[', ']']))
+                assert len(chld) == 1
+                if chld[0] not in self._type_tokens:
+                    self._type_tokens[chld[0]] = len(self._type_tokens)
+                return Type(
+                    self._type_tokens['__v'],
+                    Type(self._type_tokens[chld[0]], None, None, chld[0]),
+                    None,
+                    '__v',
+                )
+            if t[0] == 'c':
+                chld = list(self.split(t, ['[', ']']))
+                assert len(chld) == 2
+                if chld[0] not in self._type_tokens:
+                    self._type_tokens[chld[0]] = len(self._type_tokens)
+                args = [
+                    self.type(ty)
+                    for ty in list(self.split(chld[1], ['[', ']']))
+                ]
+                return Type(
+                    self._type_tokens['__c'],
+                    Type(self._type_tokens[chld[0]], None, None, chld[0]),
+                    build_args(args),
+                    '__c',
+                )
+
+        return construct(ty)
+
+    def term(
+            self,
+            tm: str,
+    ) -> Term:
+        """ Construct a Term BVT from a term string.
+
+        Tokenizes constants appearing in terms using self._term_tokens.
+        """
+        def construct(t):
+            if t[0] == 'C':
+                chld = list(self.split(t, ['(', ')']))
+                assert len(chld) == 2
+                return Term(
+                    self._term_tokens['__C'],
+                    construct(chld[0]),
+                    construct(chld[1]),
+                    '__C',
+                )
+            if t[0] == 'A':
+                chld = list(self.split(t, ['(', ')']))
+                assert len(chld) == 2
+                return Term(
+                    self._term_tokens['__A'],
+                    construct(chld[0]),
+                    construct(chld[1]),
+                    '__A',
+                )
+            if t[0] == 'c':
+                chld = list(self.split(t, ['(', ')']))
+                assert len(chld) == 2
+                if chld[0] not in self._term_tokens:
+                    self._term_tokens[chld[0]] = len(self._term_tokens)
+                return Term(
+                    self._term_tokens['__c'],
+                    Term(self._term_tokens[chld[0]], None, None, chld[0]),
+                    Term(self.type(chld[1]), None, None, None),
+                    '__c',
+                )
+            if t[0] == 'v':
+                chld = list(self.split(t, ['(', ')']))
+                assert len(chld) == 2
+                if chld[0] not in self._term_tokens:
+                    self._term_tokens[chld[0]] = len(self._term_tokens)
+                return Term(
+                    self._term_tokens['__v'],
+                    Term(self._term_tokens[chld[0]], None, None, chld[0]),
+                    Term(self.type(chld[1]), None, None, None),
+                    '__v',
+                )
+
+        return construct(tm)
+
 
 class ProofTraceKernel():
     def __init__(
@@ -393,70 +508,13 @@ class ProofTraceKernel():
             h.update(s[1])
         return str(h.digest())
 
-    def split(
-            self,
-            t,
-            seps=['(', ')'],
-    ):
-        stack = []
-        for i, c in enumerate(t):
-            if c == seps[0]:
-                stack.append(i)
-            elif c == seps[1] and stack:
-                start = stack.pop()
-                if len(stack) == 0:
-                    yield t[start + 1: i]
-
     def type(
             self,
             ty: str,
     ) -> Type:
-        """ Construct a Type BVT from a type string.
-
-        Tokenizes constants appearing in types using self._type_tokens.
-        """
-        def build_args(args):
-            if len(args) == 0:
-                return None
-            else:
-                return Type(
-                    self._t._type_tokens['__a'],
-                    args[0],
-                    build_args(args[1:]),
-                    '__a',
-                )
-
-        def construct(t):
-            if t[0] == 'v':
-                chld = list(self.split(t, ['[', ']']))
-                assert len(chld) == 1
-                if chld[0] not in self._t._type_tokens:
-                    self._t._type_tokens[chld[0]] = len(self._t._type_tokens)
-                return Type(
-                    self._t._type_tokens['__v'],
-                    Type(self._t._type_tokens[chld[0]], None, None, chld[0]),
-                    None,
-                    '__v',
-                )
-            if t[0] == 'c':
-                chld = list(self.split(t, ['[', ']']))
-                assert len(chld) == 2
-                if chld[0] not in self._t._type_tokens:
-                    self._t._type_tokens[chld[0]] = len(self._t._type_tokens)
-                args = [
-                    self.type(ty)
-                    for ty in list(self.split(chld[1], ['[', ']']))
-                ]
-                return Type(
-                    self._t._type_tokens['__c'],
-                    Type(self._t._type_tokens[chld[0]], None, None, chld[0]),
-                    build_args(args),
-                    '__c',
-                )
-
         h = self.type_hash(ty)
         if h not in self._type_cache:
-            self._type_cache[h] = construct(ty)
+            self._type_cache[h] = self._t.type(ty)
 
         return self._type_cache[h]
 
@@ -464,55 +522,9 @@ class ProofTraceKernel():
             self,
             tm: str,
     ) -> Term:
-        """ Construct a Term BVT from a term string.
-
-        Tokenizes constants appearing in terms using self._t._term_tokens.
-        """
-        def construct(t):
-            if t[0] == 'C':
-                chld = list(self.split(t, ['(', ')']))
-                assert len(chld) == 2
-                return Term(
-                    self._t._term_tokens['__C'],
-                    construct(chld[0]),
-                    construct(chld[1]),
-                    '__C',
-                )
-            if t[0] == 'A':
-                chld = list(self.split(t, ['(', ')']))
-                assert len(chld) == 2
-                return Term(
-                    self._t._term_tokens['__A'],
-                    construct(chld[0]),
-                    construct(chld[1]),
-                    '__A',
-                )
-            if t[0] == 'c':
-                chld = list(self.split(t, ['(', ')']))
-                assert len(chld) == 2
-                if chld[0] not in self._t._term_tokens:
-                    self._t._term_tokens[chld[0]] = len(self._t._term_tokens)
-                return Term(
-                    self._t._term_tokens['__c'],
-                    Term(self._t._term_tokens[chld[0]], None, None, chld[0]),
-                    Term(self.type(chld[1]), None, None, None),
-                    '__c',
-                )
-            if t[0] == 'v':
-                chld = list(self.split(t, ['(', ')']))
-                assert len(chld) == 2
-                if chld[0] not in self._t._term_tokens:
-                    self._t._term_tokens[chld[0]] = len(self._t._term_tokens)
-                return Term(
-                    self._t._term_tokens['__v'],
-                    Term(self._t._term_tokens[chld[0]], None, None, chld[0]),
-                    Term(self.type(chld[1]), None, None, None),
-                    '__v',
-                )
-
         h = self.term_hash(tm)
         if h not in self._term_cache:
-            self._term_cache[h] = construct(tm)
+            self._term_cache[h] = self._t.term(tm)
 
         return self._term_cache[h]
 
@@ -778,12 +790,8 @@ class ProofTrace():
 
         target = Action.from_action(
             'TARGET',
-            Action.from_action(
-                'CONCLUSION',
-                Action.from_term(self._kernel.term(t['cc'])),
-                build_hypothesis(t['hy']),
-            ),
-            None,
+            build_hypothesis(t['hy']),
+            Action.from_term(self._kernel.term(t['cc'])),
         )
 
         substs = []
@@ -834,12 +842,8 @@ class ProofTrace():
 
             action = Action.from_action(
                 'PREMISE',
-                Action.from_action(
-                    'CONCLUSION',
-                    Action.from_term(self._kernel.term(p['cc'])),
-                    build_hypothesis(p['hy']),
-                ),
-                None,
+                build_hypothesis(p['hy']),
+                Action.from_term(self._kernel.term(p['cc'])),
                 idx,
             )
             cache['indices'][idx] = action
@@ -1205,10 +1209,14 @@ def extract():
     os.mkdir(traces_path_test)
 
     train_size = int(len(traces) * 90 / 100)
+    indices = list(range(len(traces)))
 
-    for i, ptra in enumerate(trace_actions):
+    permutation = random.sample(indices, k=len(indices))
+
+    for k, i in enumerate(permutation):
+        ptra = trace_actions[i]
         tr = traces[i]
-        if i < train_size:
+        if k < train_size:
             path = traces_path_train
         else:
             path = traces_path_test
