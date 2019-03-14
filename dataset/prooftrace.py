@@ -1181,14 +1181,9 @@ def extract():
     )
     Log.out("Starting action generation")
 
-    trace_actions = [tr.actions() for tr in traces]
-
-    Log.histogram(
-        "ProofTraces Length",
-        [a.len() for a in trace_actions],
-        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
-        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
-    )
+    train_size = int(len(traces) * 90 / 100)
+    permutation = random.sample(list(range(len(traces))), k=len(traces))
+    trace_lengths = []
 
     traces_path_train = os.path.join(
         os.path.expanduser(config.get('prooftrace_dataset_dir')),
@@ -1208,25 +1203,36 @@ def extract():
         shutil.rmtree(traces_path_test)
     os.mkdir(traces_path_test)
 
-    train_size = int(len(traces) * 90 / 100)
-    indices = list(range(len(traces)))
+    for i, tr in enumerate(traces):
+        ptra = tr.actions()
+        trace_lengths.append(ptra.len())
 
-    permutation = random.sample(indices, k=len(indices))
-
-    for k, i in enumerate(permutation):
-        ptra = trace_actions[i]
-        tr = traces[i]
+        k = permutation[i]
         if k < train_size:
             path = traces_path_train
         else:
             path = traces_path_test
+
         actions_path = os.path.join(path, tr.name() + '.actions')
+
         with open(actions_path, 'wb') as f:
             pickle.dump(ptra, f)
+            Log.out("Writing ProofTraceActions", {
+                'path': actions_path,
+                'index': i,
+                'total': len(traces),
+            })
 
         # trace_path = os.path.join(path, tr.name() + '.trace')
         # with open(trace_path, 'w') as f:
         #     json.dump(dict(tr), f, sort_keys=False, indent=2)
+
+    Log.histogram(
+        "ProofTraces Length",
+        trace_lengths,
+        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
+        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
+    )
 
     Log.out("Dumped all traces", {
         "traces_path_train": traces_path_train,
