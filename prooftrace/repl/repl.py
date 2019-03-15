@@ -1,12 +1,11 @@
 import argparse
 import os
-import pexpect
 import pickle
 import re
 
 from dataset.prooftrace import \
     ACTION_TOKENS, INV_ACTION_TOKENS, \
-    Action, ProofTraceActions
+    ProofTraceTokenizer, Action, ProofTraceActions
 
 from prooftrace.repl.fusion import Fusion, Thm
 
@@ -17,17 +16,9 @@ from utils.log import Log
 class REPL():
     def __init__(
             self,
-            config: Config,
+            tokenizer: ProofTraceTokenizer,
     ) -> None:
-        self._config = config
-
-        with open(
-                os.path.join(
-                    os.path.expanduser(config.get('prooftrace_dataset_dir')),
-                    config.get('prooftrace_dataset_size'),
-                    'traces.tokenizer',
-                ), 'rb') as f:
-            self._t = pickle.load(f)
+        self._fusion = Fusion(tokenizer)
 
     def build_hypothesis(
             self,
@@ -41,7 +32,6 @@ class REPL():
 
     def apply(
             self,
-            fusion: Fusion,
             action: Action,
     ) -> int:
         action_token = INV_ACTION_TOKENS[action.value]
@@ -54,41 +44,41 @@ class REPL():
                 self.build_hypothesis(action.left),
                 action.right.value,
             )
-            thm = fusion.PREMISE(thm)
+            thm = self._fusion.PREMISE(thm)
         elif action_token == 'REFL':
-            thm = fusion.REFL(
+            thm = self._fusion.REFL(
                 action.left.left.value
             )
         elif action_token == 'TRANS':
-            thm = fusion.TRANS(
+            thm = self._fusion.TRANS(
                 action.left.index(),
                 action.right.index(),
             )
         elif action_token == 'MK_COMB':
-            thm = fusion.MK_COMB(
+            thm = self._fusion.MK_COMB(
                 action.left.index(),
                 action.right.index(),
             )
         elif action_token == 'ABS':
-            thm = fusion.ABS(
+            thm = self._fusion.ABS(
                 action.left.index(),
                 action.right.left.value
             )
         elif action_token == 'BETA':
-            thm = fusion.BETA(
+            thm = self._fusion.BETA(
                 action.left.left.value
             )
         elif action_token == 'ASSUME':
-            thm = fusion.ASSUME(
+            thm = self._fusion.ASSUME(
                 action.left.left.value
             )
         elif action_token == 'EQ_MP':
-            thm = fusion.EQ_MP(
+            thm = self._fusion.EQ_MP(
                 action.left.index(),
                 action.right.index(),
             )
         elif action_token == 'DEDUCT_ANTISYM_RULE':
-            thm = fusion.DEDUCT_ANTISYM_RULE(
+            thm = self._fusion.DEDUCT_ANTISYM_RULE(
                 action.left.index(),
                 action.right.index(),
             )
@@ -107,7 +97,7 @@ class REPL():
                         build_subst(subst.right)
                     )
                 assert False
-            thm = fusion.INST(
+            thm = self._fusion.INST(
                 action.left.index(),
                 build_subst(action.right),
             )
@@ -126,7 +116,7 @@ class REPL():
                         build_subst_type(subst_type.right)
                     )
                 assert False
-            thm = fusion.INST_TYPE(
+            thm = self._fusion.INST_TYPE(
                 action.left.index(),
                 build_subst_type(action.right),
             )
@@ -145,8 +135,6 @@ class REPL():
             self,
             ptra: ProofTraceActions,
     ) -> None:
-        fusion = Fusion(self._t)
-
         for a in ptra.actions():
             if a.value == ACTION_TOKENS['TARGET']:
                 target = Thm(
@@ -158,15 +146,24 @@ class REPL():
                     [
                         ACTION_TOKENS['TARGET'],
                         ACTION_TOKENS['EMPTY'],
+                        ACTION_TOKENS['PREMISE'],
                         ACTION_TOKENS['SUBST'],
                         ACTION_TOKENS['SUBST_TYPE'],
                         ACTION_TOKENS['TERM'],
                     ]:
 
-                a._index = self.apply(fusion, a)
+                a._index = self.apply(a)
 
-        last = fusion._theorems[ptra.actions()[-1].index()]
+        last = self._fusion._theorems[ptra.actions()[-1].index()]
         assert last.thm_string() == target.thm_string()
+
+    def prepare(
+            self,
+            ptra: ProofTraceActions,
+    ) -> None:
+        for a in ptra.actions():
+            if a.value == ACTION_TOKENS['PREMISE']:
+                self.apply(a)
 
 
 def test():
@@ -195,7 +192,13 @@ def test():
     print("ProofTrace REPL testing \\o/")
     print("----------------------------")
 
-    repl = REPL(config)
+    with open(
+            os.path.join(
+                os.path.expanduser(config.get('prooftrace_dataset_dir')),
+                config.get('prooftrace_dataset_size'),
+                'traces.tokenizer',
+            ), 'rb') as f:
+        tokenizer = pickle.load(f)
 
     dataset_dir = "./data/prooftrace/{}/test_traces".format(
         config.get("prooftrace_dataset_size"),
@@ -212,4 +215,6 @@ def test():
             "actions_count": len(ptra.actions()),
         })
 
+        repl = REPL(tokenizer)
+        repl.prepare(ptra)
         repl.replay(ptra)

@@ -76,6 +76,8 @@
   "prooftrace_lstm_layer_count": 1,
   "prooftrace_lstm_hidden_size": 1024,
 
+  "prooftrace_env_alpha": 1.0,
+
   "prooftrace_dataset_dir": "./data/prooftrace",
   "prooftrace_dataset_size": "medium",
 
