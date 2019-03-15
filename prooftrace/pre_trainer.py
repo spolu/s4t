@@ -10,7 +10,8 @@ from dataset.prooftrace import ProofTraceLMDataset, lm_collate, Action
 
 from tensorboardX import SummaryWriter
 
-from prooftrace.models.transformer import P
+from prooftrace.models.heads import PH, PV
+from prooftrace.models.transformer import H
 
 from utils.config import Config
 from utils.meter import Meter
@@ -39,15 +40,22 @@ class PreTrainer:
                     self._config.get('tensorboard_log_dir'),
                 )
 
-        self._inner_model = P(self._config).to(self._device)
+        self._inner_model_H = H(self._config).to(self._device)
+        self._inner_model_PH = PH(self._config).to(self._device)
+        self._inner_model_PV = PV(self._config).to(self._device)
 
         Log.out(
             "Initializing prooftrace PreTrainer", {
-                'parameter_count': self._inner_model.parameters_count()
+                'parameter_count_H': self._inner_model_H.parameters_count(),
+                'parameter_count_PH': self._inner_model_PH.parameters_count(),
+                'parameter_count_PV': self._inner_model_PV.parameters_count(),
             },
         )
 
-        self._model = self._inner_model
+        self._model_H = self._inner_model_H
+        self._model_PH = self._inner_model_PH
+        self._model_PV = self._inner_model_PV
+
         self._loss = nn.NLLLoss()
 
         self._train_batch = 0
@@ -57,13 +65,25 @@ class PreTrainer:
             train_dataset,
     ):
         if self._config.get('distributed_training'):
-            self._model = torch.nn.parallel.DistributedDataParallel(
-                self._inner_model,
+            self._model_H = torch.nn.parallel.DistributedDataParallel(
+                self._inner_model_H,
+                device_ids=[self._device],
+            )
+            self._model_PH = torch.nn.parallel.DistributedDataParallel(
+                self._inner_model_PH,
+                device_ids=[self._device],
+            )
+            self._model_PV = torch.nn.parallel.DistributedDataParallel(
+                self._inner_model_PV,
                 device_ids=[self._device],
             )
 
         self._optimizer = optim.Adam(
-            self._model.parameters(),
+            [
+                {'params': self._model_H.parameters()},
+                {'params': self._model_PH.parameters()},
+                {'params': self._model_PV.parameters()},
+            ],
             lr=self._config.get('prooftrace_learning_rate'),
         )
 
@@ -120,16 +140,30 @@ class PreTrainer:
 
         if self._load_dir:
             if os.path.isfile(
-                    self._load_dir + "/pre_trainer_model_{}.pt".format(rank)
+                    self._load_dir + "/model_H_{}.pt".format(rank)
             ):
                 Log.out(
-                    "Loading prooftrace models", {
-                        'save_dir': self._load_dir,
+                    "Loading prooftrace", {
+                        'load_dir': self._load_dir,
                     })
-                self._inner_model.load_state_dict(
+                self._inner_model_H.load_state_dict(
                     torch.load(
                         self._load_dir +
-                        "/pre_trainer_model_{}.pt".format(rank),
+                        "/model_H_{}.pt".format(rank),
+                        map_location=self._device,
+                    ),
+                )
+                self._inner_model_PH.load_state_dict(
+                    torch.load(
+                        self._load_dir +
+                        "/model_PH_{}.pt".format(rank),
+                        map_location=self._device,
+                    ),
+                )
+                self._inner_model_PV.load_state_dict(
+                    torch.load(
+                        self._load_dir +
+                        "/model_PV_{}.pt".format(rank),
                         map_location=self._device,
                     ),
                 )
@@ -137,7 +171,7 @@ class PreTrainer:
                     self._optimizer.load_state_dict(
                         torch.load(
                             self._load_dir +
-                            "/pre_trainer_optimizer_{}.pt".format(rank),
+                            "/optimizer_{}.pt".format(rank),
                             map_location=self._device,
                         ),
                     )
@@ -156,12 +190,20 @@ class PreTrainer:
                 })
 
             torch.save(
-                self._inner_model.state_dict(),
-                self._save_dir + "/pre_trainer_model_{}.pt".format(rank),
+                self._inner_model_H.state_dict(),
+                self._save_dir + "/model_H_{}.pt".format(rank),
+            )
+            torch.save(
+                self._inner_model_PH.state_dict(),
+                self._save_dir + "/model_PH_{}.pt".format(rank),
+            )
+            torch.save(
+                self._inner_model_PV.state_dict(),
+                self._save_dir + "/model_PV_{}.pt".format(rank),
             )
             torch.save(
                 self._optimizer.state_dict(),
-                self._save_dir + "/pre_trainer_optimizer_{}.pt".format(rank),
+                self._save_dir + "/optimizer_{}.pt".format(rank),
             )
 
     def batch_train(
@@ -170,7 +212,9 @@ class PreTrainer:
     ):
         assert self._train_loader is not None
 
-        self._model.train()
+        self._model_H.train()
+        self._model_PH.train()
+        self._model_PV.train()
 
         act_loss_meter = Meter()
         lft_loss_meter = Meter()
@@ -178,19 +222,18 @@ class PreTrainer:
 
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(epoch)
-        # self._scheduler.step()
 
         for it, (idx, trc) in enumerate(self._train_loader):
-            embeds = self._inner_model.embed(trc)
+            embeds = self._inner_model_H.embed(trc)
 
-            extract = self._inner_model.embed(
+            extract = self._inner_model_H.embed(
                 [[Action.from_action('EXTRACT', None, None)]]
             )
 
             for i, ext in enumerate(idx):
                 embeds[i][ext] = extract[0][0]
 
-            hiddens = self._model(embeds)
+            hiddens = self._model_H(embeds)
 
             predictions = torch.cat([
                 hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
@@ -210,7 +253,7 @@ class PreTrainer:
             ], dtype=torch.int64).to(self._device)
 
             prd_actions, prd_lefts, prd_rights = \
-                self._inner_model.head(predictions, targets)
+                self._model_PH(predictions, targets)
 
             act_loss = self._loss(prd_actions, actions)
             lft_loss = self._loss(prd_lefts, lefts)
@@ -266,7 +309,9 @@ class PreTrainer:
     ):
         assert self._test_loader is not None
 
-        self._model.eval()
+        self._model_H.eval()
+        self._model_PH.eval()
+        self._model_PV.eval()
 
         act_loss_meter = Meter()
         lft_loss_meter = Meter()
@@ -279,16 +324,16 @@ class PreTrainer:
 
         with torch.no_grad():
             for it, (idx, trc) in enumerate(self._test_loader):
-                embeds = self._inner_model.embed(trc)
+                embeds = self._inner_model_H.embed(trc)
 
-                extract = self._inner_model.embed(
+                extract = self._inner_model_H.embed(
                     [[Action.from_action('EXTRACT', None, None)]]
                 )
 
                 for i, ext in enumerate(idx):
                     embeds[i][ext] = extract[0][0]
 
-                hiddens = self._model(embeds)
+                hiddens = self._model_H(embeds)
 
                 predictions = torch.cat([
                     hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
@@ -308,7 +353,7 @@ class PreTrainer:
                 ], dtype=torch.int64).to(self._device)
 
                 prd_actions, prd_lefts, prd_rights = \
-                    self._inner_model.head(predictions, targets)
+                    self._model_PH(predictions, targets)
 
                 act_loss = self._loss(prd_actions, actions)
                 lft_loss = self._loss(prd_lefts, lefts)

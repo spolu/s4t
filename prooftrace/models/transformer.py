@@ -1,19 +1,17 @@
 import torch
 import torch.nn as nn
 
-from dataset.prooftrace import ACTION_TOKENS
-
 from generic.transformer import TransformerBlock
 
 from prooftrace.models.embedder import ActionEmbedder
 
 
-class P(nn.Module):
+class H(nn.Module):
     def __init__(
             self,
             config,
     ):
-        super(P, self).__init__()
+        super(H, self).__init__()
 
         self.device = torch.device(config.get('device'))
 
@@ -64,33 +62,6 @@ class P(nn.Module):
             num_layers=self.lstm_layer_count, batch_first=True,
         )
 
-        # position_decoder = nn.Linear(
-        #     self.hidden_size, self.sequence_length, bias=False,
-        # )
-        # position_decoder.weight = self.position_embedding.weight
-
-        self.action_head = nn.Sequential(
-            nn.Linear(
-                self.lstm_hidden_size, self.lstm_hidden_size,
-            ),
-            nn.Linear(self.lstm_hidden_size, len(ACTION_TOKENS)),
-            nn.LogSoftmax(dim=1),
-        )
-        self.left_head = nn.Sequential(
-            nn.Linear(
-                self.lstm_hidden_size, self.lstm_hidden_size,
-            ),
-            nn.Linear(self.lstm_hidden_size, self.sequence_length),
-            nn.LogSoftmax(dim=1),
-        )
-        self.right_head = nn.Sequential(
-            nn.Linear(
-                self.lstm_hidden_size, self.lstm_hidden_size,
-            ),
-            nn.Linear(self.lstm_hidden_size, self.sequence_length),
-            nn.LogSoftmax(dim=1),
-        )
-
     def parameters_count(
             self,
     ):
@@ -101,17 +72,6 @@ class P(nn.Module):
             actions,
     ):
         return self.embedder(actions)
-
-    def head(
-            self,
-            predictions,
-            targets,
-    ):
-        actions = self.action_head(predictions)
-        lefts = self.left_head(predictions)
-        rights = self.right_head(predictions)
-
-        return actions, lefts, rights
 
     def forward(
             self,
