@@ -13,6 +13,8 @@ class PH(nn.Module):
 
         self.device = torch.device(config.get('device'))
 
+        self.sequence_length = \
+            config.get('prooftrace_sequence_length')
         self.lstm_hidden_size = \
             config.get('prooftrace_lstm_hidden_size')
 

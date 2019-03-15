@@ -10,7 +10,7 @@ from dataset.prooftrace import ProofTraceLMDataset, lm_collate, Action
 
 from tensorboardX import SummaryWriter
 
-from prooftrace.models.heads import PH, PV
+from prooftrace.models.heads import PH, VH
 from prooftrace.models.transformer import H
 
 from utils.config import Config
@@ -42,19 +42,19 @@ class PreTrainer:
 
         self._inner_model_H = H(self._config).to(self._device)
         self._inner_model_PH = PH(self._config).to(self._device)
-        self._inner_model_PV = PV(self._config).to(self._device)
+        self._inner_model_VH = VH(self._config).to(self._device)
 
         Log.out(
             "Initializing prooftrace PreTrainer", {
                 'parameter_count_H': self._inner_model_H.parameters_count(),
                 'parameter_count_PH': self._inner_model_PH.parameters_count(),
-                'parameter_count_PV': self._inner_model_PV.parameters_count(),
+                'parameter_count_VH': self._inner_model_VH.parameters_count(),
             },
         )
 
         self._model_H = self._inner_model_H
         self._model_PH = self._inner_model_PH
-        self._model_PV = self._inner_model_PV
+        self._model_VH = self._inner_model_VH
 
         self._loss = nn.NLLLoss()
 
@@ -73,8 +73,8 @@ class PreTrainer:
                 self._inner_model_PH,
                 device_ids=[self._device],
             )
-            self._model_PV = torch.nn.parallel.DistributedDataParallel(
-                self._inner_model_PV,
+            self._model_VH = torch.nn.parallel.DistributedDataParallel(
+                self._inner_model_VH,
                 device_ids=[self._device],
             )
 
@@ -82,7 +82,7 @@ class PreTrainer:
             [
                 {'params': self._model_H.parameters()},
                 {'params': self._model_PH.parameters()},
-                {'params': self._model_PV.parameters()},
+                {'params': self._model_VH.parameters()},
             ],
             lr=self._config.get('prooftrace_learning_rate'),
         )
@@ -160,10 +160,10 @@ class PreTrainer:
                         map_location=self._device,
                     ),
                 )
-                self._inner_model_PV.load_state_dict(
+                self._inner_model_VH.load_state_dict(
                     torch.load(
                         self._load_dir +
-                        "/model_PV_{}.pt".format(rank),
+                        "/model_VH_{}.pt".format(rank),
                         map_location=self._device,
                     ),
                 )
@@ -198,8 +198,8 @@ class PreTrainer:
                 self._save_dir + "/model_PH_{}.pt".format(rank),
             )
             torch.save(
-                self._inner_model_PV.state_dict(),
-                self._save_dir + "/model_PV_{}.pt".format(rank),
+                self._inner_model_VH.state_dict(),
+                self._save_dir + "/model_VH_{}.pt".format(rank),
             )
             torch.save(
                 self._optimizer.state_dict(),
@@ -214,7 +214,7 @@ class PreTrainer:
 
         self._model_H.train()
         self._model_PH.train()
-        self._model_PV.train()
+        self._model_VH.train()
 
         act_loss_meter = Meter()
         lft_loss_meter = Meter()
@@ -311,7 +311,7 @@ class PreTrainer:
 
         self._model_H.eval()
         self._model_PH.eval()
-        self._model_PV.eval()
+        self._model_VH.eval()
 
         act_loss_meter = Meter()
         lft_loss_meter = Meter()
