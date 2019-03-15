@@ -120,7 +120,7 @@ class PreTrainer:
 
         if self._load_dir:
             if os.path.isfile(
-                    self._load_dir + "/model_{}.pt".format(rank)
+                    self._load_dir + "/pre_trainer_model_{}.pt".format(rank)
             ):
                 Log.out(
                     "Loading prooftrace models", {
