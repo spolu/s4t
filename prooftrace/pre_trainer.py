@@ -128,7 +128,8 @@ class PreTrainer:
                     })
                 self._inner_model.load_state_dict(
                     torch.load(
-                        self._load_dir + "/model_{}.pt".format(rank),
+                        self._load_dir +
+                        "/pre_trainer_model_{}.pt".format(rank),
                         map_location=self._device,
                     ),
                 )
@@ -136,7 +137,7 @@ class PreTrainer:
                     self._optimizer.load_state_dict(
                         torch.load(
                             self._load_dir +
-                            "/optimizer_{}.pt".format(rank),
+                            "/pre_trainer_optimizer_{}.pt".format(rank),
                             map_location=self._device,
                         ),
                     )
@@ -156,11 +157,11 @@ class PreTrainer:
 
             torch.save(
                 self._inner_model.state_dict(),
-                self._save_dir + "/model_{}.pt".format(rank),
+                self._save_dir + "/pre_trainer_model_{}.pt".format(rank),
             )
             torch.save(
                 self._optimizer.state_dict(),
-                self._save_dir + "/optimizer_{}.pt".format(rank),
+                self._save_dir + "/pre_trainer_optimizer_{}.pt".format(rank),
             )
 
     def batch_train(
@@ -181,7 +182,6 @@ class PreTrainer:
 
         for it, (idx, trc) in enumerate(self._train_loader):
             embeds = self._inner_model.embed(trc)
-            # ground = embeds.clone().detach()
 
             extract = self._inner_model.embed(
                 [[Action.from_action('EXTRACT', None, None)]]
@@ -280,7 +280,6 @@ class PreTrainer:
         with torch.no_grad():
             for it, (idx, trc) in enumerate(self._test_loader):
                 embeds = self._inner_model.embed(trc)
-                # ground = embeds.clone().detach()
 
                 extract = self._inner_model.embed(
                     [[Action.from_action('EXTRACT', None, None)]]
