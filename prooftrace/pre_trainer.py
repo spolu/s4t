@@ -11,7 +11,7 @@ from dataset.prooftrace import ProofTraceLMDataset, lm_collate, Action
 from tensorboardX import SummaryWriter
 
 from prooftrace.models.heads import PH, VH
-from prooftrace.models.transformer import H
+from prooftrace.models.lstm import H
 
 from utils.config import Config
 from utils.meter import Meter

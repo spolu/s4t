@@ -3,6 +3,9 @@ import torch.nn as nn
 
 from dataset.prooftrace import ACTION_TOKENS
 
+from generic.gelu import GeLU
+from generic.layer_norm import LayerNorm
+
 
 class PH(nn.Module):
     def __init__(
@@ -20,16 +23,22 @@ class PH(nn.Module):
 
         self.action_head = nn.Sequential(
             nn.Linear(2*self.lstm_hidden_size, self.lstm_hidden_size),
+            GeLU(),
+            LayerNorm(self.lstm_hidden_size),
             nn.Linear(self.lstm_hidden_size, len(ACTION_TOKENS)),
             nn.LogSoftmax(dim=1),
         )
         self.left_head = nn.Sequential(
             nn.Linear(2*self.lstm_hidden_size, self.lstm_hidden_size),
+            GeLU(),
+            LayerNorm(self.lstm_hidden_size),
             nn.Linear(self.lstm_hidden_size, self.sequence_length),
             nn.LogSoftmax(dim=1),
         )
         self.right_head = nn.Sequential(
             nn.Linear(2*self.lstm_hidden_size, self.lstm_hidden_size),
+            GeLU(),
+            LayerNorm(self.lstm_hidden_size),
             nn.Linear(self.lstm_hidden_size, self.sequence_length),
             nn.LogSoftmax(dim=1),
         )
