@@ -997,7 +997,7 @@ class ProofTraceLMDataset(Dataset):
 
         processed = 0
         for p in files:
-            if re.search("^[^\\.].*\\.actions$", p) is None:
+            if re.search("\\.actions$", p) is None:
                 continue
             with open(p, 'rb') as f:
                 ptra = pickle.load(f)

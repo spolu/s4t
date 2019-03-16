@@ -39,7 +39,7 @@ class Env:
             os.path.join(dataset_dir, f)
             for f in os.listdir(dataset_dir)
             if (os.path.isfile(os.path.join(dataset_dir, f)) and
-                re.search("^[^\\.].*\\.actions$", f) is not None)
+                re.search("\\.actions$", f) is not None)
         ]
 
         with open(
