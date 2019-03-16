@@ -1,4 +1,5 @@
 import argparse
+import concurrent.futures
 import datetime
 import os
 import pickle
@@ -105,6 +106,8 @@ class Env:
         self._repl = REPL(self._tokenizer)
         self._target = self._repl.prepare(self._run)
 
+        return self.observation()
+
     def observation(
             self,
     ) -> typing.Tuple[int, typing.List[Action]]:
@@ -159,6 +162,66 @@ class Env:
             return self.observation(), 0.0, done
 
 
+class Pool:
+    def __init__(
+            self,
+            config,
+            test: bool,
+    ):
+        self._pool_size = config.get('prooftrace_env_pool_size')
+        self._pool = [
+            Env(config, test) for _ in range(self._pool_size)
+        ]
+        self._executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=self._pool_size,
+        )
+
+    def shutdown(
+            self,
+    ):
+        self._executor.shutdown()
+
+    def reset(
+            self,
+    ) -> typing.List[
+        typing.Tuple[int, typing.List[Action]],
+    ]:
+        def reset(env):
+            return env.reset()
+
+        observations = []
+        for o in self._executor.map(reset, self._pool):
+            observations.append(o)
+
+        return observations
+
+    def step(
+            self,
+            actions,
+    ) -> typing.Tuple[
+        typing.List[typing.Tuple[int, typing.List[Action]]],
+        typing.List[float],
+        typing.List[bool],
+    ]:
+        def step(a):
+            return a[0].step(a[1])
+
+        args = []
+        for i in range(len(actions)):
+            args.append([self._pool[i], actions[i]])
+
+        observations = []
+        dones = []
+        rewards = []
+
+        for o, r, d in self._executor.map(step, args):
+            observations.append(o)
+            rewards.append(r)
+            dones.append(d)
+
+        return observations, rewards, dones
+
+
 def test():
     parser = argparse.ArgumentParser(description="")
 
@@ -181,16 +244,21 @@ def test():
             args.dataset_size,
         )
 
-    env = Env(config, False)
-    env.reset()
+    pool = Pool(config, False)
+    pool.reset()
 
-    observation, reward, done = env.step([8, 12, 13])
-    Log.out("STEP", {
-        'reward': reward,
-        'done': done
-    })
-    observation, reward, done = env.step([9, 12, 13])
-    Log.out("STEP", {
-        'reward': reward,
-        'done': done
-    })
+    observations, rewards, dones = pool.step([[8, 12, 13]] * 8)
+    for i in range(8):
+        Log.out("STEP", {
+            'index': i,
+            'reward': rewards[i],
+            'done': dones[i],
+        })
+
+    observations, rewards, dones = pool.step([[9, 12, 13]] * 8)
+    for i in range(8):
+        Log.out("STEP", {
+            'index': i,
+            'reward': rewards[i],
+            'done': dones[i],
+        })

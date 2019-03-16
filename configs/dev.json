@@ -58,7 +58,7 @@
 
 
   "prooftrace_batch_size": 4,
-  "prooftrace_accumulation_step_count": 1,
+  "prooftrace_accumulation_step_count": 2,
 
   "prooftrace_learning_rate": 0.00025,
   "prooftrace_load_dir": null,
@@ -77,6 +77,7 @@
   "prooftrace_lstm_hidden_size": 1024,
 
   "prooftrace_env_alpha": 1.0,
+  "prooftrace_env_pool_size": 8,
 
   "prooftrace_dataset_dir": "./data/prooftrace",
   "prooftrace_dataset_size": "medium",
