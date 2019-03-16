@@ -39,10 +39,13 @@ class Thm():
 
     def thm_string(
             self,
+            de_bruijn: bool = False,
     ) -> str:
         return "{} |- {}".format(
-            ", ".join(sorted([h.term_string() for h in self._hypotheses])),
-            self._conclusion.term_string(),
+            ", ".join(sorted([
+                h.term_string(de_bruijn) for h in self._hypotheses
+            ])),
+            self._conclusion.term_string(de_bruijn),
         )
 
 

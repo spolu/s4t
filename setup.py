@@ -31,6 +31,7 @@ setup(
             'prooftrace_test_pre_trainer=prooftrace.pre_trainer:test',
             'prooftrace_test_repl=prooftrace.repl.repl:test',
             'prooftrace_test_fusion=prooftrace.repl.fusion:test',
+            'prooftrace_test_repl_env=prooftrace.repl.env:test',
         ],
     },
 )

@@ -120,7 +120,7 @@ class Term(BVT):
 
     def term_string(
             self,
-            anonymous_b: bool = False,
+            de_bruijn: bool = False,
     ) -> str:
         """ `term_string` formats the Term BVT as a HOL Light term string
         """
@@ -129,7 +129,7 @@ class Term(BVT):
             typ = term.right.value.type_string()
             term = '(' + term.left.token() + typ + ')'
 
-            if not anonymous_b:
+            if not de_bruijn:
                 return term
 
             if term in bounded:
@@ -559,6 +559,24 @@ class ProofTraceActions():
             self,
     ) -> typing.List[Action]:
         return self._actions
+
+    def hashes(
+            self,
+    ) -> typing.Dict[bytes, bool]:
+        return [a.hash() for a in self._actions]
+
+    def append(
+            self,
+            action: Action,
+    ) -> None:
+        assert action.hash() not in self.hashes()
+        self._actions.append(action)
+
+    def seen(
+            self,
+            action: Action,
+    ) -> bool:
+        return action.hash() in self.hashes()
 
 
 class ProofTrace():

@@ -13,6 +13,10 @@ from utils.config import Config
 from utils.log import Log
 
 
+class REPLException(Exception):
+    pass
+
+
 class REPL():
     def __init__(
             self,
@@ -33,7 +37,7 @@ class REPL():
     def apply(
             self,
             action: Action,
-    ) -> int:
+    ) -> Thm:
         action_token = INV_ACTION_TOKENS[action.value]
 
         thm = None
@@ -46,6 +50,8 @@ class REPL():
             )
             thm = self._fusion.PREMISE(thm)
         elif action_token == 'REFL':
+            if action.left.value != ACTION_TOKENS['TERM']:
+                raise REPLException
             thm = self._fusion.REFL(
                 action.left.left.value
             )
@@ -60,15 +66,21 @@ class REPL():
                 action.right.index(),
             )
         elif action_token == 'ABS':
+            if action.right.value != ACTION_TOKENS['TERM']:
+                raise REPLException
             thm = self._fusion.ABS(
                 action.left.index(),
                 action.right.left.value
             )
         elif action_token == 'BETA':
+            if action.left.value != ACTION_TOKENS['TERM']:
+                raise REPLException
             thm = self._fusion.BETA(
                 action.left.left.value
             )
         elif action_token == 'ASSUME':
+            if action.left.value != ACTION_TOKENS['TERM']:
+                raise REPLException
             thm = self._fusion.ASSUME(
                 action.left.left.value
             )
@@ -97,6 +109,10 @@ class REPL():
                         build_subst(subst.right)
                     )
                 assert False
+
+            if action.right.value != ACTION_TOKENS['SUBST']:
+                raise REPLException
+
             thm = self._fusion.INST(
                 action.left.index(),
                 build_subst(action.right),
@@ -116,15 +132,19 @@ class REPL():
                         build_subst_type(subst_type.right)
                     )
                 assert False
+
+            if action.right.value != ACTION_TOKENS['SUBST_TYPE']:
+                raise REPLException
+
             thm = self._fusion.INST_TYPE(
                 action.left.index(),
                 build_subst_type(action.right),
             )
         else:
-            assert False
+            raise REPLException()
 
         try:
-            return thm.index()
+            return thm
         except AssertionError:
             Log.out("Action replay failure", {
                 'action_token': action_token,
@@ -152,7 +172,7 @@ class REPL():
                         ACTION_TOKENS['TERM'],
                     ]:
 
-                a._index = self.apply(a)
+                a._index = self.apply(a).index()
 
         last = self._fusion._theorems[ptra.actions()[-1].index()]
         assert last.thm_string() == target.thm_string()
@@ -160,10 +180,18 @@ class REPL():
     def prepare(
             self,
             ptra: ProofTraceActions,
-    ) -> None:
+    ) -> Thm:
         for a in ptra.actions():
+            if a.value == ACTION_TOKENS['TARGET']:
+                target = Thm(
+                    a.index(),
+                    self.build_hypothesis(a.left),
+                    a.right.value,
+                )
             if a.value == ACTION_TOKENS['PREMISE']:
                 self.apply(a)
+
+        return target
 
 
 def test():
