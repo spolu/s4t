@@ -373,12 +373,12 @@ class PreTrainer:
                 smp_lefts = prd_lefts.max(dim=1)[1].cpu().numpy()
                 smp_rights = prd_rights.max(dim=1)[1].cpu().numpy()
 
-                for i in range(len(idx)):
-                    if smp_actions[i] == trc[i][idx[i]].value:
+                for i in range(len(trh)):
+                    if smp_actions[i] == trh[i].value:
                         act_hit += 1
-                    if smp_lefts[i] == trc[i].index(trc[i][idx[i]].left):
+                    if smp_lefts[i] == trc[i].index(trh[i].left):
                         lft_hit += 1
-                    if smp_rights[i] == trc[i].index(trc[i][idx[i]].right):
+                    if smp_rights[i] == trc[i].index(trh[i].right):
                         rgt_hit += 1
                     total += 1
 

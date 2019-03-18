@@ -77,7 +77,7 @@
   "prooftrace_lstm_hidden_size": 1024,
 
   "prooftrace_env_alpha": 1.0,
-  "prooftrace_env_pool_size": 2,
+  "prooftrace_env_pool_size": 4,
 
   "prooftrace_ppo_rollout_size": 8,
   "prooftrace_ppo_gamma": 0.999,

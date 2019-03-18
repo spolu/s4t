@@ -71,18 +71,16 @@ class Env:
 
         while self._ground is None:
             path = random.choice(self._trace_files)
-            with open(path, 'rb') as f:
-                ptra = pickle.load(f)
-            if ptra.len() > self._sequence_length:
-                Log.out("Ignoring trace", {
-                    'trace': ptra.name(),
-                    'length': ptra.len(),
-                })
-            else:
-                self._ground = ptra
+
+            match = re.search("_(\\d+)_(\\d+)\\.actions$", path)
+            ptra_len = int(match.group(1))
+
+            if ptra_len <= self._sequence_length:
+                with open(path, 'rb') as f:
+                    self._ground = pickle.load(f)
                 Log.out("Selecting trace", {
-                    "trace": ptra.name(),
-                    'length': ptra.len(),
+                    "trace": self._ground.name(),
+                    'length': self._ground.len(),
                 })
 
         self._run = ProofTraceActions(
@@ -259,16 +257,20 @@ def test():
     pool = Pool(config, False)
     pool.reset()
 
-    observations, rewards, dones = pool.step([[8, 12, 13]] * 8)
-    for i in range(8):
+    observations, rewards, dones = pool.step(
+        [[8, 12, 13]] * config.get('prooftrace_env_pool_size'),
+    )
+    for i in range(config.get('prooftrace_env_pool_size')):
         Log.out("STEP", {
             'index': i,
             'reward': rewards[i],
             'done': dones[i],
         })
 
-    observations, rewards, dones = pool.step([[9, 12, 13]] * 8)
-    for i in range(8):
+    observations, rewards, dones = pool.step(
+        [[9, 12, 13]] * config.get('prooftrace_env_pool_size'),
+    )
+    for i in range(config.get('prooftrace_env_pool_size')):
         Log.out("STEP", {
             'index': i,
             'reward': rewards[i],
