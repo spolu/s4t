@@ -256,13 +256,13 @@ class PreTrainer:
             ], dim=0)
 
             actions = torch.tensor([
-                trh.value for i in range(len(trh))
+                trh[i].value for i in range(len(trh))
             ], dtype=torch.int64).to(self._device)
             lefts = torch.tensor([
-                trc[i].index(trh.left) for i in range(len(trh))
+                trc[i].index(trh[i].left) for i in range(len(trh))
             ], dtype=torch.int64).to(self._device)
             rights = torch.tensor([
-                trc[i].index(trh.right) for i in range(len(trh))
+                trc[i].index(trh[i].right) for i in range(len(trh))
             ], dtype=torch.int64).to(self._device)
 
             prd_actions, prd_lefts, prd_rights = \
@@ -349,13 +349,13 @@ class PreTrainer:
                 ], dim=0)
 
                 actions = torch.tensor([
-                    trh.value for i in range(len(idx))
+                    trh[i].value for i in range(len(idx))
                 ], dtype=torch.int64).to(self._device)
                 lefts = torch.tensor([
-                    trc[i].index(trh.left) for i in range(len(idx))
+                    trc[i].index(trh[i].left) for i in range(len(idx))
                 ], dtype=torch.int64).to(self._device)
                 rights = torch.tensor([
-                    trc[i].index(trh.right) for i in range(len(idx))
+                    trc[i].index(trh[i].right) for i in range(len(idx))
                 ], dtype=torch.int64).to(self._device)
 
                 prd_actions, prd_lefts, prd_rights = \

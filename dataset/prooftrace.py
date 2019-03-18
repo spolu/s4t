@@ -537,6 +537,7 @@ class ProofTraceActions():
     ) -> None:
         self._name = name
         self._actions = actions
+        self._hashes = None
 
     def dump(
             self,
@@ -550,10 +551,33 @@ class ProofTraceActions():
     ) -> int:
         return len(self._actions)
 
+    def prepare_len(
+            self,
+    ) -> int:
+        prepare_len = 0
+        for a in self._actions:
+            if a.value in [
+                    ACTION_TOKENS['TARGET'],
+                    ACTION_TOKENS['EMPTY'],
+                    ACTION_TOKENS['PREMISE'],
+                    ACTION_TOKENS['SUBST'],
+                    ACTION_TOKENS['SUBST_TYPE'],
+                    ACTION_TOKENS['TERM'],
+            ]:
+                prepare_len += 1
+        return prepare_len
+
     def name(
             self,
     ) -> str:
         return self._name
+
+    def path(
+            self,
+    ) -> str:
+        return self.name() + \
+            '_' + str(self.len()) + '_' + str(self.prepare_len()) + \
+            '.actions'
 
     def actions(
             self,
@@ -563,7 +587,9 @@ class ProofTraceActions():
     def hashes(
             self,
     ) -> typing.Dict[bytes, bool]:
-        return [a.hash() for a in self._actions]
+        if self._hashes is None:
+            self._hashes = [a.hash() for a in self._actions]
+        return self._hashes
 
     def append(
             self,
@@ -571,6 +597,7 @@ class ProofTraceActions():
     ) -> None:
         assert action.hash() not in self.hashes()
         self._actions.append(action)
+        self._hashes.append(action.hash())
 
     def seen(
             self,
@@ -1233,12 +1260,12 @@ def extract():
         else:
             path = traces_path_test
 
-        actions_path = os.path.join(path, tr.name() + '.actions')
+        ptra_path = os.path.join(path, ptra.path())
 
-        with open(actions_path, 'wb') as f:
+        with open(ptra_path, 'wb') as f:
             pickle.dump(ptra, f)
             Log.out("Writing ProofTraceActions", {
-                'path': actions_path,
+                'path': ptra_path,
                 'index': i,
                 'total': len(traces),
             })
