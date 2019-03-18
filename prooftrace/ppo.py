@@ -7,6 +7,7 @@ import typing
 
 from dataset.prooftrace import Action
 
+from prooftrace.models.embedder import E
 from prooftrace.models.heads import PH, VH
 from prooftrace.models.lstm import H
 from prooftrace.repl.env import Pool
@@ -158,18 +159,21 @@ class PPO:
                     self._config.get('tensorboard_log_dir'),
                 )
 
+        self._inner_model_E = E(self._config).to(self._device)
         self._inner_model_H = H(self._config).to(self._device)
         self._inner_model_PH = PH(self._config).to(self._device)
         self._inner_model_VH = VH(self._config).to(self._device)
 
         Log.out(
             "Initializing prooftrace PPO", {
+                'parameter_count_E': self._inner_model_E.parameters_count(),
                 'parameter_count_H': self._inner_model_H.parameters_count(),
                 'parameter_count_PH': self._inner_model_PH.parameters_count(),
                 'parameter_count_VH': self._inner_model_VH.parameters_count(),
             },
         )
 
+        self._model_E = self._inner_model_E
         self._model_H = self._inner_model_H
         self._model_PH = self._inner_model_PH
         self._model_VH = self._inner_model_VH
@@ -180,6 +184,10 @@ class PPO:
             self,
     ):
         if self._config.get('distributed_training'):
+            self._model_E = torch.nn.parallel.DistributedDataParallel(
+                self._inner_model_E,
+                device_ids=[self._device],
+            )
             self._model_H = torch.nn.parallel.DistributedDataParallel(
                 self._inner_model_H,
                 device_ids=[self._device],
@@ -195,6 +203,7 @@ class PPO:
 
         self._optimizer = optim.Adam(
             [
+                {'params': self._model_E.parameters()},
                 {'params': self._model_H.parameters()},
                 {'params': self._model_PH.parameters()},
                 {'params': self._model_VH.parameters()},
@@ -244,6 +253,13 @@ class PPO:
                     "Loading prooftrace", {
                         'load_dir': self._load_dir,
                     })
+                self._inner_model_E.load_state_dict(
+                    torch.load(
+                        self._load_dir +
+                        "/model_e_{}.pt".format(rank),
+                        map_location=self._device,
+                    ),
+                )
                 self._inner_model_H.load_state_dict(
                     torch.load(
                         self._load_dir +
@@ -288,6 +304,10 @@ class PPO:
                 })
 
             torch.save(
+                self._inner_model_E.state_dict(),
+                self._save_dir + "/model_E_{}.pt".format(rank),
+            )
+            torch.save(
                 self._inner_model_H.state_dict(),
                 self._save_dir + "/model_H_{}.pt".format(rank),
             )
@@ -308,6 +328,7 @@ class PPO:
             self,
             epoch,
     ):
+        self._model_E.train()
         self._model_H.train()
         self._model_PH.train()
         self._model_VH.train()
@@ -318,7 +339,7 @@ class PPO:
             with torch.no_grad():
                 (idx, trc) = self._rollouts.observations[step]
 
-                embeds = self._inner_model_H.embed(trc)
+                embeds = self._model_E(trc)
                 hiddens = self._model_H(embeds)
                 predictions = torch.cat([
                     hiddens[i][idx[i]].unsqueeze(0)
@@ -339,21 +360,23 @@ class PPO:
                     (
                         Categorical(
                             torch.exp(prd_actions)
-                        ).sample().view(-1, 1),
+                        ).sample().unsqueeze(1),
                         Categorical(
                             torch.exp(prd_lefts)
-                        ).sample().view(-1, 1),
+                        ).sample().unsqueeze(1),
                         Categorical(
                             torch.exp(prd_lefts)
-                        ).sample().view(-1, 1),
-                    ), dim=3,
+                        ).sample().unsqueeze(1),
+                    ), dim=1,
                 )
 
-                import pdb; pdb.set_trace()
-
-                    # actions_log_probs = prd_actions.gather(1, actions)
-                    # lefts_log_probs = prd_left.gather(1, lefts)
-                    # rights_log_probs = prd_right.gather(1, right)
+                log_probs = torch.cat(
+                    (
+                        prd_actions.gather(1, actions[:, 0].unsqueeze(1)),
+                        prd_lefts.gather(1, actions[:, 1].unsqueeze(1)),
+                        prd_rights.gather(1, actions[:, 2].unsqueeze(1)),
+                    ), dim=1,
+                )
 
         Log.out("EPOCH DONE", {
             'epoch': epoch,

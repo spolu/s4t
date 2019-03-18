@@ -1083,7 +1083,13 @@ class ProofTraceLMDataset(Dataset):
         return (self._cases[idx][1], trace, truth)
 
 
-def lm_collate(batch):
+def lm_collate(
+        batch
+) -> typing.Tuple[
+    typing.List[int],
+    typing.List[typing.List[Action]],
+    typing.List[Action],
+]:
     indices = []
     traces = []
     truths = []

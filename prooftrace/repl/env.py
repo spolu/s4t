@@ -191,10 +191,27 @@ class Pool:
     ):
         self._executor.shutdown()
 
+    def collate(
+            self,
+            observations,
+    ) -> typing.Tuple[
+            typing.List[int],
+            typing.List[typing.List[Action]],
+    ]:
+        indices = []
+        traces = []
+
+        for (idx, trc) in observations:
+            indices.append(idx)
+            traces.append(trc)
+
+        return (indices, traces)
+
     def reset(
             self,
-    ) -> typing.List[
-        typing.Tuple[int, typing.List[Action]],
+    ) -> typing.Tuple[
+            typing.List[int],
+            typing.List[typing.List[Action]],
     ]:
         def reset(env):
             return env.reset()
@@ -203,13 +220,16 @@ class Pool:
         for o in self._executor.map(reset, self._pool):
             observations.append(o)
 
-        return observations
+        return self.collate(observations)
 
     def step(
             self,
             actions,
     ) -> typing.Tuple[
-        typing.List[typing.Tuple[int, typing.List[Action]]],
+        typing.Tuple[
+            typing.List[int],
+            typing.List[typing.List[Action]],
+        ],
         typing.List[float],
         typing.List[bool],
     ]:
@@ -229,7 +249,7 @@ class Pool:
             rewards.append(r)
             dones.append(d)
 
-        return observations, rewards, dones
+        return self.collate(observations), rewards, dones
 
 
 def test():
