@@ -6,10 +6,11 @@ import torch.distributed as distributed
 import torch.utils.data.distributed
 import torch.optim as optim
 
-from dataset.prooftrace import ProofTraceLMDataset, lm_collate, Action
+from dataset.prooftrace import ProofTraceLMDataset, lm_collate
 
 from tensorboardX import SummaryWriter
 
+from prooftrace.models.embedder import E
 from prooftrace.models.heads import PH, VH
 from prooftrace.models.lstm import H
 
@@ -40,18 +41,21 @@ class PreTrainer:
                     self._config.get('tensorboard_log_dir'),
                 )
 
+        self._inner_model_E = E(self._config).to(self._device)
         self._inner_model_H = H(self._config).to(self._device)
         self._inner_model_PH = PH(self._config).to(self._device)
         self._inner_model_VH = VH(self._config).to(self._device)
 
         Log.out(
             "Initializing prooftrace PreTrainer", {
+                'parameter_count_E': self._inner_model_E.parameters_count(),
                 'parameter_count_H': self._inner_model_H.parameters_count(),
                 'parameter_count_PH': self._inner_model_PH.parameters_count(),
                 'parameter_count_VH': self._inner_model_VH.parameters_count(),
             },
         )
 
+        self._model_E = self._inner_model_E
         self._model_H = self._inner_model_H
         self._model_PH = self._inner_model_PH
         self._model_VH = self._inner_model_VH
@@ -65,6 +69,10 @@ class PreTrainer:
             train_dataset,
     ):
         if self._config.get('distributed_training'):
+            self._model_E = torch.nn.parallel.DistributedDataParallel(
+                self._inner_model_E,
+                device_ids=[self._device],
+            )
             self._model_H = torch.nn.parallel.DistributedDataParallel(
                 self._inner_model_H,
                 device_ids=[self._device],
@@ -80,6 +88,7 @@ class PreTrainer:
 
         self._optimizer = optim.Adam(
             [
+                {'params': self._model_E.parameters()},
                 {'params': self._model_H.parameters()},
                 {'params': self._model_PH.parameters()},
                 {'params': self._model_VH.parameters()},
@@ -146,6 +155,13 @@ class PreTrainer:
                     "Loading prooftrace", {
                         'load_dir': self._load_dir,
                     })
+                self._inner_model_E.load_state_dict(
+                    torch.load(
+                        self._load_dir +
+                        "/model_E_{}.pt".format(rank),
+                        map_location=self._device,
+                    ),
+                )
                 self._inner_model_H.load_state_dict(
                     torch.load(
                         self._load_dir +
@@ -190,6 +206,10 @@ class PreTrainer:
                 })
 
             torch.save(
+                self._inner_model_E.state_dict(),
+                self._save_dir + "/model_E_{}.pt".format(rank),
+            )
+            torch.save(
                 self._inner_model_H.state_dict(),
                 self._save_dir + "/model_H_{}.pt".format(rank),
             )
@@ -212,6 +232,7 @@ class PreTrainer:
     ):
         assert self._train_loader is not None
 
+        self._model_E.train()
         self._model_H.train()
         self._model_PH.train()
         self._model_VH.train()
@@ -223,16 +244,8 @@ class PreTrainer:
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(epoch)
 
-        for it, (idx, trc) in enumerate(self._train_loader):
-            embeds = self._inner_model_H.embed(trc)
-
-            extract = self._inner_model_H.embed(
-                [[Action.from_action('EXTRACT', None, None)]]
-            )
-
-            for i, ext in enumerate(idx):
-                embeds[i][ext] = extract[0][0]
-
+        for it, (idx, trc, trh) in enumerate(self._train_loader):
+            embeds = self._model_E(trc)
             hiddens = self._model_H(embeds)
 
             predictions = torch.cat([
@@ -243,13 +256,13 @@ class PreTrainer:
             ], dim=0)
 
             actions = torch.tensor([
-                trc[i][idx[i]].value for i in range(len(idx))
+                trh.value for i in range(len(trh))
             ], dtype=torch.int64).to(self._device)
             lefts = torch.tensor([
-                trc[i].index(trc[i][idx[i]].left) for i in range(len(idx))
+                trc[i].index(trh.left) for i in range(len(trh))
             ], dtype=torch.int64).to(self._device)
             rights = torch.tensor([
-                trc[i].index(trc[i][idx[i]].right) for i in range(len(idx))
+                trc[i].index(trh.right) for i in range(len(trh))
             ], dtype=torch.int64).to(self._device)
 
             prd_actions, prd_lefts, prd_rights = \
@@ -309,6 +322,7 @@ class PreTrainer:
     ):
         assert self._test_loader is not None
 
+        self._model_E.eval()
         self._model_H.eval()
         self._model_PH.eval()
         self._model_VH.eval()
@@ -323,16 +337,8 @@ class PreTrainer:
         total = 0
 
         with torch.no_grad():
-            for it, (idx, trc) in enumerate(self._test_loader):
-                embeds = self._inner_model_H.embed(trc)
-
-                extract = self._inner_model_H.embed(
-                    [[Action.from_action('EXTRACT', None, None)]]
-                )
-
-                for i, ext in enumerate(idx):
-                    embeds[i][ext] = extract[0][0]
-
+            for it, (idx, trc, trh) in enumerate(self._test_loader):
+                embeds = self._model_E(trc)
                 hiddens = self._model_H(embeds)
 
                 predictions = torch.cat([
@@ -343,13 +349,13 @@ class PreTrainer:
                 ], dim=0)
 
                 actions = torch.tensor([
-                    trc[i][idx[i]].value for i in range(len(idx))
+                    trh.value for i in range(len(idx))
                 ], dtype=torch.int64).to(self._device)
                 lefts = torch.tensor([
-                    trc[i].index(trc[i][idx[i]].left) for i in range(len(idx))
+                    trc[i].index(trh.left) for i in range(len(idx))
                 ], dtype=torch.int64).to(self._device)
                 rights = torch.tensor([
-                    trc[i].index(trc[i][idx[i]].right) for i in range(len(idx))
+                    trc[i].index(trh.right) for i in range(len(idx))
                 ], dtype=torch.int64).to(self._device)
 
                 prd_actions, prd_lefts, prd_rights = \

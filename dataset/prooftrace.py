@@ -1064,25 +1064,27 @@ class ProofTraceLMDataset(Dataset):
         with open(self._ptra_files[self._cases[idx][0]], 'rb') as f:
             ptra = pickle.load(f)
 
-        trace = ptra.actions()[
-            :self._cases[idx][1]+1
-        ]
+        truth = ptra.actions()[self._cases[idx][1]]
+        trace = ptra.actions()[:self._cases[idx][1]]
 
+        trace.append(Action.from_action('EXTRACT', None, None))
         while len(trace) < self._sequence_length:
             trace.append(Action.from_action('EMPTY', None, None))
 
-        return (self._cases[idx][1], trace)
+        return (self._cases[idx][1], trace, truth)
 
 
 def lm_collate(batch):
     indices = []
     traces = []
+    truths = []
 
-    for (idx, trc) in batch:
+    for (idx, trc, trh) in batch:
         indices.append(idx)
         traces.append(trc)
+        truths.append(trh)
 
-    return (indices, traces)
+    return (indices, traces, truths)
 
 
 def extract():

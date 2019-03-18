@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
 
-from prooftrace.models.embedder import ActionEmbedder
-
 
 class H(nn.Module):
     def __init__(
@@ -22,9 +20,6 @@ class H(nn.Module):
         self.lstm_layer_count = \
             config.get('prooftrace_lstm_layer_count')
 
-        self.embedder = ActionEmbedder(config)
-        self.embedder.to(self.device)
-
         self.position_embedding = nn.Embedding(
             self.sequence_length, self.hidden_size
         )
@@ -38,12 +33,6 @@ class H(nn.Module):
             self,
     ):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
-
-    def embed(
-            self,
-            actions,
-    ):
-        return self.embedder(actions)
 
     def forward(
             self,

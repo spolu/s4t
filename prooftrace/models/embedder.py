@@ -154,12 +154,12 @@ class TermEmbedder(nn.Module):
         return h
 
 
-class ActionEmbedder(nn.Module):
+class E(nn.Module):
     def __init__(
             self,
             config,
     ):
-        super(ActionEmbedder, self).__init__()
+        super(E, self).__init__()
 
         self.device = torch.device(config.get('device'))
 
@@ -308,7 +308,7 @@ def test():
         config.get('prooftrace_sequence_length'),
     )
 
-    embedder = ActionEmbedder(config)
+    embedder = E(config)
 
     device = torch.device(config.get('device'))
     embedder.to(device)
@@ -322,3 +322,4 @@ def test():
         traces.append(tr)
 
     embeds = embedder(traces[0:32])
+    print(embeds)
