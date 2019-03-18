@@ -32,6 +32,7 @@ setup(
             'prooftrace_test_repl=prooftrace.repl.repl:test',
             'prooftrace_test_fusion=prooftrace.repl.fusion:test',
             'prooftrace_test_repl_env=prooftrace.repl.env:test',
+            'prooftrace_train_ppo=prooftrace.ppo:train',
         ],
     },
 )

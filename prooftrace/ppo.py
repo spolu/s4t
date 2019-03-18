@@ -3,16 +3,137 @@ import os
 import torch
 import torch.distributed as distributed
 import torch.optim as optim
+import typing
+
+from dataset.prooftrace import Action
 
 from prooftrace.models.heads import PH, VH
-from prooftrace.models.transformer import H
+from prooftrace.models.lstm import H
+from prooftrace.repl.env import Pool
 
 from tensorboardX import SummaryWriter
 
+from torch.distributions import Categorical
+from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
+
 from utils.config import Config
-from utils.meter import Meter
+# from utils.meter import Meter
 from utils.log import Log
 from utils.str2bool import str2bool
+
+
+class Rollouts:
+    def __init__(
+            self,
+            config,
+    ):
+        self._config = config
+        self._device = torch.device(config.get('device'))
+
+        self._rollout_size = config.get('prooftrace_ppo_rollout_size')
+        self._pool_size = config.get('prooftrace_env_pool_size')
+
+        self._gamma = config.get('prooftrace_ppo_gamma')
+        self._tau = config.get('prooftrace_ppo_tau')
+        self._batch_size = config.get('prooftrace_batch_size')
+
+        self.observations = [
+            [None] * self._pool_size for _ in range(self._rollout_size+1)
+        ]
+        self.actions = torch.zeros(
+            self._rollout_size, self._pool_size, 3,
+            dtype=torch.int64,
+        ).to(self._device)
+
+        self.log_probs = torch.zeros(
+            self._rollout_size, self._pool_size, 3,
+        ).to(self._device)
+
+        self.rewards = torch.zeros(
+            self._rollout_size, self._pool_size, 1
+        ).to(self._device)
+        self.values = torch.zeros(
+            self._rollout_size+1, self._pool_size, 1
+        ).to(self._device)
+
+        self.masks = torch.ones(
+            self._rollout_size+1, self._pool_size, 1,
+        ).to(self._device)
+
+        self.returns = torch.zeros(
+            self._rollout_size+1, self._pool_size, 1,
+        ).to(self._device)
+
+    def insert(
+            self,
+            step: int,
+            observations: typing.List[
+                typing.Tuple[int, typing.List[Action]]
+            ],
+            actions,
+            log_probs,
+            values,
+            rewards,
+            masks,
+    ):
+        self.observations[step+1] = observations
+        self.actions[step].copy_(actions)
+        self.log_probs[step].copy_(log_probs)
+        self.values[step].copy_(values)
+        self.rewards[step].copy_(rewards)
+        self.masks[step+1].copy_(masks)
+
+    def compute_returns(
+            self,
+            next_values,
+    ):
+        self.values[-1].copy_(next_values)
+        self.returns[-1].copy_(next_values)
+        gae = 0
+        for step in reversed(range(self._rollout_size)):
+            delta = (
+                self.rewards[step] +
+                self._gamma * self.values[step+1] * self.masks[step+1] -
+                self.values[step]
+            )
+            gae = delta + self._gamma * self._tau * self.masks[step+1] * gae
+            self.returns[step] = gae + self.values[step]
+
+    def after_update(
+            self,
+    ):
+        self.observations[0] = self.observations[-1]
+        self.masks[0].copy_(self.masks[-1])
+
+    def generator(
+            self,
+            advantages,
+    ):
+        sampler = BatchSampler(
+            SubsetRandomSampler(range(self._pool_size * self._rollout_size)),
+            self._batch_size,
+            drop_last=False,
+        )
+        for indices in sampler:
+            indices = torch.LongTensor(indices).to(self._device)
+            observations_batch = self.observations[:-1].view(
+                -1, *self.observations.size()[2:],
+            )[indices]
+            actions_batch = self.actions.view(
+                -1, self.actions.size(-1),
+            )[indices]
+            returns_batch = self.returns[:-1].view(-1, 1)[indices]
+            masks_batch = self.masks[:-1].view(-1, 1)[indices]
+            log_probs_batch = self.log_probs.view(-1, 1)[indices]
+            advantage_targets = advantages.view(-1, 1)[indices]
+
+            yield \
+                observations_batch, \
+                actions_batch, \
+                returns_batch, \
+                masks_batch, \
+                log_probs_batch, \
+                advantage_targets
 
 
 class PPO:
@@ -23,6 +144,7 @@ class PPO:
         self._config = config
         self._accumulation_step_count = \
             config.get('prooftrace_accumulation_step_count')
+        self._rollout_size = config.get('prooftrace_ppo_rollout_size')
 
         self._device = torch.device(config.get('device'))
 
@@ -83,6 +205,11 @@ class PPO:
         self._batch_size = self._config.get('prooftrace_batch_size') // \
             self._accumulation_step_count
 
+        self._rollouts = Rollouts(self._config)
+
+        self._pool = Pool(self._config, False)
+        self._rollouts.observations[0] = self._pool.reset()
+
         Log.out('Training initialization', {
             "accumulation_step_count": self._accumulation_step_count,
             "world_size": self._config.get('distributed_world_size'),
@@ -100,6 +227,8 @@ class PPO:
     ):
         self._batch_size = self._config.get('prooftrace_batch_size') // \
             self._accumulation_step_count
+
+        self._pool = Pool(self._config, False)
 
     def load(
             self,
@@ -184,6 +313,47 @@ class PPO:
         self._model_VH.train()
 
         self._train_batch += 1
+
+        for step in range(self._rollout_size):
+            with torch.no_grad():
+                (idx, trc) = self._rollouts.observations[step]
+
+                embeds = self._inner_model_H.embed(trc)
+                hiddens = self._model_H(embeds)
+                predictions = torch.cat([
+                    hiddens[i][idx[i]].unsqueeze(0)
+                    for i in range(len(idx))
+                ], dim=0)
+                targets = torch.cat([
+                    hiddens[i][0].unsqueeze(0)
+                    for i in range(len(idx))
+                ], dim=0)
+
+                prd_actions, prd_lefts, prd_rights = \
+                    self._model_PH(predictions, targets)
+
+                values = \
+                    self._model_VH(predictions, targets)
+
+                actions = torch.cat(
+                    (
+                        Categorical(
+                            torch.exp(prd_actions)
+                        ).sample().view(-1, 1),
+                        Categorical(
+                            torch.exp(prd_lefts)
+                        ).sample().view(-1, 1),
+                        Categorical(
+                            torch.exp(prd_lefts)
+                        ).sample().view(-1, 1),
+                    ), dim=3,
+                )
+
+                import pdb; pdb.set_trace()
+
+                    # actions_log_probs = prd_actions.gather(1, actions)
+                    # lefts_log_probs = prd_left.gather(1, lefts)
+                    # rights_log_probs = prd_right.gather(1, right)
 
         Log.out("EPOCH DONE", {
             'epoch': epoch,

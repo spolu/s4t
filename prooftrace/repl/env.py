@@ -111,7 +111,18 @@ class Env:
     def observation(
             self,
     ) -> typing.Tuple[int, typing.List[Action]]:
-        pass
+        actions = self._run.actions().copy()
+
+        # If the len match this is a final observation, so no extract will be
+        # appended and that's fine.
+        if len(actions) < self._sequence_length:
+            actions.append(Action.from_action('EXTRACT', None, None))
+
+        # Finally we always return actions with the same length.
+        while len(actions) < self._sequence_length:
+            actions.append(Action.from_action('EMPTY', None, None))
+
+        return (self._run.len(), actions)
 
     def step(
             self,
@@ -148,9 +159,10 @@ class Env:
         self._run.append(action)
 
         if self._target.thm_string(True) == thm.thm_string(True):
-            return self.observation(), float(
-                self.sequence_length - self._run.len()
-            ), True
+            # TODO(stan): for now we return the sequence length as final
+            # reward, hoping that the RL decay will push the algorithm to
+            # minimize sequences length. To investigate.
+            return self.observation(), float(self.sequence_length), True
 
         done = False
         if self._run.len() >= self._sequence_length:

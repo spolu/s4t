@@ -77,7 +77,11 @@
   "prooftrace_lstm_hidden_size": 1024,
 
   "prooftrace_env_alpha": 1.0,
-  "prooftrace_env_pool_size": 8,
+  "prooftrace_env_pool_size": 2,
+
+  "prooftrace_ppo_rollout_size": 8,
+  "prooftrace_ppo_gamma": 0.999,
+  "prooftrace_ppo_tau": 0.95,
 
   "prooftrace_dataset_dir": "./data/prooftrace",
   "prooftrace_dataset_size": "medium",
