@@ -1042,36 +1042,18 @@ class ProofTraceLMDataset(Dataset):
 
         processed = 0
         for p in files:
-            if re.search("\\.actions$", p) is None:
+            match = re.search("_(\\d+)_(\\d+)\\.actions$", p)
+            if match is None:
                 continue
-            with open(p, 'rb') as f:
-                ptra = pickle.load(f)
-                if trace_max_length <= -1 or ptra.len() <= trace_max_length:
-                    self._ptra_files.append(p)
+            ptra_len = int(match.group(1))
+            prepare_len = int(match.group(2))
 
-                    actions = ptra.actions()
-                    for pos in range(len(actions)):
-                        if pos < self._sequence_length:
-                            if actions[pos].value not in \
-                                    [
-                                        ACTION_TOKENS['TARGET'],
-                                        ACTION_TOKENS['EMPTY'],
-                                        ACTION_TOKENS['SUBST'],
-                                        ACTION_TOKENS['SUBST_TYPE'],
-                                        ACTION_TOKENS['TERM'],
-                                        ACTION_TOKENS['PREMISE'],
-                                    ]:
-                                self._cases.append((processed, pos))
-
-                    processed += 1
-
-            if processed % 100 == 0:
-                Log.out(
-                    "Loading extracted ProofTraces LM Dataset", {
-                        'dataset_dir': dataset_dir,
-                        'total': len(files),
-                        'processed': processed,
-                    })
+            if trace_max_length <= -1 or ptra_len <= trace_max_length:
+                self._ptra_files.append(p)
+                for pos in range(prepare_len, ptra_len):
+                    if pos < self._sequence_length:
+                        self._cases.append((processed, pos))
+                processed += 1
 
         Log.out(
             "Loaded extracted ProofTraces LM Dataset", {
