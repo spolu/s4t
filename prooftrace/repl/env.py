@@ -151,13 +151,13 @@ class Env:
         except REPLException:
             return self.observation(), (0.0, 0.0), False
 
+        seen = self._run.seen(action)
         self._run.append(action)
 
         step_reward = 0.0
         final_reward = 0.0
         done = False
-
-        if not self._run.seen(action):
+        if not seen:
             step_reward = 1.0
             if self._ground.seen(action):
                 step_reward = 2.0
