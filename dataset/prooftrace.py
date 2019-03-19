@@ -588,16 +588,18 @@ class ProofTraceActions():
             self,
     ) -> typing.Dict[bytes, bool]:
         if self._hashes is None:
-            self._hashes = [a.hash() for a in self._actions]
+            self._hashes = {}
+            for a in self._actions:
+                self._hashes[a.hash] = True
         return self._hashes
 
     def append(
             self,
             action: Action,
     ) -> None:
-        assert action.hash() not in self.hashes()
         self._actions.append(action)
-        self._hashes.append(action.hash())
+        self.hashes()
+        self._hashes[action.hash()] = True
 
     def seen(
             self,

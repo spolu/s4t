@@ -214,7 +214,7 @@ class PPO:
                 {'params': self._model_PH.parameters()},
                 {'params': self._model_VH.parameters()},
             ],
-            lr=self._config.get('prooftrace_learning_rate'),
+            lr=self._config.get('prooftrace_ppo_learning_rate'),
         )
 
         self._rollouts = Rollouts(self._config)
@@ -392,7 +392,6 @@ class PPO:
             observations, rewards, dones = self._pool.step(
                 [tuple(a) for a in actions.detach().cpu().numpy()]
             )
-
             for i, r in enumerate(rewards):
                 self._episode_stp_reward[i] += r[0]
                 self._episode_fnl_reward[i] += r[1]

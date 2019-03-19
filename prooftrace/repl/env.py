@@ -144,9 +144,6 @@ class Env:
             self._run.actions()[a[2]],
         )
 
-        if self._run.seen(action):
-            return self.observation(), (-1.0, 0.0), False
-
         try:
             thm = self._repl.apply(action)
         except FusionException:
@@ -156,20 +153,46 @@ class Env:
 
         self._run.append(action)
 
+        step_reward = 0.0
+        final_reward = 0.0
+        done = False
+
+        if self._ground.seen(action) and not self._run.seen(action):
+            step_reward = 1.0
         if self._target.thm_string(True) == thm.thm_string(True):
             # TODO(stan): for now we return the ground ptra length as final
             # reward, hoping that the RL decay will push the agent to minimize
             # sequences length. To investigate.
-            return self.observation(), (0.0, float(self._ground.len())), True
-
-        done = False
+            final_reward = float(self._ground.len())
+            done = True
         if self._run.len() >= self._sequence_length:
             done = True
 
-        if self._ground.seen(action):
-            return self.observation(), (1.0, 0.0), done
-        else:
-            return self.observation(), (0.0, 0.0), done
+        if done:
+            Log.out("DONE", {
+                'name': self._ground.name(),
+                'step_reward': step_reward,
+                'final_reward': final_reward,
+                'ground_length': self._ground.len(),
+                'run_length': self._run.len(),
+            })
+        if step_reward > 0.0:
+            Log.out("REWARD", {
+                'name': self._ground.name(),
+                'step_reward': step_reward,
+                'final_reward': final_reward,
+                'ground_length': self._ground.len(),
+                'run_length': self._run.len(),
+            })
+        Log.out("ACTION", {
+            'name': self._ground.name(),
+            'step_reward': step_reward,
+            'final_reward': final_reward,
+            'ground_length': self._ground.len(),
+            'run_length': self._run.len(),
+        })
+
+        return self.observation(), (step_reward, final_reward), done
 
 
 class Pool:

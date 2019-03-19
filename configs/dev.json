@@ -81,9 +81,10 @@
 
   "prooftrace_ppo_batch_size": 32,
   "prooftrace_ppo_rollout_size": 128,
+  "prooftrace_ppo_learning_rate": 0.000025,
   "prooftrace_ppo_gamma": 0.999,
   "prooftrace_ppo_tau": 0.95,
-  "prooftrace_ppo_epoch_count": 3,
+  "prooftrace_ppo_epoch_count": 2,
   "prooftrace_ppo_clip": 0.2,
 
   "prooftrace_dataset_dir": "./data/prooftrace",
