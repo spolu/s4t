@@ -247,7 +247,7 @@ class PPO:
                 self._inner_model_E.load_state_dict(
                     torch.load(
                         self._load_dir +
-                        "/model_e_{}.pt".format(rank),
+                        "/model_E_{}.pt".format(rank),
                         map_location=self._device,
                     ),
                 )
@@ -425,6 +425,14 @@ class PPO:
             advantages = \
                 (advantages - advantages.mean()) / (advantages.std() + 1e-5)
 
+        Log.out("ROLLOUT DONE", {
+            'epoch': epoch,
+            'fps': "{:.2f}".format(
+                self._pool_size * self._rollout_size /
+                (time.time() - batch_start)
+            ),
+        })
+
         for e in range(self._epoch_count):
             generator = self._rollouts.generator(advantages)
 
@@ -491,13 +499,11 @@ class PPO:
 
         self._rollouts.after_update()
 
-        batch_end = time.time()
-
         Log.out("PROOFTRACE PPO TRAIN", {
             'epoch': epoch,
             'fps': "{:.2f}".format(
-                self._worker_count * self._rollout_size /
-                (batch_end - batch_start)
+                self._pool_size * self._rollout_size /
+                (time.time() - batch_start)
             ),
             'stp_reward_avg': "{:.4f}".format(stp_reward_meter.avg or 0.0),
             'fnl_reward_avg': "{:.4f}".format(fnl_reward_meter.avg or 0.0),
@@ -526,6 +532,7 @@ class PPO:
     def batch_test(
             self,
     ):
+        self._model_E.eval()
         self._model_H.eval()
         self._model_PH.eval()
         self._model_VH.eval()
