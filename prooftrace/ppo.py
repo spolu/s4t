@@ -534,7 +534,7 @@ class PPO:
                 stp_reward_meter.avg or 0.0, epoch,
             )
             self._tb_writer.add_scalar(
-                "train/prooftrace/ppo/val_loss",
+                "train/prooftrace/ppo/fnl_reward",
                 fnl_reward_meter.avg or 0.0, epoch,
             )
 
