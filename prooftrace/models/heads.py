@@ -50,10 +50,10 @@ class PH(nn.Module):
 
     def forward(
             self,
-            predictions,
+            head,
             targets,
     ):
-        residuals = torch.cat([targets, predictions], dim=1)
+        residuals = torch.cat([targets, head], dim=1)
 
         actions = self.action_head(residuals)
         lefts = self.left_head(residuals)
@@ -86,10 +86,10 @@ class VH(nn.Module):
 
     def forward(
             self,
-            predictions,
+            head,
             targets,
     ):
-        residuals = torch.cat([targets, predictions], dim=1)
+        residuals = torch.cat([targets, head], dim=1)
 
         value = self.value_head(residuals)
 

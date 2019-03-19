@@ -32,7 +32,7 @@ class REPL():
             return []
         if INV_ACTION_TOKENS[hyp.value] == 'HYPOTHESIS':
             return [hyp.left.value] + self.build_hypothesis(hyp.right)
-        assert False
+        raise REPLException()
 
     def apply(
             self,
@@ -108,7 +108,7 @@ class REPL():
                         build_subst(subst.left) +
                         build_subst(subst.right)
                     )
-                assert False
+                raise REPLException()
 
             if action.right.value != ACTION_TOKENS['SUBST']:
                 raise REPLException
@@ -131,7 +131,7 @@ class REPL():
                         build_subst_type(subst_type.left) +
                         build_subst_type(subst_type.right)
                     )
-                assert False
+                raise REPLException()
 
             if action.right.value != ACTION_TOKENS['SUBST_TYPE']:
                 raise REPLException

@@ -248,7 +248,7 @@ class PreTrainer:
             embeds = self._model_E(trc)
             hiddens = self._model_H(embeds)
 
-            predictions = torch.cat([
+            head = torch.cat([
                 hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
             targets = torch.cat([
@@ -266,7 +266,7 @@ class PreTrainer:
             ], dtype=torch.int64).to(self._device)
 
             prd_actions, prd_lefts, prd_rights = \
-                self._model_PH(predictions, targets)
+                self._model_PH(head, targets)
 
             act_loss = self._loss(prd_actions, actions)
             lft_loss = self._loss(prd_lefts, lefts)
@@ -341,7 +341,7 @@ class PreTrainer:
                 embeds = self._model_E(trc)
                 hiddens = self._model_H(embeds)
 
-                predictions = torch.cat([
+                head = torch.cat([
                     hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
                 ], dim=0)
                 targets = torch.cat([
@@ -359,7 +359,7 @@ class PreTrainer:
                 ], dtype=torch.int64).to(self._device)
 
                 prd_actions, prd_lefts, prd_rights = \
-                    self._model_PH(predictions, targets)
+                    self._model_PH(head, targets)
 
                 act_loss = self._loss(prd_actions, actions)
                 lft_loss = self._loss(prd_lefts, lefts)

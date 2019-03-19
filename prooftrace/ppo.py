@@ -35,9 +35,12 @@ class Rollouts:
         self._rollout_size = config.get('prooftrace_ppo_rollout_size')
         self._pool_size = config.get('prooftrace_env_pool_size')
 
+        self._sequence_length = config.get('prooftrace_sequence_length')
+        self._hidden_size = config.get('prooftrace_hidden_size')
+
         self._gamma = config.get('prooftrace_ppo_gamma')
         self._tau = config.get('prooftrace_ppo_tau')
-        self._batch_size = config.get('prooftrace_batch_size')
+        self._batch_size = config.get('prooftrace_ppo_batch_size')
 
         self._epoch_count = config.get('prooftrace_ppo_epoch_count')
         self._clip = config.get('prooftrace_ppo_clip')
@@ -45,6 +48,11 @@ class Rollouts:
         self.observations = [
             [None] * self._pool_size for _ in range(self._rollout_size+1)
         ]
+        self.embeds = torch.zeros(
+            self._rollout_size+1, self._pool_size,
+            self._sequence_length, self._hidden_size,
+        ).to(self._device)
+
         self.actions = torch.zeros(
             self._rollout_size, self._pool_size, 3,
             dtype=torch.int64,
@@ -75,6 +83,7 @@ class Rollouts:
             observations: typing.List[
                 typing.Tuple[int, typing.List[Action]]
             ],
+            embeds,
             actions,
             log_probs,
             values,
@@ -82,6 +91,7 @@ class Rollouts:
             masks,
     ):
         self.observations[step+1] = observations
+        self.embeds[step+1] = embeds
         self.actions[step].copy_(actions)
         self.log_probs[step].copy_(log_probs)
         self.values[step].copy_(values)
@@ -126,6 +136,9 @@ class Rollouts:
             yield \
                 ([self.observations[:-1][i//sz][0][i % sz] for i in sample],
                  [self.observations[:-1][i//sz][1][i % sz] for i in sample]), \
+                self.embeds[:-1].view(
+                    -1, self.embeds.size(-2), self.embeds.size(-1),
+                )[indices], \
                 self.actions.view(-1, self.actions.size(-1))[indices], \
                 self.returns[:-1].view(-1, 1)[indices], \
                 self.masks[:-1].view(-1, 1)[indices], \
@@ -182,10 +195,6 @@ class PPO:
             self,
     ):
         if self._config.get('distributed_training'):
-            self._model_E = torch.nn.parallel.DistributedDataParallel(
-                self._inner_model_E,
-                device_ids=[self._device],
-            )
             self._model_H = torch.nn.parallel.DistributedDataParallel(
                 self._inner_model_H,
                 device_ids=[self._device],
@@ -201,7 +210,6 @@ class PPO:
 
         self._optimizer = optim.Adam(
             [
-                {'params': self._model_E.parameters()},
                 {'params': self._model_H.parameters()},
                 {'params': self._model_PH.parameters()},
                 {'params': self._model_VH.parameters()},
@@ -213,22 +221,25 @@ class PPO:
 
         self._pool = Pool(self._config, False)
         self._rollouts.observations[0] = self._pool.reset()
+        with torch.no_grad():
+            (idx, trc) = self._pool.reset()
+            embeds = self._model_E(trc).detach()
+
+            self._rollouts.observations[0] = (idx, trc)
+            self._rollouts.embeds[0] = embeds
 
         Log.out('Training initialization', {
             "world_size": self._config.get('distributed_world_size'),
-            "batch_size": self._config.get('prooftrace_batch_size'),
             "pool_size": self._config.get('prooftrace_env_pool_size'),
             "rollout_size": self._config.get('prooftrace_ppo_rollout_size'),
+            "batch_size": self._config.get('prooftrace_ppo_batch_size'),
         })
 
     def init_testing(
             self,
             test_dataset,
     ):
-        self._batch_size = self._config.get('prooftrace_batch_size') // \
-            self._accumulation_step_count
-
-        self._pool = Pool(self._config, False)
+        pass
 
     def load(
             self,
@@ -272,14 +283,19 @@ class PPO:
                         map_location=self._device,
                     ),
                 )
-                if training:
-                    self._optimizer.load_state_dict(
-                        torch.load(
-                            self._load_dir +
-                            "/optimizer_{}.pt".format(rank),
-                            map_location=self._device,
-                        ),
-                    )
+
+            # At initial transfer of the pre-trained model we don't transfer
+            # the optimizer.
+            if training and os.path.isfile(
+                    self._load_dir + "/optimizer_{}.pt".format(rank)
+            ):
+                self._optimizer.load_state_dict(
+                    torch.load(
+                        self._load_dir +
+                        "/optimizer_{}.pt".format(rank),
+                        map_location=self._device,
+                    ),
+                )
 
         return self
 
@@ -319,7 +335,7 @@ class PPO:
             self,
             epoch,
     ):
-        self._model_E.train()
+        self._model_E.eval()
         self._model_H.train()
         self._model_PH.train()
         self._model_VH.train()
@@ -335,11 +351,11 @@ class PPO:
         for step in range(self._rollout_size):
             with torch.no_grad():
                 (idx, trc) = self._rollouts.observations[step]
+                embeds = self._model_E(trc).detach()
 
-                embeds = self._model_E(trc)
                 hiddens = self._model_H(embeds)
 
-                predictions = torch.cat([
+                head = torch.cat([
                     hiddens[i][idx[i]].unsqueeze(0)
                     for i in range(len(idx))
                 ], dim=0)
@@ -349,10 +365,10 @@ class PPO:
                 ], dim=0)
 
                 prd_actions, prd_lefts, prd_rights = \
-                    self._model_PH(predictions, targets)
+                    self._model_PH(head, targets)
 
                 values = \
-                    self._model_VH(predictions, targets)
+                    self._model_VH(head, targets)
 
                 actions = torch.cat((
                     Categorical(
@@ -389,6 +405,7 @@ class PPO:
             self._rollouts.insert(
                 step,
                 observations,
+                embeds,
                 actions.detach(),
                 log_probs.detach(),
                 values.detach(),
@@ -402,11 +419,11 @@ class PPO:
 
         with torch.no_grad():
             (idx, trc) = self._rollouts.observations[-1]
+            embeds = self._rollouts.embeds[-1]
 
-            embeds = self._model_E(trc)
             hiddens = self._model_H(embeds)
 
-            predictions = torch.cat([
+            head = torch.cat([
                 hiddens[i][idx[i]].unsqueeze(0)
                 for i in range(len(idx))
             ], dim=0)
@@ -416,7 +433,7 @@ class PPO:
             ], dim=0)
 
             values = \
-                self._model_VH(predictions, targets)
+                self._model_VH(head, targets)
 
             self._rollouts.compute_returns(values.detach())
 
@@ -425,19 +442,12 @@ class PPO:
             advantages = \
                 (advantages - advantages.mean()) / (advantages.std() + 1e-5)
 
-        Log.out("ROLLOUT DONE", {
-            'epoch': epoch,
-            'fps': "{:.2f}".format(
-                self._pool_size * self._rollout_size /
-                (time.time() - batch_start)
-            ),
-        })
-
         for e in range(self._epoch_count):
             generator = self._rollouts.generator(advantages)
 
             for batch in generator:
                 rollout_observations, \
+                    rollout_embeds, \
                     rollout_actions, \
                     rollout_returns, \
                     rollout_masks, \
@@ -446,10 +456,9 @@ class PPO:
 
                 (idx, trc) = rollout_observations
 
-                embeds = self._model_E(trc)
-                hiddens = self._model_H(embeds)
+                hiddens = self._model_H(rollout_embeds)
 
-                predictions = torch.cat([
+                head = torch.cat([
                     hiddens[i][idx[i]].unsqueeze(0)
                     for i in range(len(idx))
                 ], dim=0)
@@ -459,10 +468,10 @@ class PPO:
                 ], dim=0)
 
                 prd_actions, prd_lefts, prd_rights = \
-                    self._model_PH(predictions, targets)
+                    self._model_PH(head, targets)
 
                 values = \
-                    self._model_VH(predictions, targets)
+                    self._model_VH(head, targets)
 
                 log_probs = torch.cat((
                     prd_actions.gather(1, rollout_actions[:, 0].unsqueeze(1)),
