@@ -523,19 +523,19 @@ class PPO:
         if self._tb_writer is not None:
             self._tb_writer.add_scalar(
                 "train/prooftrace/ppo/act_loss",
-                act_loss_meter.avg, self._train_batch,
+                act_loss_meter.avg, epoch,
             )
             self._tb_writer.add_scalar(
                 "train/prooftrace/ppo/val_loss",
-                val_loss_meter.avg, self._train_batch,
+                val_loss_meter.avg, epoch,
             )
             self._tb_writer.add_scalar(
                 "train/prooftrace/ppo/stp_reward",
-                stp_reward_meter.avg or 0.0, self._train_batch,
+                stp_reward_meter.avg or 0.0, epoch,
             )
             self._tb_writer.add_scalar(
                 "train/prooftrace/ppo/val_loss",
-                fnl_reward_meter.avg or 0.0, self._train_batch,
+                fnl_reward_meter.avg or 0.0, epoch,
             )
 
     def batch_test(
