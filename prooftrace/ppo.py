@@ -1,5 +1,6 @@
 import argparse
 import os
+import time
 import torch
 import torch.distributed as distributed
 import torch.optim as optim
@@ -18,7 +19,7 @@ from torch.distributions import Categorical
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 
 from utils.config import Config
-# from utils.meter import Meter
+from utils.meter import Meter
 from utils.log import Log
 from utils.str2bool import str2bool
 
@@ -37,6 +38,9 @@ class Rollouts:
         self._gamma = config.get('prooftrace_ppo_gamma')
         self._tau = config.get('prooftrace_ppo_tau')
         self._batch_size = config.get('prooftrace_batch_size')
+
+        self._epoch_count = config.get('prooftrace_ppo_epoch_count')
+        self._clip = config.get('prooftrace_ppo_clip')
 
         self.observations = [
             [None] * self._pool_size for _ in range(self._rollout_size+1)
@@ -115,26 +119,18 @@ class Rollouts:
             self._batch_size,
             drop_last=False,
         )
-        for indices in sampler:
-            indices = torch.LongTensor(indices).to(self._device)
-            observations_batch = self.observations[:-1].view(
-                -1, *self.observations.size()[2:],
-            )[indices]
-            actions_batch = self.actions.view(
-                -1, self.actions.size(-1),
-            )[indices]
-            returns_batch = self.returns[:-1].view(-1, 1)[indices]
-            masks_batch = self.masks[:-1].view(-1, 1)[indices]
-            log_probs_batch = self.log_probs.view(-1, 1)[indices]
-            advantage_targets = advantages.view(-1, 1)[indices]
+        for sample in sampler:
+            indices = torch.LongTensor(sample).to(self._device)
 
+            sz = self._pool_size
             yield \
-                observations_batch, \
-                actions_batch, \
-                returns_batch, \
-                masks_batch, \
-                log_probs_batch, \
-                advantage_targets
+                ([self.observations[:-1][i//sz][0][i % sz] for i in sample],
+                 [self.observations[:-1][i//sz][1][i % sz] for i in sample]), \
+                self.actions.view(-1, self.actions.size(-1))[indices], \
+                self.returns[:-1].view(-1, 1)[indices], \
+                self.masks[:-1].view(-1, 1)[indices], \
+                self.log_probs.view(-1, 1)[indices], \
+                advantages.view(-1, 1)[indices]
 
 
 class PPO:
@@ -143,9 +139,10 @@ class PPO:
             config: Config,
     ):
         self._config = config
-        self._accumulation_step_count = \
-            config.get('prooftrace_accumulation_step_count')
         self._rollout_size = config.get('prooftrace_ppo_rollout_size')
+        self._pool_size = config.get('prooftrace_env_pool_size')
+        self._epoch_count = config.get('prooftrace_ppo_epoch_count')
+        self._clip = config.get('prooftrace_ppo_clip')
 
         self._device = torch.device(config.get('device'))
 
@@ -178,7 +175,8 @@ class PPO:
         self._model_PH = self._inner_model_PH
         self._model_VH = self._inner_model_VH
 
-        self._train_batch = 0
+        self._episode_stp_reward = [0.0] * self._pool_size
+        self._episode_fnl_reward = [0.0] * self._pool_size
 
     def init_training(
             self,
@@ -211,23 +209,16 @@ class PPO:
             lr=self._config.get('prooftrace_learning_rate'),
         )
 
-        self._batch_size = self._config.get('prooftrace_batch_size') // \
-            self._accumulation_step_count
-
         self._rollouts = Rollouts(self._config)
 
         self._pool = Pool(self._config, False)
         self._rollouts.observations[0] = self._pool.reset()
 
         Log.out('Training initialization', {
-            "accumulation_step_count": self._accumulation_step_count,
             "world_size": self._config.get('distributed_world_size'),
             "batch_size": self._config.get('prooftrace_batch_size'),
-            "dataloader_batch_size": self._batch_size,
-            "effective_batch_size": (
-                self._config.get('prooftrace_batch_size') *
-                self._config.get('distributed_world_size')
-            ),
+            "pool_size": self._config.get('prooftrace_env_pool_size'),
+            "rollout_size": self._config.get('prooftrace_ppo_rollout_size'),
         })
 
     def init_testing(
@@ -333,7 +324,13 @@ class PPO:
         self._model_PH.train()
         self._model_VH.train()
 
-        self._train_batch += 1
+        stp_reward_meter = Meter()
+        fnl_reward_meter = Meter()
+        act_loss_meter = Meter()
+        val_loss_meter = Meter()
+        # ent_loss_meter = Meter()
+
+        batch_start = time.time()
 
         for step in range(self._rollout_size):
             with torch.no_grad():
@@ -341,6 +338,7 @@ class PPO:
 
                 embeds = self._model_E(trc)
                 hiddens = self._model_H(embeds)
+
                 predictions = torch.cat([
                     hiddens[i][idx[i]].unsqueeze(0)
                     for i in range(len(idx))
@@ -356,31 +354,174 @@ class PPO:
                 values = \
                     self._model_VH(predictions, targets)
 
-                actions = torch.cat(
-                    (
-                        Categorical(
-                            torch.exp(prd_actions)
-                        ).sample().unsqueeze(1),
-                        Categorical(
-                            torch.exp(prd_lefts)
-                        ).sample().unsqueeze(1),
-                        Categorical(
-                            torch.exp(prd_lefts)
-                        ).sample().unsqueeze(1),
-                    ), dim=1,
-                )
+                actions = torch.cat((
+                    Categorical(
+                        torch.exp(prd_actions)
+                    ).sample().unsqueeze(1),
+                    Categorical(
+                        torch.exp(prd_lefts)
+                    ).sample().unsqueeze(1),
+                    Categorical(
+                        torch.exp(prd_rights)
+                    ).sample().unsqueeze(1),
+                ), dim=1)
 
-                log_probs = torch.cat(
-                    (
-                        prd_actions.gather(1, actions[:, 0].unsqueeze(1)),
-                        prd_lefts.gather(1, actions[:, 1].unsqueeze(1)),
-                        prd_rights.gather(1, actions[:, 2].unsqueeze(1)),
-                    ), dim=1,
-                )
+                log_probs = torch.cat((
+                    prd_actions.gather(1, actions[:, 0].unsqueeze(1)),
+                    prd_lefts.gather(1, actions[:, 1].unsqueeze(1)),
+                    prd_rights.gather(1, actions[:, 2].unsqueeze(1)),
+                ), dim=1)
 
-        Log.out("EPOCH DONE", {
+            # self._rollouts.observations[0] = self._pool.reset()
+            observations, rewards, dones = self._pool.step(
+                [tuple(a) for a in actions.detach().cpu().numpy()]
+            )
+
+            for i, r in enumerate(rewards):
+                self._episode_stp_reward[i] += r[0]
+                self._episode_fnl_reward[i] += r[1]
+                if dones[i]:
+                    stp_reward_meter.update(self._episode_stp_reward[i])
+                    fnl_reward_meter.update(self._episode_fnl_reward[i])
+                    self._episode_stp_reward[i] = 0.0
+                    self._episode_fnl_reward[i] = 0.0
+
+            self._rollouts.insert(
+                step,
+                observations,
+                actions.detach(),
+                log_probs.detach(),
+                values.detach(),
+                torch.tensor(
+                    [(r[0] + r[1]) for r in rewards], dtype=torch.int64,
+                ).unsqueeze(1).to(self._device),
+                torch.tensor(
+                    [[0.0] if d else [1.0] for d in dones],
+                ).to(self._device),
+            )
+
+        with torch.no_grad():
+            (idx, trc) = self._rollouts.observations[-1]
+
+            embeds = self._model_E(trc)
+            hiddens = self._model_H(embeds)
+
+            predictions = torch.cat([
+                hiddens[i][idx[i]].unsqueeze(0)
+                for i in range(len(idx))
+            ], dim=0)
+            targets = torch.cat([
+                hiddens[i][0].unsqueeze(0)
+                for i in range(len(idx))
+            ], dim=0)
+
+            values = \
+                self._model_VH(predictions, targets)
+
+            self._rollouts.compute_returns(values.detach())
+
+            advantages = \
+                self._rollouts.returns[:-1] - self._rollouts.values[:-1]
+            advantages = \
+                (advantages - advantages.mean()) / (advantages.std() + 1e-5)
+
+        for e in range(self._epoch_count):
+            generator = self._rollouts.generator(advantages)
+
+            for batch in generator:
+                rollout_observations, \
+                    rollout_actions, \
+                    rollout_returns, \
+                    rollout_masks, \
+                    rollout_log_probs, \
+                    rollout_advantages = batch
+
+                (idx, trc) = rollout_observations
+
+                embeds = self._model_E(trc)
+                hiddens = self._model_H(embeds)
+
+                predictions = torch.cat([
+                    hiddens[i][idx[i]].unsqueeze(0)
+                    for i in range(len(idx))
+                ], dim=0)
+                targets = torch.cat([
+                    hiddens[i][0].unsqueeze(0)
+                    for i in range(len(idx))
+                ], dim=0)
+
+                prd_actions, prd_lefts, prd_rights = \
+                    self._model_PH(predictions, targets)
+
+                values = \
+                    self._model_VH(predictions, targets)
+
+                log_probs = torch.cat((
+                    prd_actions.gather(1, rollout_actions[:, 0].unsqueeze(1)),
+                    prd_lefts.gather(1, rollout_actions[:, 1].unsqueeze(1)),
+                    prd_rights.gather(1, rollout_actions[:, 2].unsqueeze(1)),
+                ), dim=1)
+
+                ratio = torch.exp(log_probs - rollout_log_probs)
+
+                action_loss = -torch.min(
+                    ratio * rollout_advantages,
+                    torch.clamp(ratio, 1.0 - self._clip, 1.0 + self._clip) *
+                    rollout_advantages,
+                ).mean()
+
+                value_loss = (rollout_returns.detach() - values).pow(2).mean()
+
+                # entropy_loss = -entropy.mean()
+                # entropy_loss * self.entropy_loss_coeff).backward()
+
+                self._optimizer.zero_grad()
+
+                (value_loss + action_loss).backward()
+
+                # if self.grad_norm_max > 0.0:
+                #     nn.utils.clip_grad_norm(
+                #         self.policy.parameters(), self.grad_norm_max,
+                #     )
+
+                self._optimizer.step()
+
+                act_loss_meter.update(action_loss.item())
+                val_loss_meter.update(value_loss.item())
+
+        self._rollouts.after_update()
+
+        batch_end = time.time()
+
+        Log.out("PROOFTRACE PPO TRAIN", {
             'epoch': epoch,
+            'fps': "{:.2f}".format(
+                self._worker_count * self._rollout_size /
+                (batch_end - batch_start)
+            ),
+            'stp_reward_avg': "{:.4f}".format(stp_reward_meter.avg or 0.0),
+            'fnl_reward_avg': "{:.4f}".format(fnl_reward_meter.avg or 0.0),
+            'act_loss_avg': "{:.4f}".format(act_loss_meter.avg),
+            'val_loss_avg': "{:.4f}".format(val_loss_meter.avg),
         })
+
+        if self._tb_writer is not None:
+            self._tb_writer.add_scalar(
+                "train/prooftrace/ppo/act_loss",
+                act_loss_meter.avg, self._train_batch,
+            )
+            self._tb_writer.add_scalar(
+                "train/prooftrace/ppo/val_loss",
+                val_loss_meter.avg, self._train_batch,
+            )
+            self._tb_writer.add_scalar(
+                "train/prooftrace/ppo/stp_reward",
+                stp_reward_meter.avg or 0.0, self._train_batch,
+            )
+            self._tb_writer.add_scalar(
+                "train/prooftrace/ppo/val_loss",
+                fnl_reward_meter.avg or 0.0, self._train_batch,
+            )
 
     def batch_test(
             self,

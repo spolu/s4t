@@ -134,9 +134,9 @@ class Env:
         assert self._run is not None
 
         if a[1] >= self._run.len():
-            return self.observation(), -1.0, False
+            return self.observation(), (-1.0, 0.0), False
         if a[2] >= self._run.len():
-            return self.observation(), -1.0, False
+            return self.observation(), (-1.0, 0.0), False
 
         action = Action.from_action(
             INV_ACTION_TOKENS[a[0]],
@@ -145,31 +145,31 @@ class Env:
         )
 
         if self._run.seen(action):
-            return self.observation(), -1.0, False
+            return self.observation(), (-1.0, 0.0), False
 
         try:
             thm = self._repl.apply(action)
         except FusionException:
-            return self.observation(), -1.0, False
+            return self.observation(), (-1.0, 0.0), False
         except REPLException:
-            return self.observation(), -1.0, False
+            return self.observation(), (-1.0, 0.0), False
 
         self._run.append(action)
 
         if self._target.thm_string(True) == thm.thm_string(True):
-            # TODO(stan): for now we return the sequence length as final
-            # reward, hoping that the RL decay will push the algorithm to
-            # minimize sequences length. To investigate.
-            return self.observation(), float(self.sequence_length), True
+            # TODO(stan): for now we return the ground ptra length as final
+            # reward, hoping that the RL decay will push the agent to minimize
+            # sequences length. To investigate.
+            return self.observation(), (0.0, float(self._ground.len())), True
 
         done = False
         if self._run.len() >= self._sequence_length:
             done = True
 
         if self._ground.seen(action):
-            return self.observation(), 1.0, done
+            return self.observation(), (1.0, 0.0), done
         else:
-            return self.observation(), 0.0, done
+            return self.observation(), (0.0, 0.0), done
 
 
 class Pool:
@@ -224,7 +224,7 @@ class Pool:
 
     def step(
             self,
-            actions,
+            actions: typing.List[typing.Tuple[int, int, int]],
     ) -> typing.Tuple[
         typing.Tuple[
             typing.List[int],
