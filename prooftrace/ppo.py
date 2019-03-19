@@ -104,15 +104,10 @@ class Rollouts:
     ):
         self.values[-1].copy_(next_values)
         self.returns[-1].copy_(next_values)
-        gae = 0
+
         for step in reversed(range(self._rollout_size)):
-            delta = (
-                self.rewards[step] +
-                self._gamma * self.values[step+1] * self.masks[step+1] -
-                self.values[step]
-            )
-            gae = delta + self._gamma * self._tau * self.masks[step+1] * gae
-            self.returns[step] = gae + self.values[step]
+            self.returns[step] = self.rewards[step] + \
+                (self._gamma * self.returns[step+1] * self.masks[step+1])
 
     def after_update(
             self,
@@ -248,13 +243,11 @@ class PPO:
         rank = self._config.get('distributed_rank')
 
         if self._load_dir:
-            if os.path.isfile(
-                    self._load_dir + "/model_H_{}.pt".format(rank)
-            ):
-                Log.out(
-                    "Loading prooftrace", {
-                        'load_dir': self._load_dir,
-                    })
+            Log.out(
+                "Loading prooftrace", {
+                    'load_dir': self._load_dir,
+                })
+            if os.path.isfile(self._load_dir + "/model_E_{}.pt".format(rank)):
                 self._inner_model_E.load_state_dict(
                     torch.load(
                         self._load_dir +
@@ -262,6 +255,7 @@ class PPO:
                         map_location=self._device,
                     ),
                 )
+            if os.path.isfile(self._load_dir + "/model_H_{}.pt".format(rank)):
                 self._inner_model_H.load_state_dict(
                     torch.load(
                         self._load_dir +
@@ -269,6 +263,7 @@ class PPO:
                         map_location=self._device,
                     ),
                 )
+            if os.path.isfile(self._load_dir + "/model_PH_{}.pt".format(rank)):
                 self._inner_model_PH.load_state_dict(
                     torch.load(
                         self._load_dir +
@@ -276,6 +271,7 @@ class PPO:
                         map_location=self._device,
                     ),
                 )
+            if os.path.isfile(self._load_dir + "/model_VH_{}.pt".format(rank)):
                 self._inner_model_VH.load_state_dict(
                     torch.load(
                         self._load_dir +

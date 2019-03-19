@@ -134,9 +134,9 @@ class Env:
         assert self._run is not None
 
         if a[1] >= self._run.len():
-            return self.observation(), (-1.0, 0.0), False
+            return self.observation(), (0.0, 0.0), False
         if a[2] >= self._run.len():
-            return self.observation(), (-1.0, 0.0), False
+            return self.observation(), (0.0, 0.0), False
 
         action = Action.from_action(
             INV_ACTION_TOKENS[a[0]],
@@ -147,9 +147,9 @@ class Env:
         try:
             thm = self._repl.apply(action)
         except FusionException:
-            return self.observation(), (-1.0, 0.0), False
+            return self.observation(), (0.0, 0.0), False
         except REPLException:
-            return self.observation(), (-1.0, 0.0), False
+            return self.observation(), (0.0, 0.0), False
 
         self._run.append(action)
 
@@ -157,8 +157,11 @@ class Env:
         final_reward = 0.0
         done = False
 
-        if self._ground.seen(action) and not self._run.seen(action):
+        if not self._run.seen(action):
             step_reward = 1.0
+            if self._ground.seen(action):
+                step_reward = 2.0
+
         if self._target.thm_string(True) == thm.thm_string(True):
             # TODO(stan): for now we return the ground ptra length as final
             # reward, hoping that the RL decay will push the agent to minimize
@@ -176,7 +179,7 @@ class Env:
                 'ground_length': self._ground.len(),
                 'run_length': self._run.len(),
             })
-        if step_reward > 0.0:
+        if step_reward > 1.0:
             Log.out("REWARD", {
                 'name': self._ground.name(),
                 'step_reward': step_reward,
