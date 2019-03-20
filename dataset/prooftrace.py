@@ -1150,7 +1150,7 @@ class ProofTraceVDataset(Dataset):
 
         trace = ptra.actions()[:self._cases[idx][1]+1]
         trace.append(Action.from_action('EXTRACT', None, None))
-        value = len(trace) * (0.99 ** (ptra.len() - len(trace)))
+        value = ptra.len() * (0.99 ** (ptra.len() - len(trace)))
 
         while len(trace) < self._sequence_length:
             trace.append(Action.from_action('EMPTY', None, None))

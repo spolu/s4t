@@ -8,7 +8,7 @@
   "distributed_backend": "nccl",
   "distributed_init_method": "env://",
 
-  "prooftrace_batch_size": 4,
+  "prooftrace_batch_size": 8,
   "prooftrace_accumulation_step_count": 1,
 
   "prooftrace_learning_rate": 0.00025,
