@@ -151,6 +151,7 @@ class PPO:
         self._pool_size = config.get('prooftrace_env_pool_size')
         self._epoch_count = config.get('prooftrace_ppo_epoch_count')
         self._clip = config.get('prooftrace_ppo_clip')
+        self._value_only = config.get('prooftrace_ppo_value_only')
 
         self._device = torch.device(config.get('device'))
 
@@ -203,14 +204,22 @@ class PPO:
                 device_ids=[self._device],
             )
 
-        self._optimizer = optim.Adam(
-            [
-                {'params': self._model_H.parameters()},
-                {'params': self._model_PH.parameters()},
-                {'params': self._model_VH.parameters()},
-            ],
-            lr=self._config.get('prooftrace_ppo_learning_rate'),
-        )
+        if self._value_only:
+            self._optimizer = optim.Adam(
+                [
+                    {'params': self._model_VH.parameters()},
+                ],
+                lr=self._config.get('prooftrace_ppo_learning_rate'),
+            )
+        else:
+            self._optimizer = optim.Adam(
+                [
+                    {'params': self._model_H.parameters()},
+                    {'params': self._model_PH.parameters()},
+                    {'params': self._model_VH.parameters()},
+                ],
+                lr=self._config.get('prooftrace_ppo_learning_rate'),
+            )
 
         self._rollouts = Rollouts(self._config)
 
@@ -322,10 +331,11 @@ class PPO:
                 self._inner_model_VH.state_dict(),
                 self._save_dir + "/model_VH_{}.pt".format(rank),
             )
-            torch.save(
-                self._optimizer.state_dict(),
-                self._save_dir + "/optimizer_{}.pt".format(rank),
-            )
+            if not self._value_only:
+                torch.save(
+                    self._optimizer.state_dict(),
+                    self._save_dir + "/optimizer_{}.pt".format(rank),
+                )
 
     def batch_train(
             self,
@@ -340,7 +350,7 @@ class PPO:
         fnl_reward_meter = Meter()
         act_loss_meter = Meter()
         val_loss_meter = Meter()
-        # ent_loss_meter = Meter()
+        entropy_meter = Meter()
 
         batch_start = time.time()
 
@@ -473,7 +483,7 @@ class PPO:
                     prd_lefts.gather(1, rollout_actions[:, 1].unsqueeze(1)),
                     prd_rights.gather(1, rollout_actions[:, 2].unsqueeze(1)),
                 ), dim=1)
-
+                entropy = -(log_probs * torch.exp(log_probs)).sum(0).mean()
                 ratio = torch.exp(log_probs - rollout_log_probs)
 
                 action_loss = -torch.min(
@@ -484,22 +494,13 @@ class PPO:
 
                 value_loss = (rollout_returns.detach() - values).pow(2).mean()
 
-                # entropy_loss = -entropy.mean()
-                # entropy_loss * self.entropy_loss_coeff).backward()
-
                 self._optimizer.zero_grad()
-
                 (value_loss + action_loss).backward()
-
-                # if self.grad_norm_max > 0.0:
-                #     nn.utils.clip_grad_norm(
-                #         self.policy.parameters(), self.grad_norm_max,
-                #     )
-
                 self._optimizer.step()
 
                 act_loss_meter.update(action_loss.item())
                 val_loss_meter.update(value_loss.item())
+                entropy_meter.update(entropy.item())
 
         self._rollouts.after_update()
 
@@ -513,6 +514,7 @@ class PPO:
             'fnl_reward_avg': "{:.4f}".format(fnl_reward_meter.avg or 0.0),
             'act_loss_avg': "{:.4f}".format(act_loss_meter.avg),
             'val_loss_avg': "{:.4f}".format(val_loss_meter.avg),
+            'entropy_avg': "{:.4f}".format(entropy_meter.avg),
         })
 
         if self._tb_writer is not None:
@@ -523,6 +525,10 @@ class PPO:
             self._tb_writer.add_scalar(
                 "train/prooftrace/ppo/val_loss",
                 val_loss_meter.avg, epoch,
+            )
+            self._tb_writer.add_scalar(
+                "train/prooftrace/ppo/entorpy",
+                entropy_meter.avg, epoch,
             )
             self._tb_writer.add_scalar(
                 "train/prooftrace/ppo/stp_reward",
@@ -587,6 +593,11 @@ def train():
         type=int, help="config override",
     )
 
+    parser.add_argument(
+        '--value_only',
+        type=str2bool, help="confg override",
+    )
+
     args = parser.parse_args()
 
     config = Config.from_file(args.config_path)
@@ -621,6 +632,8 @@ def train():
             'prooftrace_save_dir',
             os.path.expanduser(args.save_dir),
         )
+    if args.value_only is not None:
+        config.override('prooftrace_ppo_value_only', args.value_only)
 
     if config.get('distributed_training'):
         distributed.init_process_group(
@@ -695,3 +708,4 @@ def test():
     while True:
         ppo.batch_test(epoch)
         epoch += 1
+        ppo.save()

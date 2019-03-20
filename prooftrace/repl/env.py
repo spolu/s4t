@@ -134,9 +134,9 @@ class Env:
         assert self._run is not None
 
         if a[1] >= self._run.len():
-            return self.observation(), (0.0, 0.0), False
+            return self.observation(), (0.0, 0.0), True
         if a[2] >= self._run.len():
-            return self.observation(), (0.0, 0.0), False
+            return self.observation(), (0.0, 0.0), True
 
         action = Action.from_action(
             INV_ACTION_TOKENS[a[0]],
@@ -147,9 +147,9 @@ class Env:
         try:
             thm = self._repl.apply(action)
         except FusionException:
-            return self.observation(), (0.0, 0.0), False
+            return self.observation(), (0.0, 0.0), True
         except REPLException:
-            return self.observation(), (0.0, 0.0), False
+            return self.observation(), (0.0, 0.0), True
 
         seen = self._run.seen(action)
         self._run.append(action)
@@ -157,6 +157,7 @@ class Env:
         step_reward = 0.0
         final_reward = 0.0
         done = False
+
         if not seen:
             step_reward = 1.0
             if self._ground.seen(action):
@@ -171,16 +172,8 @@ class Env:
         if self._run.len() >= self._sequence_length:
             done = True
 
-        if done:
-            Log.out("DONE", {
-                'name': self._ground.name(),
-                'step_reward': step_reward,
-                'final_reward': final_reward,
-                'ground_length': self._ground.len(),
-                'run_length': self._run.len(),
-            })
         if step_reward > 1.0:
-            Log.out("REWARD", {
+            Log.out("MATCH", {
                 'name': self._ground.name(),
                 'step_reward': step_reward,
                 'final_reward': final_reward,
@@ -274,6 +267,10 @@ class Pool:
             observations.append(o)
             rewards.append(r)
             dones.append(d)
+
+        for i in range(len(dones)):
+            if dones[i]:
+                self._pool[i].reset()
 
         return self.collate(observations), rewards, dones
 
