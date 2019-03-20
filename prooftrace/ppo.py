@@ -135,6 +135,7 @@ class Rollouts:
                     -1, self.embeds.size(-2), self.embeds.size(-1),
                 )[indices], \
                 self.actions.view(-1, self.actions.size(-1))[indices], \
+                self.values[:-1].view(-1, 1)[indices], \
                 self.returns[:-1].view(-1, 1)[indices], \
                 self.masks[:-1].view(-1, 1)[indices], \
                 self.log_probs.view(-1, 1)[indices], \
@@ -151,6 +152,8 @@ class PPO:
         self._pool_size = config.get('prooftrace_env_pool_size')
         self._epoch_count = config.get('prooftrace_ppo_epoch_count')
         self._clip = config.get('prooftrace_ppo_clip')
+        self._grad_norm_max = config.get('prooftrace_ppo_grad_norm_max')
+
         self._value_only = config.get('prooftrace_ppo_value_only')
 
         self._device = torch.device(config.get('device'))
@@ -454,6 +457,7 @@ class PPO:
                 rollout_observations, \
                     rollout_embeds, \
                     rollout_actions, \
+                    rollout_values, \
                     rollout_returns, \
                     rollout_masks, \
                     rollout_log_probs, \
@@ -484,18 +488,49 @@ class PPO:
                     prd_rights.gather(1, rollout_actions[:, 2].unsqueeze(1)),
                 ), dim=1)
                 entropy = -(log_probs * torch.exp(log_probs)).sum(0).mean()
-                ratio = torch.exp(log_probs - rollout_log_probs)
 
+                # Clipped action loss.
+                ratio = torch.exp(log_probs - rollout_log_probs)
                 action_loss = -torch.min(
                     ratio * rollout_advantages,
                     torch.clamp(ratio, 1.0 - self._clip, 1.0 + self._clip) *
                     rollout_advantages,
                 ).mean()
 
-                value_loss = (rollout_returns.detach() - values).pow(2).mean()
+                # Log.out("RATIO/ADV/LOSS", {
+                #     'clipped_ratio': torch.clamp(
+                #         ratio, 1.0 - self._clip, 1.0 + self._clip
+                #     ).mean().item(),
+                #     'ratio': ratio.mean().item(),
+                #     'advantages': rollout_advantages.mean().item(),
+                #     'action_loss': action_loss.item(),
+                # })
 
+                # Clipped value loss.
+                clipped_values = rollout_values + \
+                    (values - rollout_values).clamp(-self._clip, self._clip)
+
+                value_loss = 0.5 * torch.max(
+                    (rollout_returns - values).pow(2),
+                    (rollout_returns - clipped_values).pow(2),
+                ).mean()
+
+                # Backward pass.
                 self._optimizer.zero_grad()
-                (value_loss + action_loss).backward()
+
+                (0.5 * value_loss + action_loss).backward()
+
+                if self._grad_norm_max > 0.0:
+                    torch.nn.utils.clip_grad_norm(
+                        self._model_VH.parameters(), self._grad_norm_max,
+                    )
+                    torch.nn.utils.clip_grad_norm(
+                        self._model_PH.parameters(), self._grad_norm_max,
+                    )
+                    torch.nn.utils.clip_grad_norm(
+                        self._model_H.parameters(), self._grad_norm_max,
+                    )
+
                 self._optimizer.step()
 
                 act_loss_meter.update(action_loss.item())
@@ -654,6 +689,7 @@ def train():
     epoch = 0
     while True:
         ppo.batch_train(epoch)
+        ppo.save()
         epoch += 1
 
 
@@ -708,4 +744,3 @@ def test():
     while True:
         ppo.batch_test(epoch)
         epoch += 1
-        ppo.save()

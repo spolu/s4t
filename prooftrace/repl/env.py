@@ -78,10 +78,10 @@ class Env:
             if ptra_len <= self._sequence_length:
                 with open(path, 'rb') as f:
                     self._ground = pickle.load(f)
-                Log.out("Selecting trace", {
-                    "trace": self._ground.name(),
-                    'length': self._ground.len(),
-                })
+                # Log.out("Selecting trace", {
+                #     "trace": self._ground.name(),
+                #     'length': self._ground.len(),
+                # })
 
         self._run = ProofTraceActions(
             'REPL-{}'.format(
