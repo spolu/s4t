@@ -521,13 +521,13 @@ class PPO:
                 (0.5 * value_loss + action_loss).backward()
 
                 if self._grad_norm_max > 0.0:
-                    torch.nn.utils.clip_grad_norm(
+                    torch.nn.utils.clip_grad_norm_(
                         self._model_VH.parameters(), self._grad_norm_max,
                     )
-                    torch.nn.utils.clip_grad_norm(
+                    torch.nn.utils.clip_grad_norm_(
                         self._model_PH.parameters(), self._grad_norm_max,
                     )
-                    torch.nn.utils.clip_grad_norm(
+                    torch.nn.utils.clip_grad_norm_(
                         self._model_H.parameters(), self._grad_norm_max,
                     )
 
