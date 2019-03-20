@@ -272,15 +272,15 @@ class LanguageModel:
 
                 if self._tb_writer is not None:
                     self._tb_writer.add_scalar(
-                        "train/prooftrace/pre_trainer/act_loss",
+                        "prooftrace_language_model_train/act_loss",
                         act_loss_meter.avg, self._train_batch,
                     )
                     self._tb_writer.add_scalar(
-                        "train/prooftrace/pre_trainer/lft_loss",
+                        "prooftrace_language_model_train/lft_loss",
                         lft_loss_meter.avg, self._train_batch,
                     )
                     self._tb_writer.add_scalar(
-                        "train/prooftrace/pre_trainer/rgt_loss",
+                        "prooftrace_language_model_train/rgt_loss",
                         rgt_loss_meter.avg, self._train_batch,
                     )
 

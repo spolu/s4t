@@ -15,7 +15,6 @@ from prooftrace.repl.env import Pool
 
 from tensorboardX import SummaryWriter
 
-from torch.distributions import Categorical
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 
 from utils.config import Config
@@ -366,7 +365,7 @@ class PPO:
                 for k in update:
                     if type(update[k]) is float or type(update[k]) is int:
                         self._tb_writer.add_scalar(
-                            "train/prooftrace/ppo/{}".format(k),
+                            "prooftrace_poo_train/{}".format(k),
                             update[k], epoch,
                         )
 
@@ -584,27 +583,27 @@ class PPO:
 
         if self._tb_writer is not None:
             self._tb_writer.add_scalar(
-                "train/prooftrace/ppo/act_loss",
+                "prooftrace_ppo_train/act_loss",
                 act_loss_meter.avg, epoch,
             )
             self._tb_writer.add_scalar(
-                "train/prooftrace/ppo/val_loss",
+                "prooftrace_ppo_train/val_loss",
                 val_loss_meter.avg, epoch,
             )
             self._tb_writer.add_scalar(
-                "train/prooftrace/ppo/entropy",
+                "prooftrace_ppo_train/entropy",
                 entropy_meter.avg, epoch,
             )
             self._tb_writer.add_scalar(
-                "train/prooftrace/ppo/stp_reward",
+                "prooftrace_ppo_train/stp_reward",
                 stp_reward_meter.avg or 0.0, epoch,
             )
             self._tb_writer.add_scalar(
-                "train/prooftrace/ppo/mtc_reward",
+                "prooftrace_ppo_train/mtc_reward",
                 mtc_reward_meter.avg or 0.0, epoch,
             )
             self._tb_writer.add_scalar(
-                "train/prooftrace/ppo/fnl_reward",
+                "prooftrace_ppo_train/fnl_reward",
                 fnl_reward_meter.avg or 0.0, epoch,
             )
 

@@ -254,7 +254,7 @@ class LanguageModel:
 
                 if self._tb_writer is not None:
                     self._tb_writer.add_scalar(
-                        "train/prooftrace/pre_trainer/val_loss",
+                        "prooftrace_value_train/val_loss",
                         val_loss_meter.avg, self._train_batch,
                     )
 
