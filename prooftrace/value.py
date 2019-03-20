@@ -246,7 +246,7 @@ class LanguageModel:
 
             val_loss_meter.update(val_loss.item())
 
-            if self._train_batch % 10 == 0:
+            if self._train_batch % 10 == 0 and self._train_batch != 0:
                 Log.out("PROOFTRACE TRAIN", {
                     'train_batch': self._train_batch,
                     'val_loss_avg': "{:.4f}".format(val_loss_meter.avg),

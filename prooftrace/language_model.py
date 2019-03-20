@@ -262,7 +262,7 @@ class LanguageModel:
             lft_loss_meter.update(lft_loss.item())
             rgt_loss_meter.update(rgt_loss.item())
 
-            if self._train_batch % 10 == 0:
+            if self._train_batch % 10 == 0 and self._train_batch != 0:
                 Log.out("PROOFTRACE TRAIN", {
                     'train_batch': self._train_batch,
                     'act_loss_avg': "{:.4f}".format(act_loss_meter.avg),
