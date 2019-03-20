@@ -8,7 +8,7 @@
   "distributed_backend": "nccl",
   "distributed_init_method": "env://",
 
-  "prooftrace_batch_size": 8,
+  "prooftrace_batch_size": 4,
   "prooftrace_accumulation_step_count": 1,
 
   "prooftrace_learning_rate": 0.00025,
@@ -20,12 +20,12 @@
   "prooftrace_hidden_size": 512,
   "prooftrace_sequence_length": 1024,
 
-  "prooftrace_transformer_hidden_size": 1024,
+  "prooftrace_transformer_hidden_size": 512,
   "prooftrace_transformer_attention_head_count": 8,
   "prooftrace_transformer_layer_count": 0,
 
   "prooftrace_lstm_layer_count": 1,
-  "prooftrace_lstm_hidden_size": 1024,
+  "prooftrace_lstm_hidden_size": 512,
 
   "prooftrace_env_alpha": 0.00,
   "prooftrace_env_beta": 0.0,

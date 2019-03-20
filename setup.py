@@ -29,6 +29,8 @@ setup(
             'prooftrace_test_embedder=prooftrace.models.embedder:test',
             'prooftrace_train_language_model=prooftrace.language_model:train',
             'prooftrace_test_language_model=prooftrace.language_model:test',
+            'prooftrace_train_value=prooftrace.value:train',
+            'prooftrace_test_value=prooftrace.value:test',
             'prooftrace_test_repl=prooftrace.repl.repl:test',
             'prooftrace_test_fusion=prooftrace.repl.fusion:test',
             'prooftrace_test_repl_env=prooftrace.repl.env:test',
