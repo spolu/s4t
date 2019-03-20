@@ -154,8 +154,6 @@ class PPO:
         self._clip = config.get('prooftrace_ppo_clip')
         self._grad_norm_max = config.get('prooftrace_ppo_grad_norm_max')
 
-        self._value_only = config.get('prooftrace_ppo_value_only')
-
         self._device = torch.device(config.get('device'))
 
         self._save_dir = config.get('prooftrace_save_dir')
@@ -208,22 +206,15 @@ class PPO:
                 device_ids=[self._device],
             )
 
-        if self._value_only:
-            self._optimizer = optim.Adam(
-                [
-                    {'params': self._model_VH.parameters()},
-                ],
-                lr=self._config.get('prooftrace_ppo_learning_rate'),
-            )
-        else:
-            self._optimizer = optim.Adam(
-                [
-                    {'params': self._model_H.parameters()},
-                    {'params': self._model_PH.parameters()},
-                    {'params': self._model_VH.parameters()},
-                ],
-                lr=self._config.get('prooftrace_ppo_learning_rate'),
-            )
+        self._optimizer = optim.Adam(
+            [
+                {'params': self._model_E.parameters()},
+                {'params': self._model_H.parameters()},
+                {'params': self._model_PH.parameters()},
+                {'params': self._model_VH.parameters()},
+            ],
+            lr=self._config.get('prooftrace_ppo_learning_rate'),
+        )
 
         self._rollouts = Rollouts(self._config)
 
@@ -293,8 +284,6 @@ class PPO:
                     ),
                 )
 
-            # At initial transfer of the pre-trained model we don't transfer
-            # the optimizer.
             if training and os.path.isfile(
                     self._load_dir + "/optimizer_{}.pt".format(rank)
             ):
@@ -335,11 +324,10 @@ class PPO:
                 self._inner_model_VH.state_dict(),
                 self._save_dir + "/model_VH_{}.pt".format(rank),
             )
-            if not self._value_only:
-                torch.save(
-                    self._optimizer.state_dict(),
-                    self._save_dir + "/optimizer_{}.pt".format(rank),
-                )
+            torch.save(
+                self._optimizer.state_dict(),
+                self._save_dir + "/optimizer_{}.pt".format(rank),
+            )
 
     def batch_train(
             self,
@@ -638,11 +626,6 @@ def train():
         type=int, help="config override",
     )
 
-    parser.add_argument(
-        '--value_only',
-        type=str2bool, help="confg override",
-    )
-
     args = parser.parse_args()
 
     config = Config.from_file(args.config_path)
@@ -677,8 +660,6 @@ def train():
             'prooftrace_save_dir',
             os.path.expanduser(args.save_dir),
         )
-    if args.value_only is not None:
-        config.override('prooftrace_ppo_value_only', args.value_only)
 
     if config.get('distributed_training'):
         distributed.init_process_group(

@@ -87,7 +87,6 @@
   "prooftrace_ppo_epoch_count": 5,
   "prooftrace_ppo_clip": 0.2,
   "prooftrace_ppo_grad_norm_max": 0.5,
-  "prooftrace_ppo_value_only": false,
 
   "prooftrace_dataset_dir": "./data/prooftrace",
   "prooftrace_dataset_size": "medium",
