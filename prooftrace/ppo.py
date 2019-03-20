@@ -523,7 +523,7 @@ class PPO:
                 # Backward pass.
                 self._optimizer.zero_grad()
 
-                (0.5 * value_loss + action_loss - 0.01 * entropy).backward()
+                (0.5 * value_loss + action_loss - 0.02 * entropy).backward()
 
                 if self._grad_norm_max > 0.0:
                     torch.nn.utils.clip_grad_norm_(
