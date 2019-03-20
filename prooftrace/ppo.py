@@ -592,7 +592,7 @@ class PPO:
                 val_loss_meter.avg, epoch,
             )
             self._tb_writer.add_scalar(
-                "train/prooftrace/ppo/entorpy",
+                "train/prooftrace/ppo/entropy",
                 entropy_meter.avg, epoch,
             )
             self._tb_writer.add_scalar(
