@@ -127,7 +127,7 @@ class Env:
             a: typing.Tuple[int, int, int],
     ) -> typing.Tuple[
         typing.Tuple[int, typing.List[Action]],
-        typing.Typle[float, float, float],
+        typing.Tuple[float, float, float],
         bool,
     ]:
         assert self._ground is not None
@@ -254,7 +254,7 @@ class Pool:
             typing.List[int],
             typing.List[typing.List[Action]],
         ],
-        typing.List[typing.Typle[float, float, float]],
+        typing.List[typing.Tuple[float, float, float]],
         typing.List[bool],
     ]:
         def step(a):
