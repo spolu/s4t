@@ -127,7 +127,7 @@ class Env:
             a: typing.Tuple[int, int, int],
     ) -> typing.Tuple[
         typing.Tuple[int, typing.List[Action]],
-        float,
+        typing.Typle[float, float, float],
         bool,
     ]:
         assert self._ground is not None
@@ -155,13 +155,14 @@ class Env:
         self._run.append(action)
 
         step_reward = 0.0
+        match_reward = 0.0
         final_reward = 0.0
         done = False
 
         if not seen:
             step_reward = 1.0
             if self._ground.seen(action):
-                step_reward = 2.0
+                match_reward = 1.0
 
         if self._target.thm_string(True) == thm.thm_string(True):
             # TODO(stan): for now we return the ground ptra length as final
@@ -172,10 +173,11 @@ class Env:
         if self._run.len() >= self._sequence_length:
             done = True
 
-        if step_reward > 1.0:
+        if match_reward > 0.0:
             Log.out("MATCH", {
                 'name': self._ground.name(),
                 'step_reward': step_reward,
+                'match_reward': match_reward,
                 'final_reward': final_reward,
                 'ground_length': self._ground.len(),
                 'run_length': self._run.len(),
@@ -183,12 +185,15 @@ class Env:
         Log.out("ACTION", {
             'name': self._ground.name(),
             'step_reward': step_reward,
+            'match_reward': match_reward,
             'final_reward': final_reward,
             'ground_length': self._ground.len(),
             'run_length': self._run.len(),
         })
 
-        return self.observation(), (step_reward, final_reward), done
+        return self.observation(), \
+            (step_reward, 2*match_reward, final_reward), \
+            done
 
 
 class Pool:
@@ -249,7 +254,7 @@ class Pool:
             typing.List[int],
             typing.List[typing.List[Action]],
         ],
-        typing.List[float],
+        typing.List[typing.Typle[float, float, float]],
         typing.List[bool],
     ]:
         def step(a):

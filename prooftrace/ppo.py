@@ -188,6 +188,7 @@ class PPO:
         self._model_VH = self._inner_model_VH
 
         self._episode_stp_reward = [0.0] * self._pool_size
+        self._episode_mtc_reward = [0.0] * self._pool_size
         self._episode_fnl_reward = [0.0] * self._pool_size
 
     def init_training(
@@ -350,6 +351,7 @@ class PPO:
         self._model_VH.train()
 
         stp_reward_meter = Meter()
+        mtc_reward_meter = Meter()
         fnl_reward_meter = Meter()
         act_loss_meter = Meter()
         val_loss_meter = Meter()
@@ -403,11 +405,14 @@ class PPO:
             )
             for i, r in enumerate(rewards):
                 self._episode_stp_reward[i] += r[0]
+                self._episode_mtc_reward[i] += r[0]
                 self._episode_fnl_reward[i] += r[1]
                 if dones[i]:
                     stp_reward_meter.update(self._episode_stp_reward[i])
+                    mtc_reward_meter.update(self._episode_mtc_reward[i])
                     fnl_reward_meter.update(self._episode_fnl_reward[i])
                     self._episode_stp_reward[i] = 0.0
+                    self._episode_mtc_reward[i] = 0.0
                     self._episode_fnl_reward[i] = 0.0
 
             self._rollouts.insert(
@@ -546,6 +551,7 @@ class PPO:
                 (time.time() - batch_start)
             ),
             'stp_reward_avg': "{:.4f}".format(stp_reward_meter.avg or 0.0),
+            'mtc_reward_avg': "{:.4f}".format(mtc_reward_meter.avg or 0.0),
             'fnl_reward_avg': "{:.4f}".format(fnl_reward_meter.avg or 0.0),
             'act_loss_avg': "{:.4f}".format(act_loss_meter.avg),
             'val_loss_avg': "{:.4f}".format(val_loss_meter.avg),
@@ -568,6 +574,10 @@ class PPO:
             self._tb_writer.add_scalar(
                 "train/prooftrace/ppo/stp_reward",
                 stp_reward_meter.avg or 0.0, epoch,
+            )
+            self._tb_writer.add_scalar(
+                "train/prooftrace/ppo/mtc_reward",
+                mtc_reward_meter.avg or 0.0, epoch,
             )
             self._tb_writer.add_scalar(
                 "train/prooftrace/ppo/fnl_reward",
