@@ -348,11 +348,11 @@ class PPO:
                         "prooftrace_ppo_learning_rate": lr,
                     })
             if 'prooftrace_ppo_entropy_coeff' in update:
-                coeff = self._config.get('prooftrace_ppo_value_coeff')
+                coeff = self._config.get('prooftrace_ppo_entropy_coeff')
                 if coeff != self._entropy_coeff:
                     self._entropy_coeff = coeff
                     Log.out("Updated", {
-                        "prooftrace_ppo_value_coeff": coeff,
+                        "prooftrace_ppo_entropy_coeff": coeff,
                     })
             if 'prooftrace_ppo_value_coeff' in update:
                 coeff = self._config.get('prooftrace_ppo_value_coeff')
@@ -387,6 +387,7 @@ class PPO:
         entropy_meter = Meter()
 
         batch_start = time.time()
+        frame_count = 0
 
         for step in range(self._rollout_size):
             with torch.no_grad():
@@ -410,17 +411,16 @@ class PPO:
                 values = \
                     self._model_VH(head, targets)
 
-                actions = torch.cat((
-                    Categorical(
-                        torch.exp(prd_actions)
-                    ).sample().unsqueeze(1),
-                    Categorical(
-                        torch.exp(prd_lefts)
-                    ).sample().unsqueeze(1),
-                    Categorical(
-                        torch.exp(prd_rights)
-                    ).sample().unsqueeze(1),
-                ), dim=1)
+                actions, count = self._pool.explore(
+                    prd_actions,
+                    prd_lefts,
+                    prd_rights,
+                )
+                frame_count += count
+
+                observations, rewards, dones = self._pool.step(
+                    [tuple(a) for a in actions.detach().cpu().numpy()]
+                )
 
                 log_probs = torch.cat((
                     prd_actions.gather(1, actions[:, 0].unsqueeze(1)),
@@ -428,10 +428,6 @@ class PPO:
                     prd_rights.gather(1, actions[:, 2].unsqueeze(1)),
                 ), dim=1)
 
-            # self._rollouts.observations[0] = self._pool.reset()
-            observations, rewards, dones = self._pool.step(
-                [tuple(a) for a in actions.detach().cpu().numpy()]
-            )
             for i, r in enumerate(rewards):
                 self._episode_stp_reward[i] += r[0]
                 self._episode_mtc_reward[i] += r[0]
@@ -577,10 +573,7 @@ class PPO:
 
         Log.out("PROOFTRACE PPO TRAIN", {
             'epoch': epoch,
-            'fps': "{:.2f}".format(
-                self._pool_size * self._rollout_size /
-                (time.time() - batch_start)
-            ),
+            'fps': "{:.2f}".format(frame_count / (time.time() - batch_start)),
             'stp_reward_avg': "{:.4f}".format(stp_reward_meter.avg or 0.0),
             'mtc_reward_avg': "{:.4f}".format(mtc_reward_meter.avg or 0.0),
             'fnl_reward_avg': "{:.4f}".format(fnl_reward_meter.avg or 0.0),

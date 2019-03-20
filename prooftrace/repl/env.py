@@ -5,6 +5,7 @@ import os
 import pickle
 import random
 import re
+import torch
 import typing
 
 from dataset.prooftrace import \
@@ -13,6 +14,8 @@ from dataset.prooftrace import \
 
 from prooftrace.repl.fusion import FusionException
 from prooftrace.repl.repl import REPL, REPLException
+
+from torch.distributions import Categorical
 
 from utils.config import Config
 from utils.log import Log
@@ -25,6 +28,10 @@ class Env:
             test: bool,
     ) -> None:
         self._sequence_length = config.get('prooftrace_sequence_length')
+
+        self._alpha = config.get('prooftrace_env_alpha')
+        self._beta = config.get('prooftrace_env_beta')
+        self._device = torch.device(config.get('device'))
 
         if test:
             dataset_dir = os.path.join(
@@ -121,9 +128,48 @@ class Env:
 
         return (self._run.len(), actions)
 
+    def explore(
+            self,
+            prd_actions: torch.Tensor,
+            prd_lefts: torch.Tensor,
+            prd_rights: torch.Tensor,
+    ) -> typing.Tuple[torch.Tensor, int]:
+
+        # ALPHA Oracle.
+        if random.random() < self._alpha:
+            for i in range(self._ground.prepare_len(), self._ground.len()):
+                a = self._ground.actions()[i]
+                if (not self._run.seen(a)) and \
+                        self._run.seen(a.left) and \
+                        self._run.seen(a.right):
+                    actions = torch.tensor([[
+                        a.value,
+                        self._run.hashes()[a.left.hash()],
+                        self._run.hashes()[a.right.hash()],
+                    ]], dtype=torch.int64).to(self._device)
+                    return actions, 1
+            assert False
+
+        # BETA Oracle.
+
+        # Sampling.
+        actions = torch.cat((
+            Categorical(
+                torch.exp(prd_actions)
+            ).sample().unsqueeze(0).unsqueeze(1),
+            Categorical(
+                torch.exp(prd_lefts)
+            ).sample().unsqueeze(0).unsqueeze(1),
+            Categorical(
+                torch.exp(prd_rights)
+            ).sample().unsqueeze(0).unsqueeze(1),
+        ), dim=1)
+
+        return actions, 1
+
     def step(
             self,
-            a: typing.Tuple[int, int, int],
+            a: typing.Tuple[torch.Tensor, torch.Tensor, torch.Tensor],
     ) -> typing.Tuple[
         typing.Tuple[int, typing.List[Action]],
         typing.Tuple[float, float, float],
@@ -172,23 +218,23 @@ class Env:
         if self._run.len() >= self._sequence_length:
             done = True
 
-        if match_reward > 0.0:
-            Log.out("MATCH", {
-                'name': self._ground.name(),
-                'step_reward': step_reward,
-                'match_reward': match_reward,
-                'final_reward': final_reward,
-                'ground_length': self._ground.len(),
-                'run_length': self._run.len(),
-            })
-        Log.out("ACTION", {
-            'name': self._ground.name(),
-            'step_reward': step_reward,
-            'match_reward': match_reward,
-            'final_reward': final_reward,
-            'ground_length': self._ground.len(),
-            'run_length': self._run.len(),
-        })
+        # if match_reward > 0.0:
+        #     Log.out("MATCH", {
+        #         'name': self._ground.name(),
+        #         'step_reward': step_reward,
+        #         'match_reward': match_reward,
+        #         'final_reward': final_reward,
+        #         'ground_length': self._ground.len(),
+        #         'run_length': self._run.len(),
+        #     })
+        # Log.out("ACTION", {
+        #     'name': self._ground.name(),
+        #     'step_reward': step_reward,
+        #     'match_reward': match_reward,
+        #     'final_reward': final_reward,
+        #     'ground_length': self._ground.len(),
+        #     'run_length': self._run.len(),
+        # })
 
         return self.observation(), \
             (step_reward, 2*match_reward, final_reward), \
@@ -244,6 +290,31 @@ class Pool:
             observations.append(o)
 
         return self.collate(observations)
+
+    def explore(
+            self,
+            prd_actions: torch.Tensor,
+            prd_lefts: torch.Tensor,
+            prd_rights: torch.Tensor,
+    ) -> typing.Tuple[torch.Tensor, int]:
+        def explore(a):
+            return a[0].explore(a[1], a[2], a[3])
+
+        args = []
+        assert len(self._pool) == prd_actions.size(0)
+        for i in range(len(self._pool)):
+            args.append([
+                self._pool[i], prd_actions[i], prd_lefts[i], prd_rights[i]
+            ])
+
+        frame_count = 0
+        actions = []
+
+        for a, f in self._executor.map(explore, args):
+            actions.append(a)
+            frame_count += f
+
+        return torch.cat(actions, dim=0), frame_count
 
     def step(
             self,

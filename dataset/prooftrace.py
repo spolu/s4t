@@ -589,8 +589,8 @@ class ProofTraceActions():
     ) -> typing.Dict[bytes, bool]:
         if self._hashes is None:
             self._hashes = {}
-            for a in self._actions:
-                self._hashes[a.hash] = True
+            for i, a in enumerate(self._actions):
+                self._hashes[a.hash()] = i
         return self._hashes
 
     def append(
@@ -599,7 +599,7 @@ class ProofTraceActions():
     ) -> None:
         self._actions.append(action)
         self.hashes()
-        self._hashes[action.hash()] = True
+        self._hashes[action.hash()] = len(self._actions) - 1
 
     def seen(
             self,
