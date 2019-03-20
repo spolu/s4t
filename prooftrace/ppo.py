@@ -153,8 +153,11 @@ class PPO:
         self._epoch_count = config.get('prooftrace_ppo_epoch_count')
         self._clip = config.get('prooftrace_ppo_clip')
         self._grad_norm_max = config.get('prooftrace_ppo_grad_norm_max')
+        self._entropy_coeff = config.get('prooftrace_ppo_entropy_coeff')
+        self._value_coeff = config.get('prooftrace_ppo_value_coeff')
 
         self._device = torch.device(config.get('device'))
+        self._learning_rate = config.get('prooftrace_ppo_learning_rate')
 
         self._save_dir = config.get('prooftrace_save_dir')
         self._load_dir = config.get('prooftrace_load_dir')
@@ -213,7 +216,7 @@ class PPO:
                 {'params': self._model_PH.parameters()},
                 {'params': self._model_VH.parameters()},
             ],
-            lr=self._config.get('prooftrace_ppo_learning_rate'),
+            lr=self._learning_rate,
         )
 
         self._rollouts = Rollouts(self._config)
@@ -328,6 +331,44 @@ class PPO:
                 self._optimizer.state_dict(),
                 self._save_dir + "/optimizer_{}.pt".format(rank),
             )
+
+    def update(
+            self,
+            epoch: int,
+    ) -> None:
+        update = self._config.update()
+        if update:
+            if 'prooftrace_ppo_learning_rate' in update:
+                lr = self._config.get('prooftrace_ppo_learning_rate')
+                if lr != self._learning_rate:
+                    self._learning_rate = lr
+                    for group in self._optimizer.param_groups:
+                        group['lr'] = lr
+                    Log.out("Updated", {
+                        "prooftrace_ppo_learning_rate": lr,
+                    })
+            if 'prooftrace_ppo_entropy_coeff' in update:
+                coeff = self._config.get('prooftrace_ppo_value_coeff')
+                if coeff != self._entropy_coeff:
+                    self._entropy_coeff = coeff
+                    Log.out("Updated", {
+                        "prooftrace_ppo_value_coeff": coeff,
+                    })
+            if 'prooftrace_ppo_value_coeff' in update:
+                coeff = self._config.get('prooftrace_ppo_value_coeff')
+                if coeff != self._value_coeff:
+                    self._value_coeff = coeff
+                    Log.out("Updated", {
+                        "prooftrace_ppo_value_coeff": coeff,
+                    })
+
+            if self._tb_writer is not None:
+                for k in update:
+                    if type(update[k]) is float or type(update[k]) is int:
+                        self._tb_writer.add_scalar(
+                            "train/prooftrace/ppo/{}".format(k),
+                            update[k], epoch,
+                        )
 
     def batch_train(
             self,
@@ -511,7 +552,9 @@ class PPO:
                 # Backward pass.
                 self._optimizer.zero_grad()
 
-                (0.5 * value_loss + action_loss - 0.02 * entropy).backward()
+                (action_loss +
+                 self._value_coeff * value_loss -
+                 self._entropy_coeff * entropy).backward()
 
                 if self._grad_norm_max > 0.0:
                     torch.nn.utils.clip_grad_norm_(
@@ -571,17 +614,6 @@ class PPO:
                 "train/prooftrace/ppo/fnl_reward",
                 fnl_reward_meter.avg or 0.0, epoch,
             )
-
-    def batch_test(
-            self,
-    ):
-        self._model_E.eval()
-        self._model_H.eval()
-        self._model_PH.eval()
-        self._model_VH.eval()
-
-        with torch.no_grad():
-            pass
 
 
 def train():
@@ -681,57 +713,5 @@ def train():
     while True:
         ppo.batch_train(epoch)
         ppo.save()
-        epoch += 1
-
-
-def test():
-    parser = argparse.ArgumentParser(description="")
-
-    parser.add_argument(
-        'config_path',
-        type=str, help="path to the config file",
-    )
-    parser.add_argument(
-        '--dataset_size',
-        type=str, help="config override",
-    )
-    parser.add_argument(
-        '--load_dir',
-        type=str, help="config override",
-    )
-
-    parser.add_argument(
-        '--device',
-        type=str, help="config override",
-    )
-
-    args = parser.parse_args()
-
-    config = Config.from_file(args.config_path)
-
-    if args.device is not None:
-        config.override('device', args.device)
-
-    if args.dataset_size is not None:
-        config.override(
-            'prooftrace_dataset_size',
-            args.dataset_size,
-        )
-    if args.load_dir is not None:
-        config.override(
-            'prooftrace_load_dir',
-            os.path.expanduser(args.load_dir),
-        )
-
-    if config.get('device') != 'cpu':
-        torch.cuda.set_device(torch.device(config.get('device')))
-
-    ppo = PPO(config)
-
-    ppo.init_testing()
-    ppo.load(False)
-
-    epoch = 0
-    while True:
-        ppo.batch_test(epoch)
+        ppo.update(epoch)
         epoch += 1

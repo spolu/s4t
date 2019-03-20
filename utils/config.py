@@ -37,6 +37,17 @@ class Config:
     ):
         return Config(copy.deepcopy(self._config))
 
+    def update(
+            self,
+    ):
+        if 'config_update_path' in self._config:
+            with open(self._config['config_update_path']) as f:
+                run = json.load(f)
+                for k in run:
+                    self.override(k, run[k])
+                return run
+        return {}
+
     @staticmethod
     def from_dict(
             config,

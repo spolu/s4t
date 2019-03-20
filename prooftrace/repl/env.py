@@ -25,7 +25,6 @@ class Env:
             test: bool,
     ) -> None:
         self._sequence_length = config.get('prooftrace_sequence_length')
-        self._alpha = config.get('prooftrace_env_alpha')
 
         if test:
             dataset_dir = os.path.join(
