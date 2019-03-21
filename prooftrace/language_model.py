@@ -11,7 +11,7 @@ from dataset.prooftrace import ProofTraceLMDataset, lm_collate
 from tensorboardX import SummaryWriter
 
 from prooftrace.models.embedder import E
-from prooftrace.models.heads import PH
+from prooftrace.models.heads import PH, VH
 from prooftrace.models.lstm import H
 
 from utils.config import Config
@@ -44,20 +44,24 @@ class LanguageModel:
         self._inner_model_E = E(self._config).to(self._device)
         self._inner_model_H = H(self._config).to(self._device)
         self._inner_model_PH = PH(self._config).to(self._device)
+        self._inner_model_VH = VH(self._config).to(self._device)
 
         Log.out(
             "Initializing prooftrace LanguageModel", {
                 'parameter_count_E': self._inner_model_E.parameters_count(),
                 'parameter_count_H': self._inner_model_H.parameters_count(),
                 'parameter_count_PH': self._inner_model_PH.parameters_count(),
+                'parameter_count_VH': self._inner_model_VH.parameters_count(),
             },
         )
 
         self._model_E = self._inner_model_E
         self._model_H = self._inner_model_H
         self._model_PH = self._inner_model_PH
+        self._model_VH = self._inner_model_VH
 
-        self._loss = nn.NLLLoss()
+        self._nll_loss = nn.NLLLoss()
+        self._mse_loss = nn.MSELoss()
 
         self._train_batch = 0
 
@@ -78,12 +82,17 @@ class LanguageModel:
                 self._inner_model_PH,
                 device_ids=[self._device],
             )
+            self._model_VH = torch.nn.parallel.DistributedDataParallel(
+                self._inner_model_VH,
+                device_ids=[self._device],
+            )
 
         self._optimizer = optim.Adam(
             [
                 {'params': self._model_E.parameters()},
                 {'params': self._model_H.parameters()},
                 {'params': self._model_PH.parameters()},
+                {'params': self._model_VH.parameters()},
             ],
             lr=self._config.get('prooftrace_learning_rate'),
         )
@@ -168,6 +177,13 @@ class LanguageModel:
                         map_location=self._device,
                     ),
                 )
+                self._inner_model_VH.load_state_dict(
+                    torch.load(
+                        self._load_dir +
+                        "/model_VH_{}.pt".format(rank),
+                        map_location=self._device,
+                    ),
+                )
                 if training:
                     self._optimizer.load_state_dict(
                         torch.load(
@@ -203,6 +219,10 @@ class LanguageModel:
                 self._save_dir + "/model_PH_{}.pt".format(rank),
             )
             torch.save(
+                self._inner_model_VH.state_dict(),
+                self._save_dir + "/model_VH_{}.pt".format(rank),
+            )
+            torch.save(
                 self._optimizer.state_dict(),
                 self._save_dir + "/optimizer_{}.pt".format(rank),
             )
@@ -216,15 +236,17 @@ class LanguageModel:
         self._model_E.train()
         self._model_H.train()
         self._model_PH.train()
+        self._model_VH.train()
 
         act_loss_meter = Meter()
         lft_loss_meter = Meter()
         rgt_loss_meter = Meter()
+        val_loss_meter = Meter()
 
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(epoch)
 
-        for it, (idx, trc, trh) in enumerate(self._train_loader):
+        for it, (idx, trc, trh, val) in enumerate(self._train_loader):
             embeds = self._model_E(trc)
             hiddens = self._model_H(embeds)
 
@@ -244,15 +266,18 @@ class LanguageModel:
             rights = torch.tensor([
                 trc[i].index(trh[i].right) for i in range(len(trh))
             ], dtype=torch.int64).to(self._device)
+            values = torch.tensor(val).unsqueeze(1).to(self._device)
 
             prd_actions, prd_lefts, prd_rights = \
                 self._model_PH(head, targets)
+            prd_values = self._model_VH(head, targets)
 
-            act_loss = self._loss(prd_actions, actions)
-            lft_loss = self._loss(prd_lefts, lefts)
-            rgt_loss = self._loss(prd_rights, rights)
+            act_loss = self._nll_loss(prd_actions, actions)
+            lft_loss = self._nll_loss(prd_lefts, lefts)
+            rgt_loss = self._nll_loss(prd_rights, rights)
+            val_loss = self._mse_loss(prd_values, values)
 
-            (act_loss + lft_loss + rgt_loss).backward()
+            (act_loss + lft_loss + rgt_loss + val_loss).backward()
 
             if it % self._accumulation_step_count == 0:
                 self._optimizer.step()
@@ -261,6 +286,7 @@ class LanguageModel:
             act_loss_meter.update(act_loss.item())
             lft_loss_meter.update(lft_loss.item())
             rgt_loss_meter.update(rgt_loss.item())
+            val_loss_meter.update(val_loss.item())
 
             if self._train_batch % 10 == 0 and self._train_batch != 0:
                 Log.out("PROOFTRACE TRAIN", {
@@ -268,6 +294,7 @@ class LanguageModel:
                     'act_loss_avg': "{:.4f}".format(act_loss_meter.avg),
                     'lft_loss_avg': "{:.4f}".format(lft_loss_meter.avg),
                     'rgt_loss_avg': "{:.4f}".format(rgt_loss_meter.avg),
+                    'val_loss_avg': "{:.4f}".format(val_loss_meter.avg),
                 })
 
                 if self._tb_writer is not None:
@@ -283,12 +310,17 @@ class LanguageModel:
                         "prooftrace_language_model_train/rgt_loss",
                         rgt_loss_meter.avg, self._train_batch,
                     )
+                    self._tb_writer.add_scalar(
+                        "prooftrace_language_model_train/val_loss",
+                        val_loss_meter.avg, self._train_batch,
+                    )
 
                 act_loss_meter = Meter()
                 lft_loss_meter = Meter()
                 rgt_loss_meter = Meter()
+                val_loss_meter = Meter()
 
-            if self._train_batch % 100 == 0:
+            if self._train_batch % 100 == 0 and self._train_batch != 0:
                 self.save()
 
             self._train_batch += 1
@@ -305,10 +337,12 @@ class LanguageModel:
         self._model_E.eval()
         self._model_H.eval()
         self._model_PH.eval()
+        self._model_VH.eval()
 
         act_loss_meter = Meter()
         lft_loss_meter = Meter()
         rgt_loss_meter = Meter()
+        val_loss_meter = Meter()
 
         act_hit = 0
         lft_hit = 0
@@ -316,7 +350,7 @@ class LanguageModel:
         total = 0
 
         with torch.no_grad():
-            for it, (idx, trc, trh) in enumerate(self._test_loader):
+            for it, (idx, trc, trh, val) in enumerate(self._test_loader):
                 embeds = self._model_E(trc)
                 hiddens = self._model_H(embeds)
 
@@ -336,17 +370,21 @@ class LanguageModel:
                 rights = torch.tensor([
                     trc[i].index(trh[i].right) for i in range(len(idx))
                 ], dtype=torch.int64).to(self._device)
+                values = torch.tensor(val).unsqueeze(1).to(self._device)
 
                 prd_actions, prd_lefts, prd_rights = \
                     self._model_PH(head, targets)
+                prd_values = self._model_VH(head, targets)
 
-                act_loss = self._loss(prd_actions, actions)
-                lft_loss = self._loss(prd_lefts, lefts)
-                rgt_loss = self._loss(prd_rights, rights)
+                act_loss = self._nll_loss(prd_actions, actions)
+                lft_loss = self._nll_loss(prd_lefts, lefts)
+                rgt_loss = self._nll_loss(prd_rights, rights)
+                val_loss = self._mse_loss(prd_values, values)
 
                 act_loss_meter.update(act_loss.item())
                 lft_loss_meter.update(lft_loss.item())
                 rgt_loss_meter.update(rgt_loss.item())
+                val_loss_meter.update(val_loss.item())
 
                 smp_actions = prd_actions.max(dim=1)[1].cpu().numpy()
                 smp_lefts = prd_lefts.max(dim=1)[1].cpu().numpy()
@@ -366,6 +404,7 @@ class LanguageModel:
                     'act_loss_avg': "{:.4f}".format(act_loss_meter.avg),
                     'lft_loss_avg': "{:.4f}".format(lft_loss_meter.avg),
                     'rgt_loss_avg': "{:.4f}".format(rgt_loss_meter.avg),
+                    'val_loss_avg': "{:.4f}".format(val_loss_meter.avg),
                     'act_hit': "{:.2f}".format(act_hit/total),
                     'lft_hit': "{:.2f}".format(lft_hit/total),
                     'rgt_hit': "{:.2f}".format(rgt_hit/total),

@@ -1077,85 +1077,13 @@ class ProofTraceLMDataset(Dataset):
 
         truth = ptra.actions()[self._cases[idx][1]]
         trace = ptra.actions()[:self._cases[idx][1]]
-
-        trace.append(Action.from_action('EXTRACT', None, None))
-        while len(trace) < self._sequence_length:
-            trace.append(Action.from_action('EMPTY', None, None))
-
-        return (self._cases[idx][1], trace, truth)
-
-
-class ProofTraceVDataset(Dataset):
-    def __init__(
-            self,
-            dataset_dir: str,
-            dataset_size: str,
-            test: bool,
-            sequence_length: int,
-            trace_max_length=-1,
-    ) -> None:
-        self._sequence_length = sequence_length
-
-        self._cases = []
-        self._ptra_files = []
-
-        if test:
-            dataset_dir = os.path.join(
-                dataset_dir, dataset_size, 'test_traces'
-            )
-        else:
-            dataset_dir = os.path.join(
-                dataset_dir, dataset_size, 'train_traces'
-            )
-
-        assert os.path.isdir(dataset_dir)
-        files = [
-            os.path.join(dataset_dir, f)
-            for f in os.listdir(dataset_dir)
-            if os.path.isfile(os.path.join(dataset_dir, f))
-        ]
-
-        processed = 0
-        for p in files:
-            match = re.search("_(\\d+)_(\\d+)\\.actions$", p)
-            if match is None:
-                continue
-            ptra_len = int(match.group(1))
-            prepare_len = int(match.group(2))
-
-            if trace_max_length <= -1 or ptra_len <= trace_max_length:
-                self._ptra_files.append(p)
-                for pos in range(prepare_len, ptra_len):
-                    if pos < self._sequence_length:
-                        self._cases.append((processed, pos))
-                processed += 1
-
-        Log.out(
-            "Loaded extracted ProofTraces LM Dataset", {
-                'cases': len(self._cases),
-                'processed': processed,
-            })
-
-    def __len__(
-            self,
-    ) -> int:
-        return len(self._cases)
-
-    def __getitem__(
-            self,
-            idx: int,
-    ):
-        with open(self._ptra_files[self._cases[idx][0]], 'rb') as f:
-            ptra = pickle.load(f)
-
-        trace = ptra.actions()[:self._cases[idx][1]+1]
-        trace.append(Action.from_action('EXTRACT', None, None))
         value = ptra.len() * (0.99 ** (ptra.len() - len(trace)))
 
+        trace.append(Action.from_action('EXTRACT', None, None))
         while len(trace) < self._sequence_length:
             trace.append(Action.from_action('EMPTY', None, None))
 
-        return (self._cases[idx][1], trace, value)
+        return (self._cases[idx][1], trace, truth, value)
 
 
 def lm_collate(
@@ -1164,36 +1092,20 @@ def lm_collate(
     typing.List[int],
     typing.List[typing.List[Action]],
     typing.List[Action],
-]:
-    indices = []
-    traces = []
-    truths = []
-
-    for (idx, trc, trh) in batch:
-        indices.append(idx)
-        traces.append(trc)
-        truths.append(trh)
-
-    return (indices, traces, truths)
-
-
-def v_collate(
-        batch
-) -> typing.Tuple[
-    typing.List[int],
-    typing.List[typing.List[Action]],
     typing.List[float],
 ]:
     indices = []
     traces = []
+    truths = []
     values = []
 
-    for (idx, trc, val) in batch:
+    for (idx, trc, trh, val) in batch:
         indices.append(idx)
         traces.append(trc)
+        truths.append(trh)
         values.append(val)
 
-    return (indices, traces, values)
+    return (indices, traces, truths, values)
 
 
 def extract():
