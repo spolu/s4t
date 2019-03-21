@@ -14,7 +14,7 @@
   "prooftrace_type_token_count": 984,
   "prooftrace_term_token_count": 14228,
   "prooftrace_hidden_size": 256,
-  "prooftrace_sequence_length": 1024,
+  "prooftrace_sequence_length": 64,
 
   "prooftrace_transformer_hidden_size": 512,
   "prooftrace_transformer_attention_head_count": 8,
@@ -30,15 +30,15 @@
 
   "prooftrace_env_alpha": 0.00,
   "prooftrace_env_beta": 0.0,
-  "prooftrace_env_pool_size": 16,
+  "prooftrace_env_pool_size": 8,
 
-  "prooftrace_ppo_rollout_size": 64,
-  "prooftrace_ppo_batch_size": 64,
+  "prooftrace_ppo_rollout_size": 32,
+  "prooftrace_ppo_batch_size": 16,
 
-  "prooftrace_ppo_learning_rate": 0.00005,
+  "prooftrace_ppo_learning_rate": 0.00025,
   "prooftrace_ppo_gamma": 0.99,
   "prooftrace_ppo_tau": 0.95,
-  "prooftrace_ppo_epoch_count": 4,
+  "prooftrace_ppo_epoch_count": 2,
   "prooftrace_ppo_clip": 0.2,
   "prooftrace_ppo_grad_norm_max": 0.5,
   "prooftrace_ppo_entropy_coeff": 0.01,

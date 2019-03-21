@@ -429,8 +429,8 @@ class PPO:
 
             for i, r in enumerate(rewards):
                 self._episode_stp_reward[i] += r[0]
-                self._episode_mtc_reward[i] += r[0]
-                self._episode_fnl_reward[i] += r[1]
+                self._episode_mtc_reward[i] += r[1]
+                self._episode_fnl_reward[i] += r[2]
                 if dones[i]:
                     stp_reward_meter.update(self._episode_stp_reward[i])
                     mtc_reward_meter.update(self._episode_mtc_reward[i])
