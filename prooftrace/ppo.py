@@ -447,7 +447,7 @@ class PPO:
                 log_probs.detach(),
                 values.detach(),
                 torch.tensor(
-                    [(r[0] + r[1]) for r in rewards], dtype=torch.int64,
+                    [(r[0] + r[1] + r[2]) for r in rewards], dtype=torch.int64,
                 ).unsqueeze(1).to(self._device),
                 torch.tensor(
                     [[0.0] if d else [1.0] for d in dones],

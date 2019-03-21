@@ -179,9 +179,9 @@ class Env:
         assert self._run is not None
 
         if a[1] >= self._run.len():
-            return self.observation(), (0.0, 0.0), True
+            return self.observation(), (0.0, 0.0, 0.0), True
         if a[2] >= self._run.len():
-            return self.observation(), (0.0, 0.0), True
+            return self.observation(), (0.0, 0.0, 0.0), True
 
         action = Action.from_action(
             INV_ACTION_TOKENS[a[0]],
@@ -192,9 +192,9 @@ class Env:
         try:
             thm = self._repl.apply(action)
         except FusionException:
-            return self.observation(), (0.0, 0.0), True
+            return self.observation(), (0.0, 0.0, 0.0), True
         except REPLException:
-            return self.observation(), (0.0, 0.0), True
+            return self.observation(), (0.0, 0.0, 0.0), True
 
         seen = self._run.seen(action)
         self._run.append(action)
