@@ -257,9 +257,12 @@ class LanguageModel:
 
             if self._tb_writer is not None:
                 for k in update:
-                    if type(update[k]) is float or type(update[k]) is int:
+                    if k in [
+                            'prooftrace_lm_learning_rate',
+                            'prooftrace_lm_value_coeff',
+                    ]:
                         self._tb_writer.add_scalar(
-                            "prooftrace_lm_train/{}".format(k),
+                            "prooftrace_lm_train/z/{}".format(k),
                             update[k], epoch,
                         )
 

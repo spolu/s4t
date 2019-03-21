@@ -7,7 +7,7 @@ from dataset.prooftrace import \
     ACTION_TOKENS, INV_ACTION_TOKENS, \
     ProofTraceTokenizer, Action, ProofTraceActions
 
-from prooftrace.repl.fusion import Fusion, Thm
+from prooftrace.repl.fusion import Fusion, Thm, FusionException
 
 from utils.config import Config
 from utils.log import Log
@@ -34,9 +34,20 @@ class REPL():
             return [hyp.left.value] + self.build_hypothesis(hyp.right)
         raise REPLException()
 
+    def valid(
+            self,
+            action: Action,
+    ) -> bool:
+        try:
+            self.apply(action, True)
+        except (FusionException, REPLException):
+            return False
+        return True
+
     def apply(
             self,
             action: Action,
+            fake: bool = False,
     ) -> Thm:
         action_token = INV_ACTION_TOKENS[action.value]
 
@@ -48,51 +59,59 @@ class REPL():
                 self.build_hypothesis(action.left),
                 action.right.value,
             )
-            thm = self._fusion.PREMISE(thm)
+            thm = self._fusion.PREMISE(thm, fake)
         elif action_token == 'REFL':
             if action.left.value != ACTION_TOKENS['TERM']:
                 raise REPLException
             thm = self._fusion.REFL(
-                action.left.left.value
+                action.left.left.value,
+                fake,
             )
         elif action_token == 'TRANS':
             thm = self._fusion.TRANS(
                 action.left.index(),
                 action.right.index(),
+                fake,
             )
         elif action_token == 'MK_COMB':
             thm = self._fusion.MK_COMB(
                 action.left.index(),
                 action.right.index(),
+                fake,
             )
         elif action_token == 'ABS':
             if action.right.value != ACTION_TOKENS['TERM']:
                 raise REPLException
             thm = self._fusion.ABS(
                 action.left.index(),
-                action.right.left.value
+                action.right.left.value,
+                fake,
             )
         elif action_token == 'BETA':
             if action.left.value != ACTION_TOKENS['TERM']:
                 raise REPLException
             thm = self._fusion.BETA(
-                action.left.left.value
+                action.left.left.value,
+                fake,
             )
         elif action_token == 'ASSUME':
             if action.left.value != ACTION_TOKENS['TERM']:
                 raise REPLException
             thm = self._fusion.ASSUME(
-                action.left.left.value
+                action.left.left.value,
+                fake,
             )
         elif action_token == 'EQ_MP':
             thm = self._fusion.EQ_MP(
                 action.left.index(),
                 action.right.index(),
+                fake,
             )
         elif action_token == 'DEDUCT_ANTISYM_RULE':
             thm = self._fusion.DEDUCT_ANTISYM_RULE(
                 action.left.index(),
                 action.right.index(),
+                fake,
             )
         elif action_token == 'INST':
             def build_subst(subst):
@@ -116,6 +135,7 @@ class REPL():
             thm = self._fusion.INST(
                 action.left.index(),
                 build_subst(action.right),
+                fake,
             )
         elif action_token == 'INST_TYPE':
             def build_subst_type(subst_type):
@@ -139,6 +159,7 @@ class REPL():
             thm = self._fusion.INST_TYPE(
                 action.left.index(),
                 build_subst_type(action.right),
+                fake,
             )
         else:
             raise REPLException()

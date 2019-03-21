@@ -29,8 +29,6 @@ class Env:
     ) -> None:
         self._sequence_length = config.get('prooftrace_sequence_length')
 
-        self._alpha = config.get('prooftrace_env_alpha')
-        self._beta = config.get('prooftrace_env_beta')
         self._device = torch.device(config.get('device'))
 
         if test:
@@ -128,29 +126,99 @@ class Env:
 
         return (self._run.len(), actions)
 
+    def alpha_oracle(
+            self,
+    ) -> typing.Tuple[torch.Tensor, int]:
+        for i in range(self._ground.prepare_len(), self._ground.len()):
+            a = self._ground.actions()[i]
+            if (not self._run.seen(a)) and \
+                    self._run.seen(a.left) and \
+                    self._run.seen(a.right):
+                actions = torch.tensor([[
+                    a.value,
+                    self._run.hashes()[a.left.hash()],
+                    self._run.hashes()[a.right.hash()],
+                ]], dtype=torch.int64).to(self._device)
+                return actions, 0
+        assert False
+
+    def beta_oracle(
+            self,
+            prd_actions: torch.Tensor,
+            prd_lefts: torch.Tensor,
+            prd_rights: torch.Tensor,
+            beta_width: int,
+            beta_size: int,
+    ) -> typing.Tuple[torch.Tensor, int]:
+        top_actions = torch.exp(prd_actions).topk(beta_width)
+        top_lefts = torch.exp(prd_lefts).topk(beta_width)
+        top_rights = torch.exp(prd_rights).topk(beta_width)
+
+        out = []
+        frame_count = 0
+
+        for ia in range(beta_width):
+            for il in range(beta_width):
+                for ir in range(beta_width):
+                    action = top_actions[1][ia].item()
+                    left = top_lefts[1][il].item()
+                    right = top_rights[1][ir].item()
+
+                    if left >= self._run.len() or right >= self._run.len():
+                        out.append(([action, left, right], 0.0))
+                        continue
+
+                    a = Action.from_action(
+                        INV_ACTION_TOKENS[top_actions[1][ia].item()],
+                        self._run.actions()[top_lefts[1][il].item()],
+                        self._run.actions()[top_rights[1][ir].item()],
+                    )
+
+                    if self._run.seen(a):
+                        out.append(([action, left, right], 0.0))
+                        continue
+
+                    frame_count += 1
+                    if not self._repl.valid(a):
+                        out.append(([action, left, right], 0.0))
+                        continue
+
+                    if self._ground.seen(a):
+                        out.append(([action, left, right], 3.0))
+                        continue
+
+                    out.append(([action, left, right], 1.0))
+
+        out = sorted(out, key=lambda o: o[1], reverse=True)
+
+        actions = []
+        for i in range(beta_size):
+            actions.append(out[i][0])
+
+        return \
+            torch.tensor(actions, dtype=torch.int64).to(self._device), \
+            frame_count
+
     def explore(
             self,
             prd_actions: torch.Tensor,
             prd_lefts: torch.Tensor,
             prd_rights: torch.Tensor,
+            alpha,
+            beta,
+            beta_width,
     ) -> typing.Tuple[torch.Tensor, int]:
 
         # ALPHA Oracle.
-        if random.random() < self._alpha:
-            for i in range(self._ground.prepare_len(), self._ground.len()):
-                a = self._ground.actions()[i]
-                if (not self._run.seen(a)) and \
-                        self._run.seen(a.left) and \
-                        self._run.seen(a.right):
-                    actions = torch.tensor([[
-                        a.value,
-                        self._run.hashes()[a.left.hash()],
-                        self._run.hashes()[a.right.hash()],
-                    ]], dtype=torch.int64).to(self._device)
-                    return actions, 1
-            assert False
+        if alpha > 0.0 and random.random() < alpha:
+            return self.alpha_oracle()
 
         # BETA Oracle.
+        if beta > 0.0 and random.random() < beta:
+            return self.beta_oracle(
+                prd_actions, prd_lefts, prd_rights,
+                beta_width, 1,
+            )
 
         # Sampling.
         actions = torch.cat((
@@ -165,11 +233,11 @@ class Env:
             ).sample().unsqueeze(0).unsqueeze(1),
         ), dim=1)
 
-        return actions, 1
+        return actions, 0
 
     def step(
             self,
-            a: typing.Tuple[torch.Tensor, torch.Tensor, torch.Tensor],
+            a: typing.Tuple[int, int, int],
     ) -> typing.Tuple[
         typing.Tuple[int, typing.List[Action]],
         typing.Tuple[float, float, float],
@@ -178,9 +246,7 @@ class Env:
         assert self._ground is not None
         assert self._run is not None
 
-        if a[1] >= self._run.len():
-            return self.observation(), (0.0, 0.0, 0.0), True
-        if a[2] >= self._run.len():
+        if a[1] >= self._run.len() or a[2] >= self._run.len():
             return self.observation(), (0.0, 0.0, 0.0), True
 
         action = Action.from_action(
@@ -189,25 +255,23 @@ class Env:
             self._run.actions()[a[2]],
         )
 
+        if self._run.seen(action):
+            return self.observation(), (0.0, 0.0, 0.0), True
+
         try:
             thm = self._repl.apply(action)
-        except FusionException:
-            return self.observation(), (0.0, 0.0, 0.0), True
-        except REPLException:
+        except (FusionException, REPLException):
             return self.observation(), (0.0, 0.0, 0.0), True
 
-        seen = self._run.seen(action)
         self._run.append(action)
 
-        step_reward = 0.0
+        step_reward = 1.0
         match_reward = 0.0
         final_reward = 0.0
         done = False
 
-        if not seen:
-            step_reward = 1.0
-            if self._ground.seen(action):
-                match_reward = 1.0
+        if self._ground.seen(action):
+            match_reward = 1.0
 
         if self._target.thm_string(True) == thm.thm_string(True):
             # TODO(stan): for now we return the ground ptra length as final
@@ -296,9 +360,14 @@ class Pool:
             prd_actions: torch.Tensor,
             prd_lefts: torch.Tensor,
             prd_rights: torch.Tensor,
+            alpha,
+            beta,
+            beta_width,
     ) -> typing.Tuple[torch.Tensor, int]:
         def explore(a):
-            return a[0].explore(a[1], a[2], a[3])
+            return a[0].explore(
+                a[1], a[2], a[3], alpha, beta, beta_width,
+            )
 
         args = []
         assert len(self._pool) == prd_actions.size(0)
@@ -372,25 +441,48 @@ def test():
             args.dataset_size,
         )
 
-    pool = Pool(config, False)
-    pool.reset()
+    sequence_size = config.get('prooftrace_sequence_length')
+    action_size = len(ACTION_TOKENS)
 
-    observations, rewards, dones = pool.step(
-        [[8, 12, 13]] * config.get('prooftrace_env_pool_size'),
-    )
-    for i in range(config.get('prooftrace_env_pool_size')):
-        Log.out("STEP", {
-            'index': i,
-            'reward': rewards[i],
-            'done': dones[i],
-        })
+    prd_actions = torch.rand(action_size)
+    prd_lefts = torch.rand(sequence_size)
+    prd_rights = torch.rand(sequence_size)
 
-    observations, rewards, dones = pool.step(
-        [[9, 12, 13]] * config.get('prooftrace_env_pool_size'),
+    prd_actions = torch.log(prd_actions / prd_actions.sum())
+    prd_lefts = torch.log(prd_lefts / prd_lefts.sum())
+    prd_rights = torch.log(prd_rights / prd_rights.sum())
+
+    env = Env(config, False)
+    env.reset()
+    env.explore(
+        prd_actions,
+        prd_lefts,
+        prd_rights,
+        0.0,
+        0.0,
+        3,
     )
-    for i in range(config.get('prooftrace_env_pool_size')):
-        Log.out("STEP", {
-            'index': i,
-            'reward': rewards[i],
-            'done': dones[i],
-        })
+    print(".")
+
+    # pool = Pool(config, False)
+    # pool.reset()
+
+    # observations, rewards, dones = pool.step(
+    #     [[8, 12, 13]] * config.get('prooftrace_env_pool_size'),
+    # )
+    # for i in range(config.get('prooftrace_env_pool_size')):
+    #     Log.out("STEP", {
+    #         'index': i,
+    #         'reward': rewards[i],
+    #         'done': dones[i],
+    #     })
+
+    # observations, rewards, dones = pool.step(
+    #     [[9, 12, 13]] * config.get('prooftrace_env_pool_size'),
+    # )
+    # for i in range(config.get('prooftrace_env_pool_size')):
+    #     Log.out("STEP", {
+    #         'index': i,
+    #         'reward': rewards[i],
+    #         'done': dones[i],
+    #     })

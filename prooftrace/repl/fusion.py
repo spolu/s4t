@@ -190,7 +190,11 @@ class Fusion():
             self,
             hyp: typing.List[Term],
             concl: Term,
+            fake,
     ) -> Thm:
+        if fake:
+            return Thm(-1, hyp, concl)
+
         self._next_thm_index += 1
         index = self._next_thm_index
 
@@ -202,7 +206,11 @@ class Fusion():
     def PREMISE(
             self,
             thm: Thm,
+            fake: bool = False,
     ) -> Thm:
+        if fake:
+            return thm
+
         assert thm.index() not in self._theorems
         self._theorems[thm.index()] = thm
 
@@ -211,16 +219,19 @@ class Fusion():
     def REFL(
             self,
             term: Term,
+            fake: bool = False,
     ) -> Thm:
         return self._theorem(
             [],
             self.safe_mk_eq(term, term),
+            fake,
         )
 
     def TRANS(
             self,
             idx1: int,
             idx2: int,
+            fake: bool = False,
     ) -> Thm:
         assume(idx1 in self._theorems)
         assume(idx2 in self._theorems)
@@ -252,12 +263,14 @@ class Fusion():
         return self._theorem(
             self.term_union(thm1.hyp(), thm2.hyp()),
             Term(0, eql, r, '__C'),
+            fake,
         )
 
     def MK_COMB(
             self,
             idx1: int,
             idx2: int,
+            fake: bool = False,
     ) -> Thm:
         assume(idx1 in self._theorems)
         assume(idx2 in self._theorems)
@@ -300,12 +313,14 @@ class Fusion():
                 Term(0, l1, l2, '__C'),
                 Term(0, r1, r2, '__C'),
             ),
+            fake,
         )
 
     def ABS(
             self,
             idx1: int,
             v: Term,
+            fake: bool = False,
     ) -> Thm:
         assume(v.token() == '__v')
 
@@ -332,11 +347,13 @@ class Fusion():
                 Term(1, v, l1, '__A'),
                 Term(1, v, r1, '__A'),
             ),
+            fake,
         )
 
     def BETA(
             self,
             term: Term,
+            fake: bool = False,
     ) -> Thm:
         assume(term.token() == '__C')
         assume(term.left.token() == '__A')
@@ -350,23 +367,27 @@ class Fusion():
         return self._theorem(
             [],
             self.safe_mk_eq(term, bod),
+            fake,
         )
 
     def ASSUME(
             self,
             term: Term,
+            fake: bool = False,
     ) -> Thm:
         assume(self.type_of(term).type_string() == ':bool')
 
         return self._theorem(
             [term],
             term,
+            fake,
         )
 
     def EQ_MP(
             self,
             idx1: int,
             idx2: int,
+            fake: bool = False,
     ) -> Thm:
         assume(idx1 in self._theorems)
         assume(idx2 in self._theorems)
@@ -390,12 +411,14 @@ class Fusion():
         return self._theorem(
             self.term_union(thm1.hyp(), thm2.hyp()),
             r1,
+            fake,
         )
 
     def DEDUCT_ANTISYM_RULE(
             self,
             idx1: int,
             idx2: int,
+            fake: bool = False,
     ) -> Thm:
         assume(idx1 in self._theorems)
         assume(idx2 in self._theorems)
@@ -418,6 +441,7 @@ class Fusion():
                 )),
             ),
             self.safe_mk_eq(c1, c2),
+            fake,
         )
 
     def free_in(
@@ -540,6 +564,7 @@ class Fusion():
             self,
             idx1: int,
             subst: typing.List[typing.List[Term]],
+            fake: bool = False,
     ) -> Thm:
         assume(idx1 in self._theorems)
         thm1 = self._theorems[idx1]
@@ -549,6 +574,7 @@ class Fusion():
                 [self.subst(h, subst) for h in thm1.hyp()],
             ),
             self.subst(thm1.concl(), subst),
+            fake,
         )
 
     def subst_type(
@@ -649,6 +675,7 @@ class Fusion():
             self,
             idx1: int,
             subst_type: typing.List[typing.List[Type]],
+            fake: bool = False,
     ) -> Thm:
         assume(idx1 in self._theorems)
         thm1 = self._theorems[idx1]
@@ -658,6 +685,7 @@ class Fusion():
                 [self.subst_type(h, subst_type) for h in thm1.hyp()],
             ),
             self.subst_type(thm1.concl(), subst_type),
+            fake,
         )
 
 

@@ -146,6 +146,10 @@ class PPO:
         self._entropy_coeff = config.get('prooftrace_ppo_entropy_coeff')
         self._value_coeff = config.get('prooftrace_ppo_value_coeff')
         self._learning_rate = config.get('prooftrace_ppo_learning_rate')
+        self._explore_alpha = config.get('prooftrace_ppo_explore_alpha')
+        self._explore_beta = config.get('prooftrace_ppo_explore_beta')
+        self._explore_beta_width = \
+            config.get('prooftrace_ppo_explore_beta_width')
 
         self._device = torch.device(config.get('device'))
 
@@ -348,12 +352,40 @@ class PPO:
                     Log.out("Updated", {
                         "prooftrace_ppo_value_coeff": coeff,
                     })
+            if 'prooftrace_ppo_explore_alpha' in update:
+                alpha = self._config.get('prooftrace_ppo_explore_alpha')
+                if alpha != self._explore_alpha:
+                    self._explore_alpha = alpha
+                    Log.out("Updated", {
+                        "prooftrace_ppo_explore_alpha": alpha,
+                    })
+            if 'prooftrace_ppo_explore_beta' in update:
+                beta = self._config.get('prooftrace_ppo_explore_beta')
+                if beta != self._explore_beta:
+                    self._explore_beta = beta
+                    Log.out("Updated", {
+                        "prooftrace_ppo_explore_beta": beta,
+                    })
+            if 'prooftrace_ppo_explore_beta_width' in update:
+                width = self._config.get('prooftrace_ppo_explore_beta_width')
+                if width != self._explore_beta_width:
+                    self._explore_beta_width = width
+                    Log.out("Updated", {
+                        "prooftrace_ppo_explore_beta_width": width,
+                    })
 
             if self._tb_writer is not None:
                 for k in update:
-                    if type(update[k]) is float or type(update[k]) is int:
+                    if k in [
+                            'prooftrace_ppo_learning_rate',
+                            'prooftrace_ppo_entropy_coeff',
+                            'prooftrace_ppo_value_coeff',
+                            'prooftrace_ppo_explore_alpha',
+                            'prooftrace_ppo_explore_beta',
+                            'prooftrace_ppo_explore_beta_width',
+                    ]:
                         self._tb_writer.add_scalar(
-                            "prooftrace_poo_train/{}".format(k),
+                            "prooftrace_poo_train/z/{}".format(k),
                             update[k], epoch,
                         )
 
@@ -402,12 +434,16 @@ class PPO:
                     prd_actions,
                     prd_lefts,
                     prd_rights,
+                    self._explore_alpha,
+                    self._explore_beta,
+                    self._explore_beta_width,
                 )
                 frame_count += count
 
                 observations, rewards, dones = self._pool.step(
                     [tuple(a) for a in actions.detach().cpu().numpy()]
                 )
+                frame_count += actions.size(0)
 
                 log_probs = torch.cat((
                     prd_actions.gather(1, actions[:, 0].unsqueeze(1)),
