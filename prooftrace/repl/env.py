@@ -271,12 +271,10 @@ class Env:
         done = False
 
         if self._ground.seen(action):
-            match_reward = 1.0
+            match_reward = 2.0
+            step_reward = 0.0
 
         if self._target.thm_string(True) == thm.thm_string(True):
-            # TODO(stan): for now we return the ground ptra length as final
-            # reward, hoping that the RL decay will push the agent to minimize
-            # sequences length. To investigate.
             final_reward = float(self._ground.len())
             done = True
         if self._run.len() >= self._sequence_length:
@@ -301,7 +299,7 @@ class Env:
         # })
 
         return self.observation(), \
-            (step_reward, 2*match_reward, final_reward), \
+            (step_reward, match_reward, final_reward), \
             done
 
 
