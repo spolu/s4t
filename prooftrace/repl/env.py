@@ -204,9 +204,9 @@ class Env:
             prd_actions: torch.Tensor,
             prd_lefts: torch.Tensor,
             prd_rights: torch.Tensor,
-            alpha,
-            beta,
-            beta_width,
+            alpha: float,
+            beta: float,
+            beta_width: int,
     ) -> typing.Tuple[torch.Tensor, int]:
 
         # ALPHA Oracle.
@@ -237,7 +237,9 @@ class Env:
 
     def step(
             self,
-            a: typing.Tuple[int, int, int],
+            action: typing.Tuple[int, int, int],
+            step_reward_prob: float,
+            match_reward_prob: float,
     ) -> typing.Tuple[
         typing.Tuple[int, typing.List[Action]],
         typing.Tuple[float, float, float],
@@ -246,57 +248,48 @@ class Env:
         assert self._ground is not None
         assert self._run is not None
 
-        if a[1] >= self._run.len() or a[2] >= self._run.len():
+        if action[1] >= self._run.len() or action[2] >= self._run.len():
             return self.observation(), (0.0, 0.0, 0.0), True
 
-        action = Action.from_action(
-            INV_ACTION_TOKENS[a[0]],
-            self._run.actions()[a[1]],
-            self._run.actions()[a[2]],
+        a = Action.from_action(
+            INV_ACTION_TOKENS[action[0]],
+            self._run.actions()[action[1]],
+            self._run.actions()[action[2]],
         )
 
-        if self._run.seen(action):
+        if self._run.seen(a):
             return self.observation(), (0.0, 0.0, 0.0), True
 
         try:
-            thm = self._repl.apply(action)
+            thm = self._repl.apply(a)
         except (FusionException, REPLException):
             return self.observation(), (0.0, 0.0, 0.0), True
 
-        self._run.append(action)
+        self._run.append(a)
 
-        step_reward = 1.0
+        step_reward = 0.0
         match_reward = 0.0
         final_reward = 0.0
         done = False
 
-        if self._ground.seen(action):
-            match_reward = 2.0
-            step_reward = 0.0
+        if step_reward_prob > 0.0 and random.random() < step_reward_prob:
+            step_reward = 1.0
+
+        if self._ground.seen(a):
+            if match_reward_prob > 0.0 and random.random() < match_reward_prob:
+                match_reward = 2.0
+                step_reward = 0.0
 
         if self._target.thm_string(True) == thm.thm_string(True):
             final_reward = float(self._ground.len())
+            Log.out("DEMONSTRATED", {
+                'name': self._ground.name(),
+                'ground_length': self._ground.len(),
+                'run_length': self._run.len(),
+            })
             done = True
         if self._run.len() >= self._sequence_length:
             done = True
-
-        # if match_reward > 0.0:
-        #     Log.out("MATCH", {
-        #         'name': self._ground.name(),
-        #         'step_reward': step_reward,
-        #         'match_reward': match_reward,
-        #         'final_reward': final_reward,
-        #         'ground_length': self._ground.len(),
-        #         'run_length': self._run.len(),
-        #     })
-        # Log.out("ACTION", {
-        #     'name': self._ground.name(),
-        #     'step_reward': step_reward,
-        #     'match_reward': match_reward,
-        #     'final_reward': final_reward,
-        #     'ground_length': self._ground.len(),
-        #     'run_length': self._run.len(),
-        # })
 
         return self.observation(), \
             (step_reward, match_reward, final_reward), \
@@ -358,9 +351,9 @@ class Pool:
             prd_actions: torch.Tensor,
             prd_lefts: torch.Tensor,
             prd_rights: torch.Tensor,
-            alpha,
-            beta,
-            beta_width,
+            alpha: float,
+            beta: float,
+            beta_width: int,
     ) -> typing.Tuple[torch.Tensor, int]:
         def explore(a):
             return a[0].explore(
@@ -386,6 +379,8 @@ class Pool:
     def step(
             self,
             actions: typing.List[typing.Tuple[int, int, int]],
+            step_reward_prob: float,
+            match_reward_prob: float,
     ) -> typing.Tuple[
         typing.Tuple[
             typing.List[int],
@@ -395,7 +390,9 @@ class Pool:
         typing.List[bool],
     ]:
         def step(a):
-            return a[0].step(a[1])
+            return a[0].step(
+                a[1], step_reward_prob, match_reward_prob,
+            )
 
         args = []
         for i in range(len(actions)):

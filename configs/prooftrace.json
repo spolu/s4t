@@ -35,6 +35,8 @@
   "prooftrace_ppo_explore_alpha": 0.1,
   "prooftrace_ppo_explore_beta": 0.5,
   "prooftrace_ppo_explore_beta_width": 3,
+  "prooftrace_ppo_step_reward_prob": 1.0,
+  "prooftrace_ppo_match_reward_prob": 1.0,
 
   "prooftrace_ppo_learning_rate": 0.00025,
   "prooftrace_ppo_gamma": 0.99,

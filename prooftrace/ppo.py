@@ -146,10 +146,17 @@ class PPO:
         self._entropy_coeff = config.get('prooftrace_ppo_entropy_coeff')
         self._value_coeff = config.get('prooftrace_ppo_value_coeff')
         self._learning_rate = config.get('prooftrace_ppo_learning_rate')
-        self._explore_alpha = config.get('prooftrace_ppo_explore_alpha')
-        self._explore_beta = config.get('prooftrace_ppo_explore_beta')
+
+        self._explore_alpha = \
+            config.get('prooftrace_ppo_explore_alpha')
+        self._explore_beta = \
+            config.get('prooftrace_ppo_explore_beta')
         self._explore_beta_width = \
             config.get('prooftrace_ppo_explore_beta_width')
+        self._step_reward_prob = \
+            config.get('prooftrace_ppo_step_reward_prob')
+        self._match_reward_prob = \
+            config.get('prooftrace_ppo_match_reward_prob')
 
         self._device = torch.device(config.get('device'))
 
@@ -373,6 +380,20 @@ class PPO:
                     Log.out("Updated", {
                         "prooftrace_ppo_explore_beta_width": width,
                     })
+            if 'prooftrace_ppo_step_reward_prob' in update:
+                prob = self._config.get('prooftrace_ppo_step_reward_prob')
+                if prob != self._step_reward_prob:
+                    self._step_reward_prob = prob
+                    Log.out("Updated", {
+                        "prooftrace_ppo_step_reward_prob": prob,
+                    })
+            if 'prooftrace_ppo_match_reward_prob' in update:
+                prob = self._config.get('prooftrace_ppo_match_reward_prob')
+                if prob != self._match_reward_prob:
+                    self._match_reward_prob = prob
+                    Log.out("Updated", {
+                        "prooftrace_ppo_match_reward_prob": prob,
+                    })
 
             if self._tb_writer is not None:
                 for k in update:
@@ -383,9 +404,11 @@ class PPO:
                             'prooftrace_ppo_explore_alpha',
                             'prooftrace_ppo_explore_beta',
                             'prooftrace_ppo_explore_beta_width',
+                            'prooftrace_ppo_step_reward_prob',
+                            'prooftrace_ppo_match_reward_prob',
                     ]:
                         self._tb_writer.add_scalar(
-                            "prooftrace_poo_train/z/{}".format(k),
+                            "prooftrace_ppo_train_run/{}".format(k),
                             update[k], epoch,
                         )
 
@@ -441,7 +464,9 @@ class PPO:
                 frame_count += count
 
                 observations, rewards, dones = self._pool.step(
-                    [tuple(a) for a in actions.detach().cpu().numpy()]
+                    [tuple(a) for a in actions.detach().cpu().numpy()],
+                    self._step_reward_prob,
+                    self._match_reward_prob,
                 )
                 frame_count += actions.size(0)
 

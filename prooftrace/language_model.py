@@ -262,7 +262,7 @@ class LanguageModel:
                             'prooftrace_lm_value_coeff',
                     ]:
                         self._tb_writer.add_scalar(
-                            "prooftrace_lm_train/z/{}".format(k),
+                            "prooftrace_lm_train_run/{}".format(k),
                             update[k], epoch,
                         )
 
