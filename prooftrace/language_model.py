@@ -27,9 +27,11 @@ class LanguageModel:
     ):
         self._config = config
         self._accumulation_step_count = \
-            config.get('prooftrace_accumulation_step_count')
+            config.get('prooftrace_lm_accumulation_step_count')
 
         self._device = torch.device(config.get('device'))
+        self._learning_rate = \
+            config.get('prooftrace_lm_learning_rate')
 
         self._save_dir = config.get('prooftrace_save_dir')
         self._load_dir = config.get('prooftrace_load_dir')
@@ -94,7 +96,7 @@ class LanguageModel:
                 {'params': self._model_PH.parameters()},
                 {'params': self._model_VH.parameters()},
             ],
-            lr=self._config.get('prooftrace_learning_rate'),
+            lr=self._learning_rate,
         )
 
         self._train_sampler = None
@@ -104,7 +106,8 @@ class LanguageModel:
                     train_dataset,
                 )
 
-        batch_size = self._config.get('prooftrace_batch_size') // \
+        batch_size = \
+            self._config.get('prooftrace_lm_batch_size') // \
             self._accumulation_step_count
 
         self._train_loader = torch.utils.data.DataLoader(
@@ -119,10 +122,10 @@ class LanguageModel:
         Log.out('Training initialization', {
             "accumulation_step_count": self._accumulation_step_count,
             "world_size": self._config.get('distributed_world_size'),
-            "batch_size": self._config.get('prooftrace_batch_size'),
+            "batch_size": self._config.get('prooftrace_lm_batch_size'),
             "dataloader_batch_size": batch_size,
             "effective_batch_size": (
-                self._config.get('prooftrace_batch_size') *
+                self._config.get('prooftrace_lm_batch_size') *
                 self._config.get('distributed_world_size')
             ),
         })
@@ -227,6 +230,31 @@ class LanguageModel:
                 self._save_dir + "/optimizer_{}.pt".format(rank),
             )
 
+    def update(
+            self,
+            epoch: int,
+    ) -> None:
+        update = self._config.update()
+        if update:
+            if 'prooftrace_lm_learning_rate' in update:
+                lr = \
+                    self._config.get('prooftrace_lm_learning_rate')
+                if lr != self._learning_rate:
+                    self._learning_rate = lr
+                    for group in self._optimizer.param_groups:
+                        group['lr'] = lr
+                    Log.out("Updated", {
+                        "prooftrace_learning_rate": lr,
+                    })
+
+            if self._tb_writer is not None:
+                for k in update:
+                    if type(update[k]) is float or type(update[k]) is int:
+                        self._tb_writer.add_scalar(
+                            "prooftrace_lm_train/{}".format(k),
+                            update[k], epoch,
+                        )
+
     def batch_train(
             self,
             epoch,
@@ -299,19 +327,19 @@ class LanguageModel:
 
                 if self._tb_writer is not None:
                     self._tb_writer.add_scalar(
-                        "prooftrace_language_model_train/act_loss",
+                        "prooftrace_lm_train/act_loss",
                         act_loss_meter.avg, self._train_batch,
                     )
                     self._tb_writer.add_scalar(
-                        "prooftrace_language_model_train/lft_loss",
+                        "prooftrace_lm_train/lft_loss",
                         lft_loss_meter.avg, self._train_batch,
                     )
                     self._tb_writer.add_scalar(
-                        "prooftrace_language_model_train/rgt_loss",
+                        "prooftrace_lm_train/rgt_loss",
                         rgt_loss_meter.avg, self._train_batch,
                     )
                     self._tb_writer.add_scalar(
-                        "prooftrace_language_model_train/val_loss",
+                        "prooftrace_lm_train/val_loss",
                         val_loss_meter.avg, self._train_batch,
                     )
 

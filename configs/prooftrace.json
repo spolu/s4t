@@ -8,10 +8,6 @@
   "distributed_backend": "nccl",
   "distributed_init_method": "env://",
 
-  "prooftrace_batch_size": 6,
-  "prooftrace_accumulation_step_count": 1,
-
-  "prooftrace_learning_rate": 0.00025,
   "prooftrace_load_dir": null,
   "prooftrace_save_dir": null,
 
@@ -27,10 +23,14 @@
   "prooftrace_lstm_layer_count": 1,
   "prooftrace_lstm_hidden_size": 512,
 
+  "prooftrace_lm_batch_size": 8,
+  "prooftrace_lm_accumulation_step_count": 1,
+  "prooftrace_lm_learning_rate": 0.00025,
+
   "prooftrace_env_alpha": 0.00,
   "prooftrace_env_beta": 0.0,
-
   "prooftrace_env_pool_size": 16,
+
   "prooftrace_ppo_rollout_size": 64,
   "prooftrace_ppo_batch_size": 64,
 
