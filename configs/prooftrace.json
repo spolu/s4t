@@ -8,7 +8,7 @@
   "distributed_backend": "nccl",
   "distributed_init_method": "env://",
 
-  "prooftrace_batch_size": 8,
+  "prooftrace_batch_size": 6,
   "prooftrace_accumulation_step_count": 1,
 
   "prooftrace_learning_rate": 0.00025,
@@ -40,7 +40,7 @@
   "prooftrace_ppo_epoch_count": 4,
   "prooftrace_ppo_clip": 0.2,
   "prooftrace_ppo_grad_norm_max": 0.5,
-  "prooftrace_ppo_entropy_coeff": 0.02,
+  "prooftrace_ppo_entropy_coeff": 0.01,
   "prooftrace_ppo_value_coeff": 0.5,
 
   "prooftrace_dataset_dir": "./data/prooftrace",
