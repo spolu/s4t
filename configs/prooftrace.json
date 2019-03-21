@@ -26,6 +26,7 @@
   "prooftrace_lm_batch_size": 8,
   "prooftrace_lm_accumulation_step_count": 1,
   "prooftrace_lm_learning_rate": 0.00025,
+  "prooftrace_lm_value_coeff": 0.01,
 
   "prooftrace_env_alpha": 0.00,
   "prooftrace_env_beta": 0.0,

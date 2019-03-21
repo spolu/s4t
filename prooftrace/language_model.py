@@ -28,10 +28,11 @@ class LanguageModel:
         self._config = config
         self._accumulation_step_count = \
             config.get('prooftrace_lm_accumulation_step_count')
-
-        self._device = torch.device(config.get('device'))
         self._learning_rate = \
             config.get('prooftrace_lm_learning_rate')
+        self._value_coeff = config.get('prooftrace_lm_value_coeff')
+
+        self._device = torch.device(config.get('device'))
 
         self._save_dir = config.get('prooftrace_save_dir')
         self._load_dir = config.get('prooftrace_load_dir')
@@ -246,6 +247,13 @@ class LanguageModel:
                     Log.out("Updated", {
                         "prooftrace_learning_rate": lr,
                     })
+            if 'prooftrace_lm_value_coeff' in update:
+                coeff = self._config.get('prooftrace_lm_value_coeff')
+                if coeff != self._value_coeff:
+                    self._value_coeff = coeff
+                    Log.out("Updated", {
+                        "prooftrace_lm_value_coeff": coeff,
+                    })
 
             if self._tb_writer is not None:
                 for k in update:
@@ -305,7 +313,8 @@ class LanguageModel:
             rgt_loss = self._nll_loss(prd_rights, rights)
             val_loss = self._mse_loss(prd_values, values)
 
-            (act_loss + lft_loss + rgt_loss + val_loss).backward()
+            (act_loss + lft_loss + rgt_loss +
+             self._value_coeff * val_loss).backward()
 
             if it % self._accumulation_step_count == 0:
                 self._optimizer.step()

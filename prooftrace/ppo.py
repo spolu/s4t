@@ -154,9 +154,9 @@ class PPO:
         self._grad_norm_max = config.get('prooftrace_ppo_grad_norm_max')
         self._entropy_coeff = config.get('prooftrace_ppo_entropy_coeff')
         self._value_coeff = config.get('prooftrace_ppo_value_coeff')
+        self._learning_rate = config.get('prooftrace_ppo_learning_rate')
 
         self._device = torch.device(config.get('device'))
-        self._learning_rate = config.get('prooftrace_ppo_learning_rate')
 
         self._save_dir = config.get('prooftrace_save_dir')
         self._load_dir = config.get('prooftrace_load_dir')
