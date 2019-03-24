@@ -3,6 +3,7 @@ import os
 import time
 import torch
 import torch.distributed as distributed
+import torch.nn.functional as F
 import torch.optim as optim
 import typing
 
@@ -584,13 +585,15 @@ class PPO:
                 # })
 
                 # Clipped value loss.
-                clipped_values = rollout_values + \
-                    (values - rollout_values).clamp(-self._clip, self._clip)
+                # clipped_values = rollout_values + \
+                #     (values - rollout_values).clamp(-self._clip, self._clip)
 
-                value_loss = 0.5 * torch.max(
-                    (rollout_returns - values).pow(2),
-                    (rollout_returns - clipped_values).pow(2),
-                ).mean()
+                # value_loss = 0.5 * torch.max(
+                #     (rollout_returns - values).pow(2),
+                #     (rollout_returns - clipped_values).pow(2),
+                # ).mean()
+
+                value_loss = F.mse_loss(rollout_returns - values)
 
                 # Backward pass.
                 self._optimizer.zero_grad()
