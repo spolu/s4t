@@ -612,6 +612,9 @@ class PPO:
                     torch.nn.utils.clip_grad_norm_(
                         self._model_H.parameters(), self._grad_norm_max,
                     )
+                    torch.nn.utils.clip_grad_norm_(
+                        self._model_E.parameters(), self._grad_norm_max,
+                    )
 
                 self._optimizer.step()
 
