@@ -593,7 +593,7 @@ class PPO:
                 #     (rollout_returns - clipped_values).pow(2),
                 # ).mean()
 
-                value_loss = F.mse_loss(rollout_returns - values)
+                value_loss = F.mse_loss(values, rollout_returns)
 
                 # Backward pass.
                 self._optimizer.zero_grad()
