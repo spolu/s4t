@@ -88,7 +88,7 @@ class Env:
                 # })
 
         self._run = ProofTraceActions(
-            'REPL-{}'.format(
+            'REPL-{}-{}'.format(
                 datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f"),
                 random.randint(0, 9999),
             ),
