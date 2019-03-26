@@ -209,15 +209,13 @@ class Node:
     def queue_value(
             self,
     ) -> float:
-        if self._ptra.action_len() >= 2 * self._ground.action_len():
-            return 0.0
-        return self._queue[0][4]  # / math.sqrt(self._ptra.action_len() + 1)
+        return self._queue[0][4] - self._ptra.action_len()
 
     def children_value(
             self,
             c,
     ) -> float:
-        return c.max_value() - len(c._children)
+        return c.max_value() - 0.1 * len(c._children)
 
     def max_value(
             self,
@@ -293,8 +291,6 @@ class Node:
     def expand_children(
             self,
     ) -> Thm:
-        if random.random() < 0.1 and len(self._children) > 1:
-            return self._children[1].expand()
         return self._children[0].expand()
 
     def expand(
@@ -461,7 +457,7 @@ def search():
         ptra_len = int(match.group(1))
 
         if ptra_len <= 64:
-            cases.append(p)
+            cases.append((p, ptra_len))
 
     Log.out(
         "Loaded ProofTraceActions", {
@@ -471,8 +467,10 @@ def search():
 
     model = Model(config).load()
 
+    cases = sorted(cases, key=lambda c: c[1])
+
     for i in range(len(cases)):
-        c = cases[i]
+        c = cases[i][0]
         with open(c, 'rb') as f:
             ground = pickle.load(f)
 

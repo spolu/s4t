@@ -37,6 +37,18 @@ ACTION_TOKENS = {
     'INST': 17,
     'INST_TYPE': 18,
 }
+PREPARE_TOKENS = {
+    'EMPTY': 0,
+    'TARGET': 1,
+    'EXTRACT': 2,
+    'PREMISE': 3,
+    'HYPOTHESIS': 4,
+    'SUBST': 5,
+    'SUBST_TYPE': 6,
+    'SUBST_PAIR': 7,
+    'TERM': 8,
+}
+
 
 INV_ACTION_TOKENS = {v: k for k, v in ACTION_TOKENS.items()}
 
@@ -1128,11 +1140,12 @@ class ProofTraceLMDataset(Dataset):
 
         truth = ptra.actions()[self._cases[idx][1]]
         trace = ptra.actions()[:self._cases[idx][1]]
-        value = ptra.len() * (0.99 ** (ptra.len() - len(trace)))
+        value = float(ptra.len() - len(trace))
 
         trace.append(Action.from_action('EXTRACT', None, None))
+        empty = Action.from_action('EMPTY', None, None)
         while len(trace) < self._sequence_length:
-            trace.append(Action.from_action('EMPTY', None, None))
+            trace.append(empty)
 
         return (self._cases[idx][1], trace, truth, value)
 

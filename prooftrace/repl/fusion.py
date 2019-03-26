@@ -311,6 +311,9 @@ class Fusion():
         assume(tyr1.token() == '__c')
         assume(tyr1.left.token() == 'fun')
 
+        # TODO(stan): investigate
+        assume(tyr1.right is not None)
+
         ty = tyr1.right.left
         tyr2 = self.type_of(r2)
 

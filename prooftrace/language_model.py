@@ -6,7 +6,7 @@ import torch.distributed as distributed
 import torch.utils.data.distributed
 import torch.optim as optim
 
-from dataset.prooftrace import ProofTraceLMDataset, lm_collate
+from dataset.prooftrace import ProofTraceLMDataset, lm_collate, PREPARE_TOKENS
 
 from tensorboardX import SummaryWriter
 
@@ -233,7 +233,6 @@ class LanguageModel:
 
     def update(
             self,
-            epoch: int,
     ) -> None:
         update = self._config.update()
         if update:
@@ -263,7 +262,7 @@ class LanguageModel:
                     ]:
                         self._tb_writer.add_scalar(
                             "prooftrace_lm_train_run/{}".format(k),
-                            update[k], epoch,
+                            update[k], self._train_batch,
                         )
 
     def batch_train(
@@ -293,11 +292,11 @@ class LanguageModel:
                 hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
             targets = torch.cat([
-                hiddens[i][0].unsqueeze(0) for i in range(len(idx))
+                embeds[i][0].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
 
             actions = torch.tensor([
-                trh[i].value for i in range(len(trh))
+                trh[i].value - len(PREPARE_TOKENS) for i in range(len(trh))
             ], dtype=torch.int64).to(self._device)
             lefts = torch.tensor([
                 trc[i].index(trh[i].left) for i in range(len(trh))
@@ -362,6 +361,7 @@ class LanguageModel:
 
             if self._train_batch % 100 == 0 and self._train_batch != 0:
                 self.save()
+                self.update()
 
             self._train_batch += 1
 
@@ -398,11 +398,11 @@ class LanguageModel:
                     hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
                 ], dim=0)
                 targets = torch.cat([
-                    hiddens[i][0].unsqueeze(0) for i in range(len(idx))
+                    embeds[i][0].unsqueeze(0) for i in range(len(idx))
                 ], dim=0)
 
                 actions = torch.tensor([
-                    trh[i].value for i in range(len(idx))
+                    trh[i].value - len(PREPARE_TOKENS) for i in range(len(idx))
                 ], dtype=torch.int64).to(self._device)
                 lefts = torch.tensor([
                     trc[i].index(trh[i].left) for i in range(len(idx))
