@@ -199,12 +199,25 @@ class Node:
                 key=lambda t: t[4],
                 reverse=True,
             )
-            self._max_value = self._queue[0][4] / (self._ptra.action_len() + 1)
+            self._max_value = self.queue_value()
         else:
             self._queue = []
             self._max_value = 0.0
 
         self._children = []
+
+    def queue_value(
+            self,
+    ) -> float:
+        if self._ptra.action_len() >= 2 * self._ground.action_len():
+            return 0.0
+        return self._queue[0][4]  # / math.sqrt(self._ptra.action_len() + 1)
+
+    def children_value(
+            self,
+            c,
+    ) -> float:
+        return c.max_value() - len(c._children)
 
     def max_value(
             self,
@@ -215,18 +228,18 @@ class Node:
             self,
     ) -> None:
         self._children = sorted(
-            self._children, key=lambda c: c.max_value(), reverse=True
+            self._children, key=lambda c: self.children_value(c), reverse=True
         )
 
         if len(self._children) > 0 and len(self._queue) > 0:
             self._max_value = max(
-                self._children[0].max_value(),
-                self._queue[0][4] / (self._ptra.action_len() + 1),
+                self.children_value(self._children[0]),
+                self.queue_value(),
             )
         elif len(self._children) > 0 and len(self._queue) == 0:
-            self._max_value = self._children[0].max_value()
+            self._max_value = self.children_value(self._children[0])
         elif len(self._children) == 0 and len(self._queue) > 0:
-            self._max_value = self._queue[0][4] / (self._ptra.action_len() + 1)
+            self._max_value = self.queue_value()
         else:
             self._max_value = 0.0
 
@@ -269,7 +282,7 @@ class Node:
             'ground_length': self._ground.action_len(),
             'ptra_length': ptra.action_len(),
             'value': candidate[4],
-            # 'summary': ptra.summary(),
+            'summary': ptra.summary(),
         })
 
         if thm.thm_string() == self._target.thm_string():
@@ -280,6 +293,8 @@ class Node:
     def expand_children(
             self,
     ) -> Thm:
+        if random.random() < 0.1 and len(self._children) > 1:
+            return self._children[1].expand()
         return self._children[0].expand()
 
     def expand(
