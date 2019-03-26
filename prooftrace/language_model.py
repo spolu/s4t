@@ -553,6 +553,7 @@ def train():
 
     epoch = 0
     while True:
+        lm.update()
         lm.batch_train(epoch)
         lm.save()
         epoch += 1
