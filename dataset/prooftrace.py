@@ -575,7 +575,14 @@ class ProofTraceActions():
                     ACTION_TOKENS['TERM'],
             ]:
                 prepare_len += 1
+            else:
+                break
         return prepare_len
+
+    def action_len(
+            self,
+    ) -> int:
+        return self.len() - self.prepare_len()
 
     def name(
             self,

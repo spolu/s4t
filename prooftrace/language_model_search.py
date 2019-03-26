@@ -199,7 +199,7 @@ class Node:
                 key=lambda t: t[4],
                 reverse=True,
             )
-            self._max_value = self._queue[0][4] / self._ptra.len()
+            self._max_value = self._queue[0][4] / (self._ptra.action_len() + 1)
         else:
             self._queue = []
             self._max_value = 0.0
@@ -221,12 +221,12 @@ class Node:
         if len(self._children) > 0 and len(self._queue) > 0:
             self._max_value = max(
                 self._children[0].max_value(),
-                self._queue[0][4] / self._ptra.len(),
+                self._queue[0][4] / (self._ptra.action_len() + 1),
             )
         elif len(self._children) > 0 and len(self._queue) == 0:
             self._max_value = self._children[0].max_value()
         elif len(self._children) == 0 and len(self._queue) > 0:
-            self._max_value = self._queue[0][4] / self._ptra.len()
+            self._max_value = self._queue[0][4] / (self._ptra.action_len() + 1)
         else:
             self._max_value = 0.0
 
@@ -266,10 +266,10 @@ class Node:
         node.update()
 
         Log.out('EXPAND', {
-            'ground_length': self._ground.len(),
-            'ptra_length': ptra.len(),
+            'ground_length': self._ground.action_len(),
+            'ptra_length': ptra.action_len(),
             'value': candidate[4],
-            'summary': ptra.summary(),
+            # 'summary': ptra.summary(),
         })
 
         if thm.thm_string() == self._target.thm_string():
@@ -467,7 +467,8 @@ def search():
 
         Log.out("TARGET", {
             'name': ground.name(),
-            'length': ground.len(),
+            'prepare_length': ground.prepare_len(),
+            'length': ground.action_len(),
             'summary': ground.summary(),
         })
 
