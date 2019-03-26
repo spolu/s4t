@@ -175,7 +175,7 @@ class REPL():
     def replay(
             self,
             ptra: ProofTraceActions,
-    ) -> None:
+    ) -> Thm:
         for a in ptra.actions():
             if a.value == ACTION_TOKENS['TARGET']:
                 target = Thm(
@@ -198,6 +198,8 @@ class REPL():
         last = self._fusion._theorems[ptra.actions()[-1].index()]
         assert last.thm_string() == target.thm_string()
 
+        return last
+
     def prepare(
             self,
             ptra: ProofTraceActions,
@@ -213,6 +215,14 @@ class REPL():
                 self.apply(a)
 
         return target
+
+    def copy(
+            self,
+    ):
+        repl = REPL(self._fusion._t)
+        repl._fusion = self._fusion.copy()
+
+        return repl
 
 
 def test():

@@ -1,5 +1,4 @@
 import argparse
-import copy
 import datetime
 import os
 import pickle
@@ -17,91 +16,21 @@ from prooftrace.models.heads import PH, VH
 from prooftrace.models.lstm import H
 
 from prooftrace.repl.repl import REPL
+from prooftrace.repl.fusion import Thm
 
 from utils.config import Config
 from utils.log import Log
 
 
-class Beam:
-    def __init__(
-            self,
-            tokenizer: ProofTraceTokenizer,
-            ground: ProofTraceActions,
-    ):
-        self._tokenizer = tokenizer
-        self._ground = ground
-
-        self._ptra = ProofTraceActions(
-            'BEAM-{}-{}'.format(
-                datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f"),
-                random.randint(0, 9999),
-            ),
-            [
-                a for a in self._ground.actions()
-                if a.value in [
-                        ACTION_TOKENS['TARGET'],
-                        ACTION_TOKENS['EMPTY'],
-                        ACTION_TOKENS['PREMISE'],
-                        ACTION_TOKENS['SUBST'],
-                        ACTION_TOKENS['SUBST_TYPE'],
-                        ACTION_TOKENS['TERM'],
-                ]
-            ],
-        )
-        self._repl = REPL(tokenizer)
-
-        self._match_count = 0
-        self._value = 0.0
-
-    def match_count(
-            self,
-    ) -> int:
-        return self._match_count
-
-    def ptra(
-            self,
-    ) -> ProofTraceActions:
-        return self._ptra
-
-    def repl(
-            self,
-    ) -> REPL:
-        return self._repl
-
-    def value(
-            self,
-    ) -> float:
-        return self._value
-
-    def apply(
-            self,
-            action: Action,
-    ) -> None:
-        if self._ground.seen(action) and not self._ptra.seen(action):
-            self._match_count += 1
-        self._repl.apply(action)
-        self._ptra.append(action)
-
-
-class BeamSearch:
+class Model:
     def __init__(
             self,
             config: Config,
-            ground: ProofTraceActions,
-            beam_count: int,
     ):
         self._config = config
-        self._beam_count = beam_count
 
         self._device = torch.device(config.get('device'))
         self._load_dir = config.get('prooftrace_load_dir')
-        self._sequence_length = config.get('prooftrace_sequence_length')
-        self._beta_width = config.get('prooftrace_lm_search_beta_width')
-
-        self._ground = ground
-        Log.out('SEARCH', {
-            'ground_length': self._ground.len(),
-        })
 
         with open(
                 os.path.join(
@@ -111,20 +40,10 @@ class BeamSearch:
                 ), 'rb') as f:
             self._tokenizer = pickle.load(f)
 
-        self._beams = [
-            Beam(self._tokenizer, self._ground)
-            for _ in range(self._beam_count)
-        ]
-
         self._model_E = E(self._config).to(self._device)
         self._model_H = H(self._config).to(self._device)
         self._model_PH = PH(self._config).to(self._device)
         self._model_VH = VH(self._config).to(self._device)
-
-    def beams(
-            self,
-    ) -> typing.List[Beam]:
-        return self._beams
 
     def load(
             self,
@@ -169,13 +88,63 @@ class BeamSearch:
 
         return self
 
-    def beta_explore(
+    def infer(
             self,
-            beam: Beam,
+            trc: typing.List[typing.List[Action]],
+            idx: typing.List[typing.List[int]],
+    ) -> typing.Tuple[
+        torch.Tensor, torch.Tensor, torch.Tensor,
+        torch.Tensor,
+    ]:
+        with torch.no_grad():
+            embeds = self._model_E(trc)
+            hiddens = self._model_H(embeds)
+
+            head = torch.cat([
+                hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
+            ], dim=0)
+            targets = torch.cat([
+                hiddens[i][0].unsqueeze(0) for i in range(len(idx))
+            ], dim=0)
+
+            prd_actions, prd_lefts, prd_rights = \
+                self._model_PH(head, targets)
+            prd_values = self._model_VH(head, targets)
+
+            return (
+                prd_actions, prd_lefts, prd_rights,
+                prd_values,
+            )
+
+
+class Node:
+    def __init__(
+            self,
+            config: Config,
+            parent,
+            model: Model,
+            ground: ProofTraceActions,
+            target: Thm,
+            ptra: ProofTraceActions,
+            repl: REPL,
             prd_actions: torch.Tensor,
             prd_lefts: torch.Tensor,
             prd_rights: torch.Tensor,
-    ) -> typing.List[typing.List[int]]:
+            value: float,
+    ):
+        self._config = config
+
+        self._parent = parent
+
+        self._model = model
+        self._ground = ground
+        self._target = target
+        self._ptra = ptra
+        self._repl = repl
+
+        self._sequence_length = config.get('prooftrace_sequence_length')
+        self._beta_width = config.get('prooftrace_lm_search_beta_width')
+
         top_actions = torch.exp(prd_actions).topk(self._beta_width)
         top_lefts = torch.exp(prd_lefts).topk(self._beta_width)
         top_rights = torch.exp(prd_rights).topk(self._beta_width)
@@ -190,131 +159,220 @@ class BeamSearch:
                     left = top_lefts[1][il].item()
                     right = top_rights[1][ir].item()
 
-                    if left >= beam.ptra().len() or right >= beam.ptra().len():
+                    if left >= self._ptra.len() or right >= self._ptra.len():
                         continue
 
                     a = Action.from_action(
                         INV_ACTION_TOKENS[action],
-                        beam.ptra().actions()[left],
-                        beam.ptra().actions()[right],
+                        self._ptra.actions()[left],
+                        self._ptra.actions()[right],
                     )
 
-                    if beam.ptra().seen(a):
+                    if self._ptra.seen(a):
                         continue
 
-                    if not beam.repl().valid(a):
+                    if not self._repl.valid(a):
                         continue
 
-                    actions.append([action, left, right])
+                    actions.append(a)
 
-        return actions
+        if len(actions) > 0:
+            trc = []
+            idx = []
+            for a in actions:
+                pre_trc, pre_idx = \
+                    Node.prepare(self._ptra, a, self._sequence_length)
+                trc.append(pre_trc)
+                idx.append(pre_idx)
 
-    def step_beam(
-            self,
-            beam: Beam,
-            prd_actions: torch.Tensor,
-            prd_lefts: torch.Tensor,
-            prd_rights: torch.Tensor,
-    ) -> typing.List[Beam]:
-        out = []
+            prd_actions, prd_lefts, prd_rights, prd_values = \
+                self._model.infer(trc, idx)
 
-        valids = self.beta_explore(
-            beam,
-            prd_actions,
-            prd_lefts,
-            prd_rights,
-        )
-
-        trc = [beam.ptra().actions().copy() for _ in valids]
-        idx = [len(beam.ptra().actions()) for _ in valids]
-        out = [copy.deepcopy(beam) for _ in valids]
-
-        for i in range(len(trc)):
-            a = Action.from_action(
-                INV_ACTION_TOKENS[valids[i][0]],
-                beam.ptra().actions()[valids[i][1]],
-                beam.ptra().actions()[valids[i][2]],
+            self._queue = sorted(
+                [(
+                    actions[i],
+                    prd_actions[i].to(torch.device('cpu')),
+                    prd_lefts[i].to(torch.device('cpu')),
+                    prd_rights[i].to(torch.device('cpu')),
+                    prd_values[i].item(),
+                ) for i in range(len(actions))],
+                key=lambda t: t[4],
+                reverse=True,
             )
-            trc[i].append(a)
-            out[i].apply(a)
-            idx[i] += 1
-            trc[i].append(Action.from_action('EXTRACT', None, None))
-            while len(trc[i]) < self._sequence_length:
-                trc[i].append(Action.from_action('EMPTY', None, None))
+            self._max_value = self._queue[0][4] / self._ptra.len()
+        else:
+            self._queue = []
+            self._max_value = 0.0
 
-        # Log.out("BEGIN VALUES", {'valid_count': len(valids)})
-        if len(valids) > 0:
-            with torch.no_grad():
-                embeds = self._model_E(trc)
-                hiddens = self._model_H(embeds)
+        self._children = []
 
-                head = torch.cat([
-                    hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
-                ], dim=0)
-                targets = torch.cat([
-                    hiddens[i][0].unsqueeze(0) for i in range(len(idx))
-                ], dim=0)
+    def max_value(
+            self,
+    ) -> float:
+        return self._max_value
 
-                prd_values = self._model_VH(head, targets)
-        # Log.out("END VALUES")
-
-        for i in range(len(valids)):
-            out[i]._value = prd_values[i].item()
-
-        return out
-
-    def step(
+    def update(
             self,
     ) -> None:
-        trc = [b.ptra().actions().copy() for b in self._beams]
-        idx = [len(b.ptra().actions()) for b in self._beams]
+        self._children = sorted(
+            self._children, key=lambda c: c.max_value(), reverse=True
+        )
 
-        empty = Action.from_action('EMPTY', None, None)
-        extract = Action.from_action('EXTRACT', None, None)
-        for i in range(len(trc)):
-            trc[i].append(extract)
-            while len(trc[i]) < self._sequence_length:
-                trc[i].append(empty)
-
-        # Log.out("BEGIN ACTIONS")
-        with torch.no_grad():
-            embeds = self._model_E(trc)
-            hiddens = self._model_H(embeds)
-
-            head = torch.cat([
-                hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
-            ], dim=0)
-            targets = torch.cat([
-                hiddens[i][0].unsqueeze(0) for i in range(len(idx))
-            ], dim=0)
-
-            prd_actions, prd_lefts, prd_rights = \
-                self._model_PH(head, targets)
-        # Log.out("END ACTIONS")
-
-        beams = []
-
-        for i in range(len(self._beams)):
-            beams += self.step_beam(
-                self._beams[i],
-                prd_actions[i],
-                prd_lefts[i],
-                prd_rights[i],
+        if len(self._children) > 0 and len(self._queue) > 0:
+            self._max_value = max(
+                self._children[0].max_value(),
+                self._queue[0][4] / self._ptra.len(),
             )
-
-        self._beams = sorted(
-            beams, key=lambda b: b.value(), reverse=True,
-        )[0:self._beam_count]
-
-        if len(self._beams) > 0:
-            Log.out('STEP', {
-                'best_value': self._beams[0].value(),
-                'match_count': self._beams[0].match_count(),
-            })
+        elif len(self._children) > 0 and len(self._queue) == 0:
+            self._max_value = self._children[0].max_value()
+        elif len(self._children) == 0 and len(self._queue) > 0:
+            self._max_value = self._queue[0][4] / self._ptra.len()
         else:
-            Log.out('NO_VALID')
+            self._max_value = 0.0
 
-        return len(self._beams)
+        if self._parent is not None:
+            self._parent.update()
+
+    def expand_queue(
+            self,
+    ) -> Thm:
+        candidate = self._queue[0]
+        self._queue = self._queue[1:]
+
+        a = candidate[0].copy()
+
+        repl = self._repl.copy()
+        thm = repl.apply(a)
+        a._index = thm.index()
+
+        ptra = self._ptra.copy()
+        ptra.append(a)
+
+        node = Node(
+            self._config,
+            self,
+            self._model,
+            self._ground,
+            self._target,
+            ptra,
+            repl,
+            candidate[1],
+            candidate[2],
+            candidate[3],
+            candidate[4],
+        )
+
+        self._children.append(node)
+        node.update()
+
+        Log.out('EXPAND', {
+            'ground_length': self._ground.len(),
+            'ptra_length': ptra.len(),
+            'value': candidate[4],
+            'summary': ptra.summary(),
+        })
+
+        if thm.thm_string() == self._target.thm_string():
+            return thm
+        else:
+            return None
+
+    def expand_children(
+            self,
+    ) -> Thm:
+        return self._children[0].expand()
+
+    def expand(
+            self,
+    ) -> Thm:
+        """ Expand the max_value leaf node.
+
+        At this point the tree is up to date so we follow the path of max
+        value and go expand that leaf node.
+        """
+        if len(self._children) > 0 and len(self._queue) > 0:
+            if self._children[0].max_value() > self._queue[0][4]:
+                return self.expand_children()
+            else:
+                return self.expand_queue()
+        elif len(self._children) > 0 and len(self._queue) == 0:
+            return self.expand_children()
+        elif len(self._children) == 0 and len(self._queue) > 0:
+            return self.expand_queue()
+        else:
+            assert False
+
+    @staticmethod
+    def prepare(
+            ptra: ProofTraceActions,
+            a: Action,
+            sequence_length: int,
+    ) -> typing.Tuple[
+        typing.List[Action],
+        typing.List[int],
+    ]:
+        trc = ptra.actions().copy()
+        idx = len(trc)
+        if a is not None:
+            trc.append(a)
+            idx += 1
+
+        trc.append(Action.from_action('EXTRACT', None, None))
+        empty = Action.from_action('EMPTY', None, None)
+        while len(trc) < sequence_length:
+            trc.append(empty)
+
+        return trc, idx
+
+    @staticmethod
+    def bootstrap(
+            config: Config,
+            tokenizer: ProofTraceTokenizer,
+            model: Model,
+            ground: ProofTraceActions,
+            target: Thm,
+    ):
+        ptra = ProofTraceActions(
+            'TREE-{}-{}'.format(
+                datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f"),
+                random.randint(0, 9999),
+            ),
+            [
+                a for a in ground.actions()
+                if a.value in [
+                        ACTION_TOKENS['TARGET'],
+                        ACTION_TOKENS['EMPTY'],
+                        ACTION_TOKENS['PREMISE'],
+                        ACTION_TOKENS['SUBST'],
+                        ACTION_TOKENS['SUBST_TYPE'],
+                        ACTION_TOKENS['TERM'],
+                ]
+            ],
+        )
+        repl = REPL(tokenizer)
+        repl.prepare(ptra)
+
+        pre_trc, pre_idx = \
+            Node.prepare(ptra, None, config.get('prooftrace_sequence_length'))
+        trc = [pre_trc]
+        idx = [pre_idx]
+
+        prd_actions, prd_lefts, prd_rights, prd_values = \
+            model.infer(trc, idx)
+
+        return Node(
+            config,
+            None,
+            model,
+            ground,
+            target,
+            ptra,
+            repl,
+            prd_actions[0].to(torch.device('cpu')),
+            prd_lefts[0].to(torch.device('cpu')),
+            prd_rights[0].to(torch.device('cpu')),
+            prd_values[0].item(),
+        )
 
 
 def search():
@@ -373,6 +431,14 @@ def search():
     ]
     cases = []
 
+    with open(
+            os.path.join(
+                os.path.expanduser(config.get('prooftrace_dataset_dir')),
+                config.get('prooftrace_dataset_size'),
+                'traces.tokenizer',
+            ), 'rb') as f:
+        tokenizer = pickle.load(f)
+
     for p in files:
         match = re.search("_(\\d+)_(\\d+)\\.actions$", p)
         if match is None:
@@ -388,12 +454,37 @@ def search():
             'cases': len(cases),
         })
 
+    model = Model(config).load()
+
     for i in range(len(cases)):
         c = cases[i]
         with open(c, 'rb') as f:
-            ptra = pickle.load(f)
+            ground = pickle.load(f)
 
-        bs = BeamSearch(config, ptra, 16).load()
-        beam_count = len(bs.beams())
-        while beam_count > 0:
-            beam_count = bs.step()
+        repl = REPL(tokenizer)
+        repl.prepare(ground)
+        target = repl.replay(ground)
+
+        Log.out("TARGET", {
+            'name': ground.name(),
+            'length': ground.len(),
+            'summary': ground.summary(),
+        })
+
+        tree = Node.bootstrap(config, tokenizer, model, ground, target)
+
+        done = False
+        while(not done):
+            if tree.max_value() == 0.0:
+                Log.out("FAILED", {
+                    'name': ground.name(),
+                })
+                done = True
+            else:
+                thm = tree.expand()
+                if thm:
+                    Log.out("DEMONSTRATED", {
+                        'name': ground.name(),
+                        'theorem': thm.thm_string(),
+                    })
+                    done = True

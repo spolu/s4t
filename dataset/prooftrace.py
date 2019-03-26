@@ -215,6 +215,16 @@ class Action(BVT):
     ) -> int:
         return self._index
 
+    def copy(
+            self,
+    ):
+        return Action(
+            self.value,
+            self.left,
+            self.right,
+            self._index,
+        )
+
     @staticmethod
     def from_action(
             action: str,
@@ -606,6 +616,40 @@ class ProofTraceActions():
             action: Action,
     ) -> bool:
         return action.hash() in self.hashes()
+
+    def copy(
+            self,
+    ):
+        ptra = ProofTraceActions(
+            self._name,
+            self._actions.copy(),
+        )
+        ptra._hashes = dict(self._hashes)
+
+        return ptra
+
+    def summary(
+            self,
+    ):
+        summary = "["
+        for a in self._actions:
+            if a.value not in \
+                    [
+                        ACTION_TOKENS['TARGET'],
+                        ACTION_TOKENS['EMPTY'],
+                        ACTION_TOKENS['PREMISE'],
+                        ACTION_TOKENS['SUBST'],
+                        ACTION_TOKENS['SUBST_TYPE'],
+                        ACTION_TOKENS['TERM'],
+                    ]:
+                left = self._actions.index(a.left)
+                right = self._actions.index(a.right)
+                summary += \
+                    "(" + \
+                    str(a.value) + "," + str(left) + "," + str(right) + \
+                    ")"
+        summary += "]"
+        return summary
 
 
 class ProofTrace():

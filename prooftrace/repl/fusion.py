@@ -70,6 +70,15 @@ class Fusion():
 
         self._t = tokenizer
 
+    def copy(
+            self,
+    ):
+        f = Fusion(self._t)
+        f._theorems = dict(self._theorems)
+        f._next_thm_index = self._next_thm_index
+
+        return f
+
     def token_term(
             self,
             token,
