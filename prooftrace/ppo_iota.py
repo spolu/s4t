@@ -798,4 +798,5 @@ def syn_run():
     epoch = 0
     while True:
         syn.run_once(epoch)
+        syn.save()
         epoch += 1
