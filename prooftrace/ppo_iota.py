@@ -607,8 +607,6 @@ class SYN:
         val_loss_meter = Meter()
         entropy_meter = Meter()
 
-        import pdb; pdb.set_trace()
-
         for info in infos:
             fps_meter.update(info['fps'])
             stp_reward_meter.update(info['stp_reward'])
