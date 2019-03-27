@@ -8,7 +8,7 @@ import torch
 import typing
 
 from dataset.prooftrace import \
-    ACTION_TOKENS, INV_ACTION_TOKENS, \
+    ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, \
     Action, ProofTraceActions, ProofTraceTokenizer
 
 from prooftrace.models.embedder import E
@@ -20,6 +20,8 @@ from prooftrace.repl.fusion import Thm
 
 from utils.config import Config
 from utils.log import Log
+
+_MAX_VALUE = 10e9
 
 
 class Model:
@@ -104,7 +106,7 @@ class Model:
                 hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
             targets = torch.cat([
-                hiddens[i][0].unsqueeze(0) for i in range(len(idx))
+                embeds[i][0].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
 
             prd_actions, prd_lefts, prd_rights = \
@@ -145,17 +147,21 @@ class Node:
         self._sequence_length = config.get('prooftrace_sequence_length')
         self._beta_width = config.get('prooftrace_lm_search_beta_width')
 
-        top_actions = torch.exp(prd_actions).topk(self._beta_width)
+        a_count = min(
+            self._beta_width,
+            len(ACTION_TOKENS) - len(PREPARE_TOKENS),
+        )
+        top_actions = torch.exp(prd_actions).topk(a_count)
         top_lefts = torch.exp(prd_lefts).topk(self._beta_width)
         top_rights = torch.exp(prd_rights).topk(self._beta_width)
 
         actions = []
 
-        for ia in range(self._beta_width):
+        for ia in range(a_count):
             for il in range(self._beta_width):
                 for ir in range(self._beta_width):
 
-                    action = top_actions[1][ia].item()
+                    action = top_actions[1][ia].item() + len(PREPARE_TOKENS)
                     left = top_lefts[1][il].item()
                     right = top_rights[1][ir].item()
 
@@ -197,49 +203,53 @@ class Node:
                     prd_values[i].item(),
                 ) for i in range(len(actions))],
                 key=lambda t: t[4],
-                reverse=True,
             )
-            self._max_value = self.queue_value()
+            self._min_value = self.queue_value()
         else:
             self._queue = []
-            self._max_value = 0.0
+            self._min_value = _MAX_VALUE
 
         self._children = []
+
+    def min_value(
+            self,
+    ) -> float:
+        return self._min_value
+
+    def child_value(
+            self,
+            c,
+    ) -> float:
+        return c.min_value() + 0.2 * len(c._children)
 
     def queue_value(
             self,
     ) -> float:
-        return self._queue[0][4] - self._ptra.action_len()
+        return self._queue[0][4]
 
     def children_value(
             self,
-            c,
     ) -> float:
-        return c.max_value() - 0.1 * len(c._children)
-
-    def max_value(
-            self,
-    ) -> float:
-        return self._max_value
+        return self.child_value(self._children[0])
 
     def update(
             self,
     ) -> None:
         self._children = sorted(
-            self._children, key=lambda c: self.children_value(c), reverse=True
+            self._children, key=lambda c: self.child_value(c)
         )
 
         if len(self._children) > 0 and len(self._queue) > 0:
-            self._max_value = max(
-                self.children_value(self._children[0]),
+            self._min_value = min(
+                self.children_value(),
                 self.queue_value(),
             )
         elif len(self._children) > 0 and len(self._queue) == 0:
-            self._max_value = self.children_value(self._children[0])
+            self._min_value = self.children_value()
         elif len(self._children) == 0 and len(self._queue) > 0:
-            self._max_value = self.queue_value()
+            self._min_value = self.queue_value()
         else:
-            self._max_value = 0.0
+            self._min_value = _MAX_VALUE
 
         if self._parent is not None:
             self._parent.update()
@@ -296,13 +306,13 @@ class Node:
     def expand(
             self,
     ) -> Thm:
-        """ Expand the max_value leaf node.
+        """ Expand the min_value leaf node.
 
         At this point the tree is up to date so we follow the path of max
         value and go expand that leaf node.
         """
         if len(self._children) > 0 and len(self._queue) > 0:
-            if self._children[0].max_value() > self._queue[0][4]:
+            if self._children[0].min_value() < self._queue[0][4]:
                 return self.expand_children()
             else:
                 return self.expand_queue()
@@ -467,7 +477,7 @@ def search():
 
     model = Model(config).load()
 
-    cases = sorted(cases, key=lambda c: c[1])
+    # cases = sorted(cases, key=lambda c: c[1])
 
     for i in range(len(cases)):
         c = cases[i][0]
@@ -489,7 +499,7 @@ def search():
 
         done = False
         while(not done):
-            if tree.max_value() == 0.0:
+            if tree.min_value() is _MAX_VALUE:
                 Log.out("FAILED", {
                     'name': ground.name(),
                 })
