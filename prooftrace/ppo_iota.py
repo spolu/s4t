@@ -631,38 +631,46 @@ class SYN:
         })
 
         if self._tb_writer is not None:
-            self._tb_writer.add_scalar(
-                "prooftrace_ppo_train/act_loss",
-                act_loss_meter.avg, epoch,
-            )
-            self._tb_writer.add_scalar(
-                "prooftrace_ppo_train/val_loss",
-                val_loss_meter.avg, epoch,
-            )
-            self._tb_writer.add_scalar(
-                "prooftrace_ppo_train/entropy",
-                entropy_meter.avg, epoch,
-            )
-            self._tb_writer.add_scalar(
-                "prooftrace_ppo_train/stp_reward",
-                stp_reward_meter.avg, epoch,
-            )
-            self._tb_writer.add_scalar(
-                "prooftrace_ppo_train/mtc_reward",
-                mtc_reward_meter.avg, epoch,
-            )
-            self._tb_writer.add_scalar(
-                "prooftrace_ppo_train/fnl_reward",
-                fnl_reward_meter.avg, epoch,
-            )
-            self._tb_writer.add_scalar(
-                "prooftrace_ppo_train/tot_reward",
-                tot_reward_meter.avg, epoch,
-            )
-            self._tb_writer.add_scalar(
-                "prooftrace_ppo_train/fps",
-                fps_meter.avg, epoch,
-            )
+            if act_loss_meter.avg is not None:
+                self._tb_writer.add_scalar(
+                    "prooftrace_ppo_train/act_loss",
+                    act_loss_meter.avg, epoch,
+                )
+            if val_loss_meter.avg is not None:
+                self._tb_writer.add_scalar(
+                    "prooftrace_ppo_train/val_loss",
+                    val_loss_meter.avg, epoch,
+                )
+            if entropy_meter.avg is not None:
+                self._tb_writer.add_scalar(
+                    "prooftrace_ppo_train/entropy",
+                    entropy_meter.avg, epoch,
+                )
+            if stp_reward_meter.avg is not None:
+                self._tb_writer.add_scalar(
+                    "prooftrace_ppo_train/stp_reward",
+                    stp_reward_meter.avg, epoch,
+                )
+            if mtc_reward_meter.avg is not None:
+                self._tb_writer.add_scalar(
+                    "prooftrace_ppo_train/mtc_reward",
+                    mtc_reward_meter.avg, epoch,
+                )
+            if fnl_reward_meter.avg is not None:
+                self._tb_writer.add_scalar(
+                    "prooftrace_ppo_train/fnl_reward",
+                    fnl_reward_meter.avg, epoch,
+                )
+            if tot_reward_meter.avg is not None:
+                self._tb_writer.add_scalar(
+                    "prooftrace_ppo_train/tot_reward",
+                    tot_reward_meter.avg, epoch,
+                )
+            if fps_meter.avg is not None:
+                self._tb_writer.add_scalar(
+                    "prooftrace_ppo_train/fps",
+                    fps_meter.avg, epoch,
+                )
             self._tb_writer.add_scalar(
                 "prooftrace_ppo_train/update_count",
                 len(infos), epoch,
