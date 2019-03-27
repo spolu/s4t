@@ -112,7 +112,8 @@ class IOTASyn(IOTABase):
                     key = "grad_{}_{}".format(m, name)
                     assert key in data
                     param.grad = data[key] / len(updates)
-                    infos.append(data['info'])
+
+            infos.append(data['info'])
 
             os.remove(p)
             Log.out("{IOTA} UPDATE[CONSUME]", {'path': p})

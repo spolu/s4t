@@ -588,12 +588,15 @@ class SYN:
 
         run_start = time.time()
 
-        self._syn.broadcast({})
+        if epoch == 0:
+            self._syn.broadcast({})
 
         self._optimizer.zero_grad()
         infos = self._syn.aggregate(self._device)
         if len(infos) > 0:
             self._optimizer.step()
+
+        self._syn.broadcast({})
 
         fps_meter = Meter()
         stp_reward_meter = Meter()
@@ -603,6 +606,8 @@ class SYN:
         act_loss_meter = Meter()
         val_loss_meter = Meter()
         entropy_meter = Meter()
+
+        import pdb; pdb.set_trace()
 
         for info in infos:
             fps_meter.update(info['fps'])
