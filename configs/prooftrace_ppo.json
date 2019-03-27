@@ -45,6 +45,7 @@
   "prooftrace_dataset_dir": "./data/prooftrace",
   "prooftrace_dataset_size": "medium",
 
+  "prooftrace_ppo_iota_sync_dir": null,
 
   "tensorboard_log_dir": null
 }
