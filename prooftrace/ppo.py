@@ -417,7 +417,7 @@ class PPO:
             self,
             epoch,
     ):
-        self._model_E.eval()
+        self._model_E.train()
         self._model_H.train()
         self._model_PH.train()
         self._model_VH.train()
