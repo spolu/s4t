@@ -24,13 +24,13 @@
   "prooftrace_lstm_hidden_size": 512,
 
   "prooftrace_env_pool_size": 8,
-
   "prooftrace_ppo_rollout_size": 32,
   "prooftrace_ppo_batch_size": 32,
+
   "prooftrace_ppo_explore_alpha": 0.0,
   "prooftrace_ppo_explore_beta": 0.0,
   "prooftrace_ppo_explore_beta_width": 3,
-  "prooftrace_ppo_step_reward_prob": 0.0,
+  "prooftrace_ppo_step_reward_prob": 1.0,
   "prooftrace_ppo_match_reward_prob": 1.0,
 
   "prooftrace_ppo_learning_rate": 0.0003,

@@ -44,7 +44,6 @@ class Rollouts:
 
         self._epoch_count = config.get('prooftrace_ppo_epoch_count')
         self._clip = config.get('prooftrace_ppo_clip')
-        self._grad_norm_max = config.get('prooftrace_ppo_grad_norm_max')
 
         self.observations = [
             [None] * self._pool_size for _ in range(self._rollout_size+1)
@@ -145,6 +144,7 @@ class ACK:
         self._pool_size = config.get('prooftrace_env_pool_size')
         self._epoch_count = config.get('prooftrace_ppo_epoch_count')
         self._clip = config.get('prooftrace_ppo_clip')
+        self._grad_norm_max = config.get('prooftrace_ppo_grad_norm_max')
         self._entropy_coeff = config.get('prooftrace_ppo_entropy_coeff')
         self._value_coeff = config.get('prooftrace_ppo_value_coeff')
         self._learning_rate = config.get('prooftrace_ppo_learning_rate')
@@ -396,6 +396,10 @@ class ACK:
                         self._modules['E'].parameters(), self._grad_norm_max,
                     )
 
+                act_loss_meter.update(action_loss.item())
+                val_loss_meter.update(value_loss.item())
+                entropy_meter.update(entropy.item())
+
                 self._ack.push({
                     'fps': frame_count / (time.time() - run_start),
                     'stp_reward': (stp_reward_meter.avg or 0.0),
@@ -405,10 +409,6 @@ class ACK:
                     'val_loss': val_loss_meter.avg,
                     'entropy': entropy_meter.avg,
                 })
-
-                act_loss_meter.update(action_loss.item())
-                val_loss_meter.update(value_loss.item())
-                entropy_meter.update(entropy.item())
 
         self._rollouts.after_update()
 
@@ -614,7 +614,7 @@ class SYN:
             )
             act_loss_meter.update(info['act_loss'])
             val_loss_meter.update(info['val_loss'])
-            entropy_meter.update(info['entropy_loss'])
+            entropy_meter.update(info['entropy'])
 
         Log.out("PROOFTRACE PPO SYN RUN", {
             'epoch': epoch,

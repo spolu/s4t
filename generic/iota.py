@@ -2,6 +2,7 @@ import datetime
 import os
 import random
 import re
+import shutil
 import torch
 import torch.nn as nn
 import typing
@@ -65,7 +66,8 @@ class IOTASyn(IOTABase):
     ):
         super(IOTASyn, self).__init__(sync_dir, modules)
 
-        assert len(os.listdir(self._sync_dir)) == 0
+        if os.path.isdir(self._tmp_dir):
+            shutil.rmtree(self._tmp_dir)
         os.mkdir(self._tmp_dir)
 
     def broadcast(
@@ -106,10 +108,10 @@ class IOTASyn(IOTABase):
             data = torch.load(p, map_location=device)
 
             for m in self._modules:
-                for name, p in self._modules[m].named_parameters():
+                for name, param in self._modules[m].named_parameters():
                     key = "grad_{}_{}".format(m, name)
                     assert key in data
-                    p.grad = data[key] / len(updates)
+                    param.grad = data[key] / len(updates)
                     infos.append(data['info'])
 
             os.remove(p)
@@ -159,9 +161,9 @@ class IOTAAck(IOTABase):
     ):
         data = {}
         for m in self._modules:
-            for name, p in self._modules[m].named_parameters():
+            for name, param in self._modules[m].named_parameters():
                 key = "grad_{}_{}".format(m, name)
-                data[key] = p.grad.data
+                data[key] = param.grad.data
         data['info'] = info
 
         now = datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f")
