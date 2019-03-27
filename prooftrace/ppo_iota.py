@@ -679,7 +679,8 @@ class SYN:
                 len(infos), epoch,
             )
 
-        time.sleep(60 - (time.time() - run_start))
+        if (time.time() - run_start) < 60:
+            time.sleep(60 - (time.time() - run_start))
 
 
 def ack_run():
