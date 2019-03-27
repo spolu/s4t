@@ -630,6 +630,46 @@ class SYN:
             'entropy': "{:.4f}".format(entropy_meter.avg or 0.0),
         })
 
+        if self._tb_writer is not None:
+            self._tb_writer.add_scalar(
+                "prooftrace_ppo_train/act_loss",
+                act_loss_meter.avg, epoch,
+            )
+            self._tb_writer.add_scalar(
+                "prooftrace_ppo_train/val_loss",
+                val_loss_meter.avg, epoch,
+            )
+            self._tb_writer.add_scalar(
+                "prooftrace_ppo_train/entropy",
+                entropy_meter.avg, epoch,
+            )
+            self._tb_writer.add_scalar(
+                "prooftrace_ppo_train/stp_reward",
+                stp_reward_meter.avg, epoch,
+            )
+            self._tb_writer.add_scalar(
+                "prooftrace_ppo_train/mtc_reward",
+                mtc_reward_meter.avg, epoch,
+            )
+            self._tb_writer.add_scalar(
+                "prooftrace_ppo_train/fnl_reward",
+                fnl_reward_meter.avg, epoch,
+            )
+            self._tb_writer.add_scalar(
+                "prooftrace_ppo_train/tot_reward",
+                tot_reward_meter.avg, epoch,
+            )
+            self._tb_writer.add_scalar(
+                "prooftrace_ppo_train/fps",
+                fps_meter.avg, epoch,
+            )
+            self._tb_writer.add_scalar(
+                "prooftrace_ppo_train/update_count",
+                len(infos), epoch,
+            )
+
+        time.sleep(60 - (time.time() - run_start))
+
 
 def ack_run():
     parser = argparse.ArgumentParser(description="")
