@@ -444,7 +444,7 @@ class PPO:
                     for i in range(len(idx))
                 ], dim=0)
                 targets = torch.cat([
-                    hiddens[i][0].unsqueeze(0)
+                    embeds[i][0].unsqueeze(0)
                     for i in range(len(idx))
                 ], dim=0)
 

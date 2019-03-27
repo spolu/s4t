@@ -13,14 +13,14 @@
 
   "prooftrace_type_token_count": 984,
   "prooftrace_term_token_count": 14228,
-  "prooftrace_hidden_size": 128,
-  "prooftrace_sequence_length": 512,
+  "prooftrace_hidden_size": 256,
+  "prooftrace_sequence_length": 256,
 
   "prooftrace_transformer_hidden_size": 512,
   "prooftrace_transformer_attention_head_count": 8,
   "prooftrace_transformer_layer_count": 0,
 
-  "prooftrace_lstm_layer_count": 1,
+  "prooftrace_lstm_layer_count": 2,
   "prooftrace_lstm_hidden_size": 512,
 
   "prooftrace_env_pool_size": 8,
