@@ -60,6 +60,8 @@ class ACK:
             "batch_size": self._config.get('prooftrace_lm_batch_size'),
         })
 
+        self._train_batch = 0
+
     def update(
             self,
             config: Config,
