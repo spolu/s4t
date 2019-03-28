@@ -9,7 +9,7 @@ import torch
 import typing
 
 from dataset.prooftrace import \
-    ACTION_TOKENS, INV_ACTION_TOKENS, \
+    ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, \
     Action, ProofTraceActions
 
 from prooftrace.repl.fusion import FusionException
@@ -135,7 +135,7 @@ class Env:
                     self._run.seen(a.left) and \
                     self._run.seen(a.right):
                 actions = torch.tensor([[
-                    a.value,
+                    a.value - len(PREPARE_TOKENS),
                     self._run.hashes()[a.left.hash()],
                     self._run.hashes()[a.right.hash()],
                 ]], dtype=torch.int64).to(self._device)
@@ -169,9 +169,9 @@ class Env:
                         continue
 
                     a = Action.from_action(
-                        INV_ACTION_TOKENS[top_actions[1][ia].item()],
-                        self._run.actions()[top_lefts[1][il].item()],
-                        self._run.actions()[top_rights[1][ir].item()],
+                        INV_ACTION_TOKENS[action + len(PREPARE_TOKENS)],
+                        self._run.actions()[left],
+                        self._run.actions()[right],
                     )
 
                     if self._run.seen(a):
@@ -252,7 +252,7 @@ class Env:
             return self.observation(), (0.0, 0.0, 0.0), True
 
         a = Action.from_action(
-            INV_ACTION_TOKENS[action[0]],
+            INV_ACTION_TOKENS[action[0] + len(PREPARE_TOKENS)],
             self._run.actions()[action[1]],
             self._run.actions()[action[2]],
         )
