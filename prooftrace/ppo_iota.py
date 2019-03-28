@@ -614,7 +614,6 @@ class SYN:
 
     def update(
             self,
-            epoch: int,
     ) -> None:
         update = self._config.update()
         if update:
@@ -642,7 +641,7 @@ class SYN:
                     ]:
                         self._tb_writer.add_scalar(
                             "prooftrace_ppo_train_run/{}".format(k),
-                            update[k], epoch,
+                            update[k], self._epoch,
                         )
 
     def run_once(
@@ -869,3 +868,4 @@ def syn_run():
 
     while True:
         syn.run_once()
+        syn.update()
