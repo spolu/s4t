@@ -38,6 +38,8 @@ setup(
             'prooftrace_ppo_syn_run=prooftrace.ppo_iota:syn_run',
             'prooftrace_ppo_ack_run=prooftrace.ppo_iota:ack_run',
             'prooftrace_search_language_model=prooftrace.language_model_search:search',
+            'prooftrace_language_model_syn_run=prooftrace.ppo_language_model:syn_run',
+            'prooftrace_language_model_ack_run=prooftrace.ppo_language_model:ack_run',
         ],
     },
 )
