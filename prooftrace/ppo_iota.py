@@ -466,7 +466,7 @@ class ACK:
                     'val_loss': val_loss_meter.avg,
                     'entropy': entropy_meter.avg,
                 })
-                self._ack.fetch(self._device)
+                info = self._ack.fetch(self._device)
                 if info is not None:
                     self.update(info['config'])
 
