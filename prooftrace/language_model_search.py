@@ -477,7 +477,7 @@ def search():
 
     model = Model(config).load()
 
-    # cases = sorted(cases, key=lambda c: c[1])
+    cases = sorted(cases, key=lambda c: c[1])
 
     for i in range(len(cases)):
         c = cases[i][0]
