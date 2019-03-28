@@ -467,6 +467,8 @@ class ACK:
                     'entropy': entropy_meter.avg,
                 })
                 self._ack.fetch(self._device)
+                if info is not None:
+                    self.update(info['config'])
 
         self._rollouts.after_update()
 
