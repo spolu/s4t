@@ -96,6 +96,7 @@ class IOTASyn(IOTABase):
     def aggregate(
             self,
             device: torch.device,
+            min_update_count: int = 1,
     ) -> typing.List[
         typing.Dict[str, typing.Any]
     ]:
@@ -103,6 +104,9 @@ class IOTASyn(IOTABase):
         updates = [p for p in files if re.search(".*update_.*", p)]
 
         infos = []
+
+        if len(updates) < min_update_count:
+            return infos
 
         for p in updates:
             data = torch.load(p, map_location=device)

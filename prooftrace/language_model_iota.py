@@ -317,7 +317,7 @@ class SYN:
             self._syn.broadcast({'config': self._config})
 
         self._optimizer.zero_grad()
-        infos = self._syn.aggregate(self._device)
+        infos = self._syn.aggregate(self._device, 4)
 
         if len(infos) == 0:
             time.sleep(1)
