@@ -184,7 +184,7 @@ class SYN:
         )
 
         self._syn = IOTASyn(
-            config.get('prooftrace_ppo_iota_sync_dir'),
+            config.get('prooftrace_lm_iota_sync_dir'),
             self._modules,
         )
 
