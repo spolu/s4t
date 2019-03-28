@@ -192,6 +192,61 @@ class ACK:
             "batch_size": self._config.get('prooftrace_ppo_batch_size'),
         })
 
+    def update(
+            self,
+            config: Config,
+    ) -> None:
+        self._config = config
+
+        coeff = self._config.get('prooftrace_ppo_entropy_coeff')
+        if coeff != self._entropy_coeff:
+            self._entropy_coeff = coeff
+            Log.out("Updated", {
+                "prooftrace_ppo_entropy_coeff": coeff,
+            })
+
+        coeff = self._config.get('prooftrace_ppo_value_coeff')
+        if coeff != self._value_coeff:
+            self._value_coeff = coeff
+            Log.out("Updated", {
+                "prooftrace_ppo_value_coeff": coeff,
+            })
+
+        alpha = self._config.get('prooftrace_ppo_explore_alpha')
+        if alpha != self._explore_alpha:
+            self._explore_alpha = alpha
+            Log.out("Updated", {
+                "prooftrace_ppo_explore_alpha": alpha,
+            })
+
+        beta = self._config.get('prooftrace_ppo_explore_beta')
+        if beta != self._explore_beta:
+            self._explore_beta = beta
+            Log.out("Updated", {
+                "prooftrace_ppo_explore_beta": beta,
+            })
+
+        width = self._config.get('prooftrace_ppo_explore_beta_width')
+        if width != self._explore_beta_width:
+            self._explore_beta_width = width
+            Log.out("Updated", {
+                "prooftrace_ppo_explore_beta_width": width,
+            })
+
+        prob = self._config.get('prooftrace_ppo_step_reward_prob')
+        if prob != self._step_reward_prob:
+            self._step_reward_prob = prob
+            Log.out("Updated", {
+                "prooftrace_ppo_step_reward_prob": prob,
+            })
+
+        prob = self._config.get('prooftrace_ppo_match_reward_prob')
+        if prob != self._match_reward_prob:
+            self._match_reward_prob = prob
+            Log.out("Updated", {
+                "prooftrace_ppo_match_reward_prob": prob,
+            })
+
     def run_once(
             self,
             epoch,
@@ -199,7 +254,8 @@ class ACK:
         for m in self._modules:
             self._modules[m].train()
 
-        self._ack.fetch(self._device)
+        info = self._ack.fetch(self._device)
+        self.update(info['config'])
 
         stp_reward_meter = Meter()
         mtc_reward_meter = Meter()
@@ -409,6 +465,7 @@ class ACK:
                     'val_loss': val_loss_meter.avg,
                     'entropy': entropy_meter.avg,
                 })
+                self._ack.fetch(self._device)
 
         self._rollouts.after_update()
 
@@ -436,6 +493,8 @@ class SYN:
 
         self._save_dir = config.get('prooftrace_save_dir')
         self._load_dir = config.get('prooftrace_load_dir')
+
+        self._epoch = 0
 
         self._tb_writer = None
         if self._config.get('tensorboard_log_dir'):
@@ -573,6 +632,13 @@ class SYN:
                 for k in update:
                     if k in [
                             'prooftrace_ppo_learning_rate',
+                            'prooftrace_ppo_entropy_coeff',
+                            'prooftrace_ppo_value_coeff',
+                            'prooftrace_ppo_explore_alpha',
+                            'prooftrace_ppo_explore_beta',
+                            'prooftrace_ppo_explore_beta_width',
+                            'prooftrace_ppo_step_reward_prob',
+                            'prooftrace_ppo_match_reward_prob',
                     ]:
                         self._tb_writer.add_scalar(
                             "prooftrace_ppo_train_run/{}".format(k),
@@ -581,22 +647,24 @@ class SYN:
 
     def run_once(
             self,
-            epoch,
     ):
         for m in self._modules:
             self._modules[m].train()
 
         run_start = time.time()
 
-        if epoch == 0:
-            self._syn.broadcast({})
+        if self._epoch == 0:
+            self._syn.broadcast({'config': self._config})
 
         self._optimizer.zero_grad()
         infos = self._syn.aggregate(self._device)
-        if len(infos) > 0:
-            self._optimizer.step()
 
-        self._syn.broadcast({})
+        if len(infos) == 0:
+            time.sleep(1)
+            return
+
+        self._optimizer.step()
+        self._syn.broadcast({'config': self._config})
 
         fps_meter = Meter()
         stp_reward_meter = Meter()
@@ -613,14 +681,16 @@ class SYN:
             mtc_reward_meter.update(info['mtc_reward'])
             fnl_reward_meter.update(info['fnl_reward'])
             tot_reward_meter.update(
-                info['stp_reward'] + info['mtc_reward'] + info['fnl_reward']
+                info['stp_reward'] +
+                info['mtc_reward'] +
+                info['fnl_reward']
             )
             act_loss_meter.update(info['act_loss'])
             val_loss_meter.update(info['val_loss'])
             entropy_meter.update(info['entropy'])
 
         Log.out("PROOFTRACE PPO SYN RUN", {
-            'epoch': epoch,
+            'epoch': self._epoch,
             'run_time': "{:.2f}".format(time.time() - run_start),
             'update_count': len(infos),
             'fps': "{:.2f}".format(fps_meter.avg or 0.0),
@@ -637,50 +707,52 @@ class SYN:
             if act_loss_meter.avg is not None:
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/act_loss",
-                    act_loss_meter.avg, epoch,
+                    act_loss_meter.avg, self._epoch,
                 )
             if val_loss_meter.avg is not None:
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/val_loss",
-                    val_loss_meter.avg, epoch,
+                    val_loss_meter.avg, self._epoch,
                 )
             if entropy_meter.avg is not None:
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/entropy",
-                    entropy_meter.avg, epoch,
+                    entropy_meter.avg, self._epoch,
                 )
             if stp_reward_meter.avg is not None:
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/stp_reward",
-                    stp_reward_meter.avg, epoch,
+                    stp_reward_meter.avg, self._epoch,
                 )
             if mtc_reward_meter.avg is not None:
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/mtc_reward",
-                    mtc_reward_meter.avg, epoch,
+                    mtc_reward_meter.avg, self._epoch,
                 )
             if fnl_reward_meter.avg is not None:
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/fnl_reward",
-                    fnl_reward_meter.avg, epoch,
+                    fnl_reward_meter.avg, self._epoch,
                 )
             if tot_reward_meter.avg is not None:
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/tot_reward",
-                    tot_reward_meter.avg, epoch,
+                    tot_reward_meter.avg, self._epoch,
                 )
             if fps_meter.avg is not None:
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/fps",
-                    fps_meter.avg, epoch,
+                    fps_meter.avg, self._epoch,
                 )
             self._tb_writer.add_scalar(
                 "prooftrace_ppo_train/update_count",
-                len(infos), epoch,
+                len(infos), self._epoch,
             )
 
-        if (time.time() - run_start) < 60:
-            time.sleep(60 - (time.time() - run_start))
+        self._epoch += 1
+
+        if self._epoch % 10 == 0:
+            self.save()
 
 
 def ack_run():
@@ -795,8 +867,5 @@ def syn_run():
 
     syn = SYN(config).load(True)
 
-    epoch = 0
     while True:
-        syn.run_once(epoch)
-        syn.save()
-        epoch += 1
+        syn.run_once()

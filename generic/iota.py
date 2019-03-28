@@ -73,7 +73,7 @@ class IOTASyn(IOTABase):
     def broadcast(
             self,
             info: typing.Dict[str, typing.Any],
-    ):
+    ) -> None:
         data = {}
 
         for m in self._modules:
@@ -136,11 +136,13 @@ class IOTAAck(IOTABase):
     def fetch(
             self,
             device: torch.device,
-    ):
+    ) -> typing.Dict[str, typing.Any]:
         files = self.list_files()
         broadcasts = sorted([
             p for p in files if re.search(".*broadcast_.*", p)
         ], reverse=True)
+
+        info = None
 
         if len(broadcasts) > 0 and self._last_broadcast != broadcasts[0]:
             self._last_broadcast = broadcasts[0]
@@ -153,13 +155,16 @@ class IOTAAck(IOTABase):
                 key = "state_dict_{}".format(m)
                 assert key in data
                 self._modules[m].load_state_dict(data[key])
+            info = data['info']
 
             Log.out("{IOTA} FETCH", {'path': self._last_broadcast})
+
+        return info
 
     def push(
             self,
             info: typing.Dict[str, typing.Any],
-    ):
+    ) -> None:
         data = {}
         for m in self._modules:
             for name, param in self._modules[m].named_parameters():
