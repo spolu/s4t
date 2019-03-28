@@ -499,10 +499,9 @@ class SYN:
 
         self._tb_writer = None
         if self._config.get('tensorboard_log_dir'):
-            if self._config.get('distributed_rank') == 0:
-                self._tb_writer = SummaryWriter(
-                    self._config.get('tensorboard_log_dir'),
-                )
+            self._tb_writer = SummaryWriter(
+                self._config.get('tensorboard_log_dir'),
+            )
 
         self._modules = {
             'E': E(self._config).to(self._device),
