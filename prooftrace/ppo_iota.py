@@ -255,7 +255,8 @@ class ACK:
             self._modules[m].train()
 
         info = self._ack.fetch(self._device)
-        self.update(info['config'])
+        if info is not None:
+            self.update(info['config'])
 
         stp_reward_meter = Meter()
         mtc_reward_meter = Meter()
