@@ -134,6 +134,8 @@ class Env:
             if (not self._run.seen(a)) and \
                     self._run.seen(a.left) and \
                     self._run.seen(a.right):
+                assert 0 <= a.value - len(PREPARE_TOKENS)
+                assert a.value < len(ACTION_TOKENS)
                 actions = torch.tensor([[
                     a.value - len(PREPARE_TOKENS),
                     self._run.hashes()[a.left.hash()],
@@ -161,6 +163,8 @@ class Env:
             for il in range(beta_width):
                 for ir in range(beta_width):
                     action = top_actions[1][ia].item()
+                    assert action >= 0
+                    assert action < len(ACTION_TOKENS) - len(PREPARE_TOKENS)
                     left = top_lefts[1][il].item()
                     right = top_rights[1][ir].item()
                     prob = top_actions[0][ia].item() * \
@@ -436,7 +440,7 @@ def test():
         )
 
     sequence_size = config.get('prooftrace_sequence_length')
-    action_size = len(ACTION_TOKENS)
+    action_size = len(ACTION_TOKENS) - len(PREPARE_TOKENS)
 
     prd_actions = torch.rand(action_size)
     prd_lefts = torch.rand(sequence_size)
@@ -452,7 +456,7 @@ def test():
         prd_actions,
         prd_lefts,
         prd_rights,
-        0.0,
+        1.0,
         1.0,
         3,
     )
