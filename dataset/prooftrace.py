@@ -1140,7 +1140,7 @@ class ProofTraceLMDataset(Dataset):
 
         truth = ptra.actions()[self._cases[idx][1]]
         trace = ptra.actions()[:self._cases[idx][1]]
-        value = float(ptra.len() - len(trace))
+        value = float(ptra.len() - len(trace)) / ptra.action_len()
 
         trace.append(Action.from_action('EXTRACT', None, None))
         empty = Action.from_action('EMPTY', None, None)
