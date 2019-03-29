@@ -161,7 +161,7 @@ class Node:
             for il in range(self._beta_width):
                 for ir in range(self._beta_width):
 
-                    action = top_actions[1][ia].item() + len(PREPARE_TOKENS)
+                    action = top_actions[1][ia].item()
                     left = top_lefts[1][il].item()
                     right = top_rights[1][ir].item()
 
@@ -169,7 +169,7 @@ class Node:
                         continue
 
                     a = Action.from_action(
-                        INV_ACTION_TOKENS[action],
+                        INV_ACTION_TOKENS[action + len(PREPARE_TOKENS)],
                         self._ptra.actions()[left],
                         self._ptra.actions()[right],
                     )
