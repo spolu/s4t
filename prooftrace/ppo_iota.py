@@ -265,7 +265,6 @@ class ACK:
         val_loss_meter = Meter()
         entropy_meter = Meter()
 
-        run_start = time.time()
         frame_count = 0
 
         for step in range(self._rollout_size):
@@ -458,7 +457,7 @@ class ACK:
                 entropy_meter.update(entropy.item())
 
                 self._ack.push({
-                    'fps': frame_count / (time.time() - run_start),
+                    'frame_count': frame_count,
                     'stp_reward': (stp_reward_meter.avg or 0.0),
                     'mtc_reward': (mtc_reward_meter.avg or 0.0),
                     'fnl_reward': (fnl_reward_meter.avg or 0.0),
@@ -466,6 +465,9 @@ class ACK:
                     'val_loss': val_loss_meter.avg,
                     'entropy': entropy_meter.avg,
                 })
+                if frame_count > 0:
+                    frame_count = 0
+
                 info = self._ack.fetch(self._device)
                 if info is not None:
                     self.update(info['config'])
@@ -474,7 +476,6 @@ class ACK:
 
         Log.out("PROOFTRACE PPO ACK RUN", {
             'epoch': epoch,
-            'fps': "{:.2f}".format(frame_count / (time.time() - run_start)),
             'stp_reward': "{:.4f}".format(stp_reward_meter.avg or 0.0),
             'mtc_reward': "{:.4f}".format(mtc_reward_meter.avg or 0.0),
             'fnl_reward': "{:.4f}".format(fnl_reward_meter.avg or 0.0),
@@ -667,7 +668,7 @@ class SYN:
         self._optimizer.step()
         self._syn.broadcast({'config': self._config})
 
-        fps_meter = Meter()
+        frame_count_meter = Meter()
         stp_reward_meter = Meter()
         mtc_reward_meter = Meter()
         fnl_reward_meter = Meter()
@@ -677,7 +678,7 @@ class SYN:
         entropy_meter = Meter()
 
         for info in infos:
-            fps_meter.update(info['fps'])
+            frame_count_meter.update(info['frame_count'])
             stp_reward_meter.update(info['stp_reward'])
             mtc_reward_meter.update(info['mtc_reward'])
             fnl_reward_meter.update(info['fnl_reward'])
@@ -694,7 +695,7 @@ class SYN:
             'epoch': self._epoch,
             'run_time': "{:.2f}".format(time.time() - run_start),
             'update_count': len(infos),
-            'fps': "{:.2f}".format(fps_meter.avg or 0.0),
+            'frame_count': frame_count_meter.sum,
             'stp_reward': "{:.4f}".format(stp_reward_meter.avg or 0.0),
             'mtc_reward': "{:.4f}".format(mtc_reward_meter.avg or 0.0),
             'fnl_reward': "{:.4f}".format(fnl_reward_meter.avg or 0.0),
@@ -740,10 +741,10 @@ class SYN:
                     "prooftrace_ppo_train/tot_reward",
                     tot_reward_meter.avg, self._epoch,
                 )
-            if fps_meter.avg is not None:
+            if frame_count_meter.sum is not None:
                 self._tb_writer.add_scalar(
-                    "prooftrace_ppo_train/fps",
-                    fps_meter.avg, self._epoch,
+                    "prooftrace_ppo_train/frame_count",
+                    frame_count_meter.sum, self._epoch,
                 )
             self._tb_writer.add_scalar(
                 "prooftrace_ppo_train/update_count",
