@@ -163,9 +163,12 @@ class Env:
                     action = top_actions[1][ia].item()
                     left = top_lefts[1][il].item()
                     right = top_rights[1][ir].item()
+                    prob = top_actions[0][ia].item() * \
+                        top_lefts[0][il].item() * \
+                        top_rights[0][ir].item()
 
                     if left >= self._run.len() or right >= self._run.len():
-                        out.append(([action, left, right], 0.0))
+                        out.append(([action, left, right], prob))
                         continue
 
                     a = Action.from_action(
@@ -175,19 +178,15 @@ class Env:
                     )
 
                     if self._run.seen(a):
-                        out.append(([action, left, right], 0.0))
+                        out.append(([action, left, right], prob))
                         continue
 
                     frame_count += 1
                     if not self._repl.valid(a):
-                        out.append(([action, left, right], 0.0))
+                        out.append(([action, left, right], prob))
                         continue
 
-                    if self._ground.seen(a):
-                        out.append(([action, left, right], 3.0))
-                        continue
-
-                    out.append(([action, left, right], 1.0))
+                    out.append(([action, left, right], 1.0 + prob))
 
         out = sorted(out, key=lambda o: o[1], reverse=True)
 
@@ -454,7 +453,7 @@ def test():
         prd_lefts,
         prd_rights,
         0.0,
-        0.0,
+        1.0,
         3,
     )
     print(".")
