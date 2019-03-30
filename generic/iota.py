@@ -87,9 +87,12 @@ class IOTASyn(IOTABase):
         Log.out("{IOTA} BROADCAST[NEW]", {'path': p})
 
         files = self.list_files()
-        gc = [p for p in files if re.search(".*broadcast_.*", p)]
-        for p in gc:
-            if not re.search(now, p):
+        gc = sorted([
+            p for p in files if re.search(".*broadcast_.*", p)
+        ], reverse=True)
+        if len(gc) > 2:
+            for p in gc[2:]:
+                assert not re.search(now, p)
                 os.remove(p)
                 Log.out("{IOTA} BROADCAST[GC]", {'path': p})
 
