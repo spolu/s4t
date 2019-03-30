@@ -220,7 +220,9 @@ class Node:
             self,
             c,
     ) -> float:
-        return c.min_value() + # + 0.1 * len(c._children)
+        # return c.min_value() + 0.1 * len(c._children)
+        # return c.min_value() + 0.2 * self._ptra.action_len()
+        return c.min_value()
 
     def queue_value(
             self,
