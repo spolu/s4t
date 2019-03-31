@@ -239,7 +239,8 @@ class Node:
     def queue_value(
             self,
     ) -> float:
-        return self._queue[0][4] - 2*self._ptra.action_len()
+        # return self._queue[0][4] - self._ptra.action_len()
+        return self._queue[0][4]
 
     def children_value(
             self,
@@ -303,7 +304,7 @@ class Node:
         Log.out('EXPAND', {
             'ground_length': self._ground.action_len(),
             'ptra_length': ptra.action_len(),
-            'value': candidate[4] - ptra.action_len(),
+            'value': candidate[4],
             'summary': ptra.summary(),
         })
 
