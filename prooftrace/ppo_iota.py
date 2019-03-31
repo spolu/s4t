@@ -430,43 +430,52 @@ class ACK:
 
                 value_loss = F.mse_loss(values, rollout_returns)
 
-                # Backward pass.
-                for m in self._modules:
-                    self._modules[m].zero_grad()
+                if abs(action_loss.item()) > 10e3:
+                    Log.out("IGNORING ACTION_LOSS", {
+                        'epoch': epoch,
+                        'act_loss': "{:.4f}".format(action_loss.item()),
+                        'val_loss': "{:.4f}".format(value_loss.item()),
+                        'entropy': "{:.4f}".format(entropy.item()),
+                    })
+                    time.sleep(10)
+                else:
+                    # Backward pass.
+                    for m in self._modules:
+                        self._modules[m].zero_grad()
 
-                (action_loss +
-                 self._value_coeff * value_loss -
-                 self._entropy_coeff * entropy).backward()
+                    (action_loss +
+                     self._value_coeff * value_loss -
+                     self._entropy_coeff * entropy).backward()
 
-                if self._grad_norm_max > 0.0:
-                    torch.nn.utils.clip_grad_norm_(
-                        self._modules['VH'].parameters(), self._grad_norm_max,
-                    )
-                    torch.nn.utils.clip_grad_norm_(
-                        self._modules['PH'].parameters(), self._grad_norm_max,
-                    )
-                    torch.nn.utils.clip_grad_norm_(
-                        self._modules['H'].parameters(), self._grad_norm_max,
-                    )
-                    torch.nn.utils.clip_grad_norm_(
-                        self._modules['E'].parameters(), self._grad_norm_max,
-                    )
+                    if self._grad_norm_max > 0.0:
+                        torch.nn.utils.clip_grad_norm_(
+                            self._modules['VH'].parameters(), self._grad_norm_max,
+                        )
+                        torch.nn.utils.clip_grad_norm_(
+                            self._modules['PH'].parameters(), self._grad_norm_max,
+                        )
+                        torch.nn.utils.clip_grad_norm_(
+                            self._modules['H'].parameters(), self._grad_norm_max,
+                        )
+                        torch.nn.utils.clip_grad_norm_(
+                            self._modules['E'].parameters(), self._grad_norm_max,
+                        )
 
-                act_loss_meter.update(action_loss.item())
-                val_loss_meter.update(value_loss.item())
-                entropy_meter.update(entropy.item())
+                    act_loss_meter.update(action_loss.item())
+                    val_loss_meter.update(value_loss.item())
+                    entropy_meter.update(entropy.item())
 
-                self._ack.push({
-                    'frame_count': frame_count,
-                    'stp_reward': (stp_reward_meter.avg or 0.0),
-                    'mtc_reward': (mtc_reward_meter.avg or 0.0),
-                    'fnl_reward': (fnl_reward_meter.avg or 0.0),
-                    'act_loss': act_loss_meter.avg,
-                    'val_loss': val_loss_meter.avg,
-                    'entropy': entropy_meter.avg,
-                })
-                if frame_count > 0:
-                    frame_count = 0
+                    self._ack.push({
+                        'frame_count': frame_count,
+                        'stp_reward': (stp_reward_meter.avg or 0.0),
+                        'mtc_reward': (mtc_reward_meter.avg or 0.0),
+                        'fnl_reward': (fnl_reward_meter.avg or 0.0),
+                        'act_loss': act_loss_meter.avg,
+                        'val_loss': val_loss_meter.avg,
+                        'entropy': entropy_meter.avg,
+                    })
+                    if frame_count > 0:
+                        frame_count = 0
 
                 info = self._ack.fetch(self._device)
                 if info is not None:
