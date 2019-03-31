@@ -204,13 +204,16 @@ class LanguageModel:
                     ),
                 )
                 if training:
-                    self._optimizer.load_state_dict(
-                        torch.load(
-                            self._load_dir +
-                            "/optimizer_{}.pt".format(rank),
-                            map_location=self._device,
-                        ),
-                    )
+                    if os.path.isfile(
+                            self._load_dir + "/optimizer_{}.pt".format(rank)
+                    ):
+                        self._optimizer.load_state_dict(
+                            torch.load(
+                                self._load_dir +
+                                "/optimizer_{}.pt".format(rank),
+                                map_location=self._device,
+                            ),
+                        )
 
         return self
 
