@@ -45,21 +45,24 @@ class LanguageModel:
                 )
 
         self._inner_model_E = E(self._config).to(self._device)
-        self._inner_model_H = H(self._config).to(self._device)
+        self._inner_model_HV = H(self._config).to(self._device)
+        self._inner_model_HP = H(self._config).to(self._device)
         self._inner_model_PH = PH(self._config).to(self._device)
         self._inner_model_VH = VH(self._config).to(self._device)
 
         Log.out(
             "Initializing prooftrace LanguageModel", {
                 'parameter_count_E': self._inner_model_E.parameters_count(),
-                'parameter_count_H': self._inner_model_H.parameters_count(),
+                'parameter_count_HV': self._inner_model_HV.parameters_count(),
+                'parameter_count_HP': self._inner_model_HP.parameters_count(),
                 'parameter_count_PH': self._inner_model_PH.parameters_count(),
                 'parameter_count_VH': self._inner_model_VH.parameters_count(),
             },
         )
 
         self._model_E = self._inner_model_E
-        self._model_H = self._inner_model_H
+        self._model_HV = self._inner_model_HV
+        self._model_HP = self._inner_model_HP
         self._model_PH = self._inner_model_PH
         self._model_VH = self._inner_model_VH
 
@@ -77,8 +80,12 @@ class LanguageModel:
                 self._inner_model_E,
                 device_ids=[self._device],
             )
-            self._model_H = torch.nn.parallel.DistributedDataParallel(
-                self._inner_model_H,
+            self._model_HV = torch.nn.parallel.DistributedDataParallel(
+                self._inner_model_HV,
+                device_ids=[self._device],
+            )
+            self._model_HP = torch.nn.parallel.DistributedDataParallel(
+                self._inner_model_HP,
                 device_ids=[self._device],
             )
             self._model_PH = torch.nn.parallel.DistributedDataParallel(
@@ -93,7 +100,8 @@ class LanguageModel:
         self._optimizer = optim.Adam(
             [
                 {'params': self._model_E.parameters()},
-                {'params': self._model_H.parameters()},
+                {'params': self._model_HV.parameters()},
+                {'params': self._model_HP.parameters()},
                 {'params': self._model_PH.parameters()},
                 {'params': self._model_VH.parameters()},
             ],
@@ -154,7 +162,7 @@ class LanguageModel:
 
         if self._load_dir:
             if os.path.isfile(
-                    self._load_dir + "/model_H_{}.pt".format(rank)
+                    self._load_dir + "/model_E_{}.pt".format(rank)
             ):
                 Log.out(
                     "Loading prooftrace", {
@@ -167,10 +175,17 @@ class LanguageModel:
                         map_location=self._device,
                     ),
                 )
-                self._inner_model_H.load_state_dict(
+                self._inner_model_HV.load_state_dict(
                     torch.load(
                         self._load_dir +
-                        "/model_H_{}.pt".format(rank),
+                        "/model_HV_{}.pt".format(rank),
+                        map_location=self._device,
+                    ),
+                )
+                self._inner_model_HP.load_state_dict(
+                    torch.load(
+                        self._load_dir +
+                        "/model_HP_{}.pt".format(rank),
                         map_location=self._device,
                     ),
                 )
@@ -215,8 +230,12 @@ class LanguageModel:
                 self._save_dir + "/model_E_{}.pt".format(rank),
             )
             torch.save(
-                self._inner_model_H.state_dict(),
-                self._save_dir + "/model_H_{}.pt".format(rank),
+                self._inner_model_HV.state_dict(),
+                self._save_dir + "/model_HV_{}.pt".format(rank),
+            )
+            torch.save(
+                self._inner_model_HP.state_dict(),
+                self._save_dir + "/model_HP_{}.pt".format(rank),
             )
             torch.save(
                 self._inner_model_PH.state_dict(),
@@ -272,7 +291,8 @@ class LanguageModel:
         assert self._train_loader is not None
 
         self._model_E.train()
-        self._model_H.train()
+        self._model_HV.train()
+        self._model_HP.train()
         self._model_PH.train()
         self._model_VH.train()
 
@@ -286,10 +306,14 @@ class LanguageModel:
 
         for it, (idx, trc, trh, val) in enumerate(self._train_loader):
             embeds = self._model_E(trc)
-            hiddens = self._model_H(embeds)
+            hiddens_v = self._model_HV(embeds)
+            hiddens_p = self._model_HP(embeds)
 
-            head = torch.cat([
-                hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
+            head_v = torch.cat([
+                hiddens_v[i][idx[i]].unsqueeze(0) for i in range(len(idx))
+            ], dim=0)
+            head_p = torch.cat([
+                hiddens_p[i][idx[i]].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
             targets = torch.cat([
                 embeds[i][0].unsqueeze(0) for i in range(len(idx))
@@ -307,8 +331,8 @@ class LanguageModel:
             values = torch.tensor(val).unsqueeze(1).to(self._device)
 
             prd_actions, prd_lefts, prd_rights = \
-                self._model_PH(head, targets)
-            prd_values = self._model_VH(head, targets)
+                self._model_PH(head_p, targets)
+            prd_values = self._model_VH(head_v, targets)
 
             act_loss = self._nll_loss(prd_actions, actions)
             lft_loss = self._nll_loss(prd_lefts, lefts)
@@ -368,87 +392,6 @@ class LanguageModel:
         Log.out("EPOCH DONE", {
             'epoch': epoch,
         })
-
-    def batch_test(
-            self,
-    ):
-        assert self._test_loader is not None
-
-        self._model_E.eval()
-        self._model_H.eval()
-        self._model_PH.eval()
-        self._model_VH.eval()
-
-        act_loss_meter = Meter()
-        lft_loss_meter = Meter()
-        rgt_loss_meter = Meter()
-        val_loss_meter = Meter()
-
-        act_hit = 0
-        lft_hit = 0
-        rgt_hit = 0
-        total = 0
-
-        with torch.no_grad():
-            for it, (idx, trc, trh, val) in enumerate(self._test_loader):
-                embeds = self._model_E(trc)
-                hiddens = self._model_H(embeds)
-
-                head = torch.cat([
-                    hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
-                ], dim=0)
-                targets = torch.cat([
-                    embeds[i][0].unsqueeze(0) for i in range(len(idx))
-                ], dim=0)
-
-                actions = torch.tensor([
-                    trh[i].value - len(PREPARE_TOKENS) for i in range(len(idx))
-                ], dtype=torch.int64).to(self._device)
-                lefts = torch.tensor([
-                    trc[i].index(trh[i].left) for i in range(len(idx))
-                ], dtype=torch.int64).to(self._device)
-                rights = torch.tensor([
-                    trc[i].index(trh[i].right) for i in range(len(idx))
-                ], dtype=torch.int64).to(self._device)
-                values = torch.tensor(val).unsqueeze(1).to(self._device)
-
-                prd_actions, prd_lefts, prd_rights = \
-                    self._model_PH(head, targets)
-                prd_values = self._model_VH(head, targets)
-
-                act_loss = self._nll_loss(prd_actions, actions)
-                lft_loss = self._nll_loss(prd_lefts, lefts)
-                rgt_loss = self._nll_loss(prd_rights, rights)
-                val_loss = self._mse_loss(prd_values, values)
-
-                act_loss_meter.update(act_loss.item())
-                lft_loss_meter.update(lft_loss.item())
-                rgt_loss_meter.update(rgt_loss.item())
-                val_loss_meter.update(val_loss.item())
-
-                smp_actions = prd_actions.max(dim=1)[1].cpu().numpy()
-                smp_lefts = prd_lefts.max(dim=1)[1].cpu().numpy()
-                smp_rights = prd_rights.max(dim=1)[1].cpu().numpy()
-
-                for i in range(len(trh)):
-                    if smp_actions[i] == trh[i].value:
-                        act_hit += 1
-                    if smp_lefts[i] == trc[i].index(trh[i].left):
-                        lft_hit += 1
-                    if smp_rights[i] == trc[i].index(trh[i].right):
-                        rgt_hit += 1
-                    total += 1
-
-                Log.out("PROOFTRACE TEST", {
-                    'batch': it,
-                    'act_loss_avg': "{:.4f}".format(act_loss_meter.avg),
-                    'lft_loss_avg': "{:.4f}".format(lft_loss_meter.avg),
-                    'rgt_loss_avg': "{:.4f}".format(rgt_loss_meter.avg),
-                    'val_loss_avg': "{:.4f}".format(val_loss_meter.avg),
-                    'act_hit': "{:.2f}".format(act_hit/total),
-                    'lft_hit': "{:.2f}".format(lft_hit/total),
-                    'rgt_hit': "{:.2f}".format(rgt_hit/total),
-                })
 
 
 def train():
@@ -557,60 +500,3 @@ def train():
         lm.batch_train(epoch)
         lm.save()
         epoch += 1
-
-
-def test():
-    parser = argparse.ArgumentParser(description="")
-
-    parser.add_argument(
-        'config_path',
-        type=str, help="path to the config file",
-    )
-    parser.add_argument(
-        '--dataset_size',
-        type=str, help="config override",
-    )
-    parser.add_argument(
-        '--load_dir',
-        type=str, help="config override",
-    )
-
-    parser.add_argument(
-        '--device',
-        type=str, help="config override",
-    )
-
-    args = parser.parse_args()
-
-    config = Config.from_file(args.config_path)
-
-    if args.device is not None:
-        config.override('device', args.device)
-
-    if args.dataset_size is not None:
-        config.override(
-            'prooftrace_dataset_size',
-            args.dataset_size,
-        )
-    if args.load_dir is not None:
-        config.override(
-            'prooftrace_load_dir',
-            os.path.expanduser(args.load_dir),
-        )
-
-    if config.get('device') != 'cpu':
-        torch.cuda.set_device(torch.device(config.get('device')))
-
-    test_dataset = ProofTraceLMDataset(
-        os.path.expanduser(config.get('prooftrace_dataset_dir')),
-        config.get('prooftrace_dataset_size'),
-        True,
-        config.get('prooftrace_sequence_length'),
-    )
-
-    lm = LanguageModel(config)
-
-    lm.init_testing(test_dataset)
-    lm.load(False)
-
-    lm.batch_test()

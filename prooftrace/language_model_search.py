@@ -22,6 +22,7 @@ from utils.config import Config
 from utils.log import Log
 
 _MAX_VALUE = 10e9
+_MIN_VALUE = 0
 
 
 class Model:
@@ -204,25 +205,25 @@ class Node:
                 ) for i in range(len(actions))],
                 key=lambda t: t[4],
             )
-            self._min_value = self.queue_value()
+            self._max_value = self.queue_value()
         else:
             self._queue = []
-            self._min_value = _MAX_VALUE
+            self._max_value = _MIN_VALUE
 
         self._children = []
 
-    def min_value(
+    def max_value(
             self,
     ) -> float:
-        return self._min_value
+        return self._max_value
 
     def child_value(
             self,
             c,
     ) -> float:
-        # return c.min_value() + 0.1 * len(c._children)
-        # return c.min_value() + 0.2 * self._ptra.action_len()
-        return c.min_value()
+        return c.max_value() - 0.1 * len(c._children)
+        # return c.max_value() - 0.2 * self._ptra.action_len()
+        return c.max_value()
 
     def queue_value(
             self,
@@ -242,16 +243,16 @@ class Node:
         )
 
         if len(self._children) > 0 and len(self._queue) > 0:
-            self._min_value = min(
+            self._max_value = max(
                 self.children_value(),
                 self.queue_value(),
             )
         elif len(self._children) > 0 and len(self._queue) == 0:
-            self._min_value = self.children_value()
+            self._max_value = self.children_value()
         elif len(self._children) == 0 and len(self._queue) > 0:
-            self._min_value = self.queue_value()
+            self._max_value = self.queue_value()
         else:
-            self._min_value = _MAX_VALUE
+            self._max_value = _MIN_VALUE
 
         if self._parent is not None:
             self._parent.update()
@@ -308,13 +309,13 @@ class Node:
     def expand(
             self,
     ) -> Thm:
-        """ Expand the min_value leaf node.
+        """ Expand the max_value leaf node.
 
         At this point the tree is up to date so we follow the path of max
         value and go expand that leaf node.
         """
         if len(self._children) > 0 and len(self._queue) > 0:
-            if self._children[0].min_value() < self._queue[0][4]:
+            if self._children[0].max_value() > self._queue[0][4]:
                 return self.expand_children()
             else:
                 return self.expand_queue()
@@ -501,7 +502,7 @@ def search():
 
         done = False
         while(not done):
-            if tree.min_value() is _MAX_VALUE:
+            if tree.max_value() is _MIN_VALUE:
                 Log.out("FAILED", {
                     'name': ground.name(),
                 })
