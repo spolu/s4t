@@ -1,4 +1,5 @@
 import argparse
+import math
 import os
 import time
 import torch
@@ -430,8 +431,11 @@ class ACK:
 
                 value_loss = F.mse_loss(values, rollout_returns)
 
-                if abs(action_loss.item()) > 10e3:
-                    Log.out("IGNORING ACTION_LOSS", {
+                if abs(action_loss.item()) > 10e3 or \
+                        math.isnan(value_loss.item()) or \
+                        math.isnan(entropy.item()) or \
+                        abs(value_loss.item()) > 10e3:
+                    Log.out("IGNORING", {
                         'epoch': epoch,
                         'act_loss': "{:.4f}".format(action_loss.item()),
                         'val_loss': "{:.4f}".format(value_loss.item()),
@@ -449,16 +453,20 @@ class ACK:
 
                     if self._grad_norm_max > 0.0:
                         torch.nn.utils.clip_grad_norm_(
-                            self._modules['VH'].parameters(), self._grad_norm_max,
+                            self._modules['VH'].parameters(),
+                            self._grad_norm_max,
                         )
                         torch.nn.utils.clip_grad_norm_(
-                            self._modules['PH'].parameters(), self._grad_norm_max,
+                            self._modules['PH'].parameters(),
+                            self._grad_norm_max,
                         )
                         torch.nn.utils.clip_grad_norm_(
-                            self._modules['H'].parameters(), self._grad_norm_max,
+                            self._modules['H'].parameters(),
+                            self._grad_norm_max,
                         )
                         torch.nn.utils.clip_grad_norm_(
-                            self._modules['E'].parameters(), self._grad_norm_max,
+                            self._modules['E'].parameters(),
+                            self._grad_norm_max,
                         )
 
                     act_loss_meter.update(action_loss.item())

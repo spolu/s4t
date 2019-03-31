@@ -44,7 +44,8 @@ class Model:
             self._tokenizer = pickle.load(f)
 
         self._model_E = E(self._config).to(self._device)
-        self._model_H = H(self._config).to(self._device)
+        self._model_HV = H(self._config).to(self._device)
+        self._model_HP = H(self._config).to(self._device)
         self._model_PH = PH(self._config).to(self._device)
         self._model_VH = VH(self._config).to(self._device)
 
@@ -53,7 +54,7 @@ class Model:
     ):
         if self._load_dir:
             if os.path.isfile(
-                    self._load_dir + "/model_H_0.pt"
+                    self._load_dir + "/model_E_0.pt"
             ):
                 Log.out(
                     "Loading prooftrace", {
@@ -65,9 +66,15 @@ class Model:
                         map_location=self._device,
                     ),
                 )
-                self._model_H.load_state_dict(
+                self._model_HV.load_state_dict(
                     torch.load(
-                        self._load_dir + "/model_H_0.pt",
+                        self._load_dir + "/model_HV_0.pt",
+                        map_location=self._device,
+                    ),
+                )
+                self._model_HP.load_state_dict(
+                    torch.load(
+                        self._load_dir + "/model_HP_0.pt",
                         map_location=self._device,
                     ),
                 )
@@ -85,7 +92,8 @@ class Model:
                 )
 
                 self._model_E.eval()
-                self._model_H.eval()
+                self._model_HV.eval()
+                self._model_HP.eval()
                 self._model_PH.eval()
                 self._model_VH.eval()
 
@@ -101,18 +109,22 @@ class Model:
     ]:
         with torch.no_grad():
             embeds = self._model_E(trc)
-            hiddens = self._model_H(embeds)
+            hiddens_v = self._model_HV(embeds)
+            hiddens_p = self._model_HP(embeds)
 
-            head = torch.cat([
-                hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
+            head_v = torch.cat([
+                hiddens_v[i][idx[i]].unsqueeze(0) for i in range(len(idx))
+            ], dim=0)
+            head_p = torch.cat([
+                hiddens_p[i][idx[i]].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
             targets = torch.cat([
                 embeds[i][0].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
 
             prd_actions, prd_lefts, prd_rights = \
-                self._model_PH(head, targets)
-            prd_values = self._model_VH(head, targets)
+                self._model_PH(head_p, targets)
+            prd_values = self._model_VH(head_v, targets)
 
             return (
                 prd_actions, prd_lefts, prd_rights,
@@ -133,7 +145,7 @@ class Node:
             prd_actions: torch.Tensor,
             prd_lefts: torch.Tensor,
             prd_rights: torch.Tensor,
-            value: float,
+            # value: float,
     ):
         self._config = config
 
@@ -221,14 +233,13 @@ class Node:
             self,
             c,
     ) -> float:
-        return c.max_value() - 0.1 * len(c._children)
-        # return c.max_value() - 0.2 * self._ptra.action_len()
         return c.max_value()
+        # return c.max_value() - 0.2 * self._ptra.action_len()
 
     def queue_value(
             self,
     ) -> float:
-        return self._queue[0][4]
+        return self._queue[0][4] - 2*self._ptra.action_len()
 
     def children_value(
             self,
@@ -283,7 +294,7 @@ class Node:
             candidate[1],
             candidate[2],
             candidate[3],
-            candidate[4],
+            # candidate[4],
         )
 
         self._children.append(node)
@@ -292,7 +303,7 @@ class Node:
         Log.out('EXPAND', {
             'ground_length': self._ground.action_len(),
             'ptra_length': ptra.action_len(),
-            'value': candidate[4],
+            'value': candidate[4] - ptra.action_len(),
             'summary': ptra.summary(),
         })
 
@@ -315,7 +326,7 @@ class Node:
         value and go expand that leaf node.
         """
         if len(self._children) > 0 and len(self._queue) > 0:
-            if self._children[0].max_value() > self._queue[0][4]:
+            if self.children_value() > self.queue_value():
                 return self.expand_children()
             else:
                 return self.expand_queue()
@@ -395,7 +406,7 @@ class Node:
             prd_actions[0].to(torch.device('cpu')),
             prd_lefts[0].to(torch.device('cpu')),
             prd_rights[0].to(torch.device('cpu')),
-            prd_values[0].item(),
+            # prd_values[0].item(),
         )
 
 
