@@ -431,10 +431,10 @@ class ACK:
 
                 value_loss = F.mse_loss(values, rollout_returns)
 
-                if abs(action_loss.item()) > 10e3 or \
+                if abs(action_loss.item()) > 10e2 or \
                         math.isnan(value_loss.item()) or \
                         math.isnan(entropy.item()) or \
-                        abs(value_loss.item()) > 10e3:
+                        abs(value_loss.item()) > 10e2:
                     Log.out("IGNORING", {
                         'epoch': epoch,
                         'act_loss': "{:.4f}".format(action_loss.item()),
