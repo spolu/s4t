@@ -239,8 +239,8 @@ class Node:
     def queue_value(
             self,
     ) -> float:
-        # return self._queue[0][4] - self._ptra.action_len()
-        return self._queue[0][4]
+        return self._queue[0][4] + self._ptra.action_len()
+        # return self._queue[0][4]
 
     def children_value(
             self,
