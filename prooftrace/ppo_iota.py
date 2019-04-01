@@ -516,6 +516,7 @@ class SYN:
         self._load_dir = config.get('prooftrace_load_dir')
 
         self._epoch = 0
+        self._last_update = None
 
         self._tb_writer = None
         if self._config.get('tensorboard_log_dir'):
@@ -685,6 +686,12 @@ class SYN:
         self._optimizer.step()
         self._syn.broadcast({'config': self._config})
 
+        if self._last_update is not None:
+            update_delta = time.time() - self._last_update
+        else:
+            update_delta = 0.0
+        self._last_update = time.time()
+
         frame_count_meter = Meter()
         stp_reward_meter = Meter()
         mtc_reward_meter = Meter()
@@ -713,6 +720,7 @@ class SYN:
             'run_time': "{:.2f}".format(time.time() - run_start),
             'update_count': len(infos),
             'frame_count': frame_count_meter.sum,
+            'update_delta': update_delta,
             'stp_reward': "{:.4f}".format(stp_reward_meter.avg or 0.0),
             'mtc_reward': "{:.4f}".format(mtc_reward_meter.avg or 0.0),
             'fnl_reward': "{:.4f}".format(fnl_reward_meter.avg or 0.0),
@@ -725,8 +733,8 @@ class SYN:
         if self._tb_writer is not None:
             if len(infos) > 0:
                 self._tb_writer.add_scalar(
-                    "prooftrace_ppo_train/run_time",
-                    time.time() - run_start, self._epoch,
+                    "prooftrace_ppo_train/update_delta",
+                    update_delta, self._epoch,
                 )
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/act_loss",
