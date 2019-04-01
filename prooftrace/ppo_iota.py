@@ -723,50 +723,43 @@ class SYN:
         })
 
         if self._tb_writer is not None:
-            if act_loss_meter.avg is not None:
+            if len(infos) > 0:
+                self._tb_writer.add_scalar(
+                    "prooftrace_ppo_train/run_time",
+                    time.time() - run_start, self._epoch,
+                )
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/act_loss",
                     act_loss_meter.avg, self._epoch,
                 )
-            if val_loss_meter.avg is not None:
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/val_loss",
                     val_loss_meter.avg, self._epoch,
                 )
-            if entropy_meter.avg is not None:
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/entropy",
                     entropy_meter.avg, self._epoch,
                 )
-            if stp_reward_meter.avg is not None:
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/stp_reward",
                     stp_reward_meter.avg, self._epoch,
                 )
-            if mtc_reward_meter.avg is not None:
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/mtc_reward",
                     mtc_reward_meter.avg, self._epoch,
                 )
-            if fnl_reward_meter.avg is not None:
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/fnl_reward",
                     fnl_reward_meter.avg, self._epoch,
                 )
-            if tot_reward_meter.avg is not None:
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/tot_reward",
                     tot_reward_meter.avg, self._epoch,
                 )
-            if frame_count_meter.sum is not None:
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/frame_count",
                     frame_count_meter.sum, self._epoch,
                 )
-            self._tb_writer.add_scalar(
-                "prooftrace_ppo_train/update_count",
-                len(infos), self._epoch,
-            )
 
         self._epoch += 1
 
