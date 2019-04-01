@@ -935,5 +935,5 @@ def syn_run():
     syn = SYN(config).load(True)
 
     while True:
-        syn.run_once()
         syn.update()
+        syn.run_once()
