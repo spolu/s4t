@@ -87,20 +87,20 @@ def embed_targets():
     })
     add_dataset(dataset_dir)
 
-    dataset_dir = "./data/prooftrace/{}/test_traces".format(
-        config.get("prooftrace_dataset_size"),
-    )
-    Log.out('Loading test traces', {
-        'dataset_dir': dataset_dir,
-    })
-    add_dataset(dataset_dir)
+    # dataset_dir = "./data/prooftrace/{}/test_traces".format(
+    #     config.get("prooftrace_dataset_size"),
+    # )
+    # Log.out('Loading test traces', {
+    #     'dataset_dir': dataset_dir,
+    # })
+    # add_dataset(dataset_dir)
 
     device = torch.device(config.get('device'))
 
     model_E = E(config).to(device)
 
     model_E.load_state_dict(torch.load(
-        config.get('prooftrace_load_dir') + "/model_E_0.pt",
+        config.get('prooftrace_load_dir') + "/model_E.pt",
         map_location=device,
     ))
     Log.out('Loaded embedder', {
