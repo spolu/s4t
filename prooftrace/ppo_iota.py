@@ -699,6 +699,9 @@ class SYN:
                 cnt = self._config.get('prooftrace_ppo_iota_min_update_count')
                 if cnt != self._min_update_count:
                     self._min_update_count = cnt
+                    Log.out("Updated", {
+                        "prooftrace_ppo_iota_min_update_count": cnt,
+                    })
 
             if self._tb_writer is not None:
                 for k in update:
