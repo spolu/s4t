@@ -372,10 +372,17 @@ class ACK:
             advantages = \
                 (advantages - advantages.mean()) / (advantages.std() + 1e-5)
 
+        ignored = False
         for e in range(self._epoch_count):
+            if ignored:
+                continue
+
             generator = self._rollouts.generator(advantages)
 
             for batch in generator:
+                if ignored:
+                    continue
+
                 rollout_observations, \
                     rollout_actions, \
                     rollout_values, \
@@ -446,16 +453,16 @@ class ACK:
                 value_loss = F.mse_loss(values, rollout_returns)
 
                 if abs(action_loss.item()) > 10e2 or \
+                        abs(value_loss.item()) > 10e2 or \
                         math.isnan(value_loss.item()) or \
-                        math.isnan(entropy.item()) or \
-                        abs(value_loss.item()) > 10e2:
+                        math.isnan(entropy.item()):
                     Log.out("IGNORING", {
                         'epoch': epoch,
                         'act_loss': "{:.4f}".format(action_loss.item()),
                         'val_loss': "{:.4f}".format(value_loss.item()),
                         'entropy': "{:.4f}".format(entropy.item()),
                     })
-                    time.sleep(10)
+                    ignored = True
                 else:
                     # Backward pass.
                     for m in self._modules:
@@ -511,6 +518,7 @@ class ACK:
 
         Log.out("PROOFTRACE PPO ACK RUN", {
             'epoch': epoch,
+            'ignored': ignored,
             'stp_reward': "{:.4f}".format(stp_reward_meter.avg or 0.0),
             'mtc_reward': "{:.4f}".format(mtc_reward_meter.avg or 0.0),
             'fnl_reward': "{:.4f}".format(fnl_reward_meter.avg or 0.0),
