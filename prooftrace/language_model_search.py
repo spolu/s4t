@@ -193,12 +193,15 @@ class Node:
                     if not self._repl.valid(a):
                         continue
 
-                    actions.append(a)
+                    actions.append((a,
+                                    top_actions[0][ia] *
+                                    top_lefts[0][il] *
+                                    top_rights[0][ir]))
 
         if len(actions) > 0:
             trc = []
             idx = []
-            for a in actions:
+            for a, p in actions:
                 pre_trc, pre_idx = \
                     Node.prepare(self._ptra, a, self._sequence_length)
                 trc.append(pre_trc)
@@ -209,13 +212,14 @@ class Node:
 
             self._queue = sorted(
                 [(
-                    actions[i],
+                    actions[i][0],
                     prd_actions[i].to(torch.device('cpu')),
                     prd_lefts[i].to(torch.device('cpu')),
                     prd_rights[i].to(torch.device('cpu')),
                     prd_values[i].item(),
+                    actions[i][1],
                 ) for i in range(len(actions))],
-                key=lambda t: t[4],
+                key=lambda t: self.potential(t),
             )
             self._min_value = self.queue_value()
         else:
@@ -236,11 +240,18 @@ class Node:
         return c.min_value()
         # return c.min_value() - 0.2 * self._ptra.action_len()
 
+    def potential(
+            self,
+            t,
+    ) -> float:
+        # return t[4]
+        # return t[4] + self._ptra.action_len()
+        return t[4] - t[5] + self._ptra.action_len()
+
     def queue_value(
             self,
     ) -> float:
-        return self._queue[0][4] + self._ptra.action_len()
-        # return self._queue[0][4]
+        return self.potential(self._queue[0])
 
     def children_value(
             self,
@@ -295,7 +306,6 @@ class Node:
             candidate[1],
             candidate[2],
             candidate[3],
-            # candidate[4],
         )
 
         self._children.append(node)
@@ -304,7 +314,7 @@ class Node:
         Log.out('EXPAND', {
             'ground_length': self._ground.action_len(),
             'ptra_length': ptra.action_len(),
-            'value': candidate[4],
+            'potential': self.potential(candidate),
             'summary': ptra.summary(),
         })
 
