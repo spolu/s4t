@@ -112,7 +112,7 @@ class Rollouts:
                 self.values[step]
             )
             gae = delta + self._gamma * self._tau * self.masks[step+1] * gae
-            self.returns[step] = gae + self.value_preds[step]
+            self.returns[step] = gae + self.values[step]
 
     def after_update(
             self,
