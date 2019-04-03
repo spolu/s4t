@@ -1,4 +1,6 @@
 import argparse
+import base64
+import numpy as np
 import os
 import pickle
 import torch
@@ -6,7 +8,7 @@ import typing
 import re
 
 from dataset.prooftrace import \
-    ProofTraceActions, Action
+    INV_ACTION_TOKENS, ProofTraceActions, Action
 
 from prooftrace.models.embedder import E
 
@@ -14,6 +16,40 @@ from sklearn.manifold import TSNE
 
 from utils.config import Config
 from utils.log import Log
+
+
+class Embed():
+    def __init__(
+            self,
+            action: Action,
+            embed: typing.List[float],
+            ptras: typing.List[ProofTraceActions],
+    ) -> None:
+        self._embed = embed
+        self._prooftraces = [ptra.name() for ptra in ptras]
+        self._action = action.value
+
+    def embed(
+            self,
+    ) -> typing.List[float]:
+        return self._embed
+
+    def prooftraces(
+            self,
+    ) -> typing.List[str]:
+        return self._prooftraces
+
+    def action(
+            self,
+    ) -> str:
+        return INV_ACTION_TOKENS[self._action]
+
+    def __iter__(
+            self,
+    ):
+        yield 'embed', self._embed
+        yield 'action', self.action()
+        yield 'prooftraces', self.prooftraces()
 
 
 class ProofTraceEmbeds():
@@ -31,15 +67,22 @@ class ProofTraceEmbeds():
             self,
             action: Action,
             embed: typing.List[float],
+            ptras: typing.List[ProofTraceActions],
     ) -> None:
-        self._embeds[action.hash()] = embed
+        self._embeds[action.hash()] = Embed(action, embed, ptras)
 
     def get(
             self,
             action: Action,
-    ) -> typing.List[float]:
+    ) -> Embed:
         assert action.hash() in self._embeds
         return self._embeds[action.hash()]
+
+    def __iter__(
+            self,
+    ):
+        for h in self._embeds:
+            yield base64.b64encode(h).decode('utf-8'), dict(self._embeds[h])
 
 
 class TreeLSTMEmbedder:
@@ -127,7 +170,7 @@ def extract():
     def embed_dataset(dataset_dir):
         all_actions = []
         all_embeds = []
-        all_index = {}
+        all_ptras = {}
 
         files = [os.path.join(dataset_dir, f) for f in os.listdir(dataset_dir)]
         for p in files:
@@ -143,33 +186,27 @@ def extract():
             })
             embeds = embedder.embed([ptra]).cpu().data.numpy()
             for i, a in enumerate(ptra.actions()):
-                if a.hash() not in all_index:
-                    all_index[a.hash()] = len(all_embeds)
+                if a.hash() not in all_ptras:
+                    all_ptras[a.hash()] = []
                     all_actions.append(a)
                     all_embeds.append(embeds[0][i])
+                all_ptras[a.hash()].append(ptra)
 
         Log.out("Running t-SNE on all embeds", {
             'embed_count': len(all_embeds),
         })
-        tsne = tSNE.fit_transform(all_embeds)
+        tsne = tSNE.fit_transform(np.array(all_embeds))
 
         ptre = ProofTraceEmbeds()
         for i, a in enumerate(all_actions):
-            ptre.add(a, tsne[i])
+            ptre.add(a, tsne[i].tolist(), all_ptras[a.hash()])
 
-        ptre_path = os.path.join(dataset_dir, 'tarces.embeds')
+        ptre_path = os.path.join(dataset_dir, 'traces.embeds')
         Log.out("Writing ProofTraceEmbeds", {
             'path': ptre_path,
         })
         with open(ptre_path, 'wb') as f:
             pickle.dump(ptre, f)
-
-    train_dataset_dir = os.path.join(
-        os.path.expanduser(config.get('prooftrace_dataset_dir')),
-        config.get('prooftrace_dataset_size'),
-        "train_traces",
-    )
-    embed_dataset(train_dataset_dir)
 
     test_dataset_dir = os.path.join(
         os.path.expanduser(config.get('prooftrace_dataset_dir')),
@@ -177,3 +214,10 @@ def extract():
         "test_traces",
     )
     embed_dataset(test_dataset_dir)
+
+    train_dataset_dir = os.path.join(
+        os.path.expanduser(config.get('prooftrace_dataset_dir')),
+        config.get('prooftrace_dataset_size'),
+        "train_traces",
+    )
+    embed_dataset(train_dataset_dir)

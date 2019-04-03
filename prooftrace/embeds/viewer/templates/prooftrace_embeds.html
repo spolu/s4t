@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset=utf-8>
+    <title>ProofTrace Embeds Viewer</title>
+    <style>
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #000;
+        color: white;
+        font-family: sans-serif;
+        overflow: hidden;
+      }
+
+      #prooftraces {
+        position: absolute;
+        width: 20%;
+        left: 0%;
+        height: 100%;
+        overflow: scroll;
+        background-color: grey;
+      }
+
+      #embeds {
+        background-color: #000;
+        position: absolute;
+        width: 80%;
+        text-align: center;
+        height: 100%;
+        left: 20%;
+        right: 0%;
+        overflow: scroll;
+      }
+
+      #embeds #container {
+        margin-left: auto;
+        margin-right: auto;
+        width: 900px;
+        height: 900px;
+        overflow: hidden;
+        padding: 0;
+      }
+      #embeds #all {
+        position: relative;
+        left: 0px;
+        top: 0px;
+        transform: scale(0.5) translate(-900px, -900px);
+        z-index: 1;
+        margin: 0;
+        padding: 0;
+        width: 1800px;
+        height: 1800px;
+      }
+      #embeds #trace {
+        position: relative;
+        left: 0px;
+        top: -1804px;
+        transform: scale(0.5) translate(-900px, -900px);
+        z-index: 2;
+        margin: 0;
+        padding: 0;
+        width: 1800px;
+        height: 1800px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="prooftraces">
+      <div id="inner"></div>
+    </div>
+    <div id="embeds">
+      <div id="container">
+        <canvas id="all" width="1800" height="1800"></canvas>
+        <canvas id="trace" width="1800" height="1800"></canvas>
+      </div>
+    </div>
+
+    <script src="/static/js/jquery-3.3.1.min.js"></script>
+    <script type="module">
+      var dump = JSON.parse('{{dump | tojson | safe}}');
+
+      var scale = 9.0
+
+      // Draw the mbeds
+      var ctx = $('#embeds #all')[0].getContext('2d')
+
+      var ACTION_COLORS = {
+        'EMPTY': '#F9ECE1',
+        'TARGET': 'red',
+        'PREMISE': 'yellow',
+        'SUBST': '#95F767',
+        'SUBST_TYPE': '#60E534',
+        'TERM': '#407A23',
+        'REFL': '#541A1A',
+        'TRANS': '#272936',
+        'MK_COMB': '#93754C',
+        'ABS': '#3D362B',
+        'BETA': '#455450',
+        'ASSUME': '#342635',
+        'EQ_MP': '#6A934C',
+        'DEDUCT_ANTISYM_RULE': '#454954',
+        'INST': '#4C7B93',
+        'INST_TYPE': '#2A363D',
+      }
+
+      ctx.lineWidth = 1
+      // {"action": "DEDUCT_ANTISYM_RULE", "embed": [-11.862723350524902, -8.959526062011719], "prooftraces": ["18816_LEFT_AND_EXISTS_THM"]}
+
+      var traces = {}
+
+      Object.keys(dump).forEach((k) => {
+        var e = dump[k]
+        e['prooftraces'].forEach((p) => {
+          if (!traces[p]) {
+            traces[p] = []
+          }
+          traces[p].push(e)
+        });
+        ctx.strokeStyle = ACTION_COLORS[e['action']]
+        ctx.strokeRect(
+          Math.floor((100 + e['embed'][0]) * scale),
+          Math.floor((100 + e['embed'][1]) * scale),
+          0.1, 0.1,
+        )
+      });
+
+      var trace = $('#embeds #trace')[0]
+
+      Object.keys(traces).forEach((k) => {
+        var item = $('<div>' + k + '</div>')
+        $('#inner').append(item)
+
+        item.mouseover(() => {
+          const ctx = trace.getContext('2d')
+          traces[k].forEach((e) => {
+            ctx.strokeStyle = 'white'
+            ctx.strokeRect(
+              Math.floor((100 + e['embed'][0]) * scale),
+              Math.floor((100 + e['embed'][1]) * scale),
+              2, 2,
+            )
+          });
+        });
+        item.mouseout(() => {
+          const ctx = trace.getContext('2d')
+          ctx.clearRect(0, 0, trace.width, trace.height);
+        })
+      });
+    </script>
+  </body>
+</html>
