@@ -56,9 +56,9 @@ INV_ACTION_TOKENS = {v: k for k, v in ACTION_TOKENS.items()}
 class Type(BVT):
     def __init__(
             self,
-            value,
-            left,
-            right,
+            value: typing.Any,
+            left: BVT,
+            right: BVT,
             token: str,
     ):
         super(Type, self).__init__(
@@ -113,9 +113,9 @@ class Type(BVT):
 class Term(BVT):
     def __init__(
             self,
-            value,
-            left,
-            right,
+            value: typing.Any,
+            left: BVT,
+            right: BVT,
             token: str,
     ):
         super(Term, self).__init__(
@@ -208,9 +208,9 @@ class Term(BVT):
 class Action(BVT):
     def __init__(
             self,
-            value,
-            left=None,
-            right=None,
+            value: typing.Any,
+            left: BVT = None,
+            right: BVT = None,
             index: int = None,
     ):
         super(Action, self).__init__(
@@ -240,9 +240,9 @@ class Action(BVT):
     @staticmethod
     def from_action(
             action: str,
-            left,
-            right,
-            origin=None,
+            left: BVT,
+            right: BVT,
+            origin: int = None,
     ):
         value = ACTION_TOKENS[action]
         return Action(value, left, right, origin)

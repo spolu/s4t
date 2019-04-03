@@ -2,11 +2,11 @@ import argparse
 import os
 import pickle
 import torch
+import typing
 import re
 
 from dataset.prooftrace import \
-    ACTION_TOKENS, INV_ACTION_TOKENS, \
-    ProofTraceTokenizer, Action, ProofTraceActions
+    ProofTraceActions
 
 from prooftrace.models.embedder import E
 
@@ -16,7 +16,79 @@ from utils.config import Config
 from utils.log import Log
 
 
-def embed_targets():
+class ProofTraceEmbeds():
+    def __init__(
+            self,
+            name: str,
+            embeds: typing.List[
+                typing.List[float]
+            ],
+    ) -> None:
+        self._name = name
+        self._embeds = embeds
+
+    def len(
+            self,
+    ) -> int:
+        return len(self._embeds)
+
+    def name(
+            self,
+    ) -> str:
+        return self._name
+
+    def path(
+            self,
+    ) -> str:
+        return self.name() + '_' + str(self.len()) + '.embeds'
+
+
+class Embedder:
+    def __init__(
+            self,
+            config: Config,
+    ):
+        self._config = config
+
+        self._device = torch.device(config.get('device'))
+
+        self._load_dir = config.get('prooftrace_load_dir')
+
+        self._model_E = E(config).to(self._device)
+        self._tSNE = TSNE(n_components=2)
+
+        Log.out("Initializing prooftrace Embedder", {
+            'parameter_count_E': self._model_E.parameters_count(),
+        })
+
+    def load(
+            self,
+    ):
+        if self._load_dir:
+            if os.path.isfile(self._load_dir + "/model_E.pt"):
+                Log.out('Loading E', {
+                    'load_dir': self._load_dir,
+                })
+                self._model_E.load_state_dict(
+                    torch.load(
+                        self._load_dir + "/model_E.pt",
+                        map_location=self._device,
+                    ),
+                )
+
+        return self
+
+    def embed(
+            self,
+            ptra: ProofTraceActions,
+    ) -> ProofTraceEmbeds:
+        embeds = self._model_E([ptra.actions()]).squeeze(0)
+        tsne = self._tSNE.fit_transform(embeds.cpu().data.numpy())
+
+        return ProofTraceEmbeds(ptra.name(), tsne.tolist())
+
+
+def extract():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument(
         'config_path',
@@ -54,82 +126,39 @@ def embed_targets():
     #         ), 'rb') as f:
     #     tokenizer = pickle.load(f)
 
-    seen = {}
+    embedder = Embedder(config).load()
 
-    premises = []
-    targets = []
-    names = []
-
-    def add_dataset(dataset_dir):
+    def embed_dataset(dataset_dir):
         files = [os.path.join(dataset_dir, f) for f in os.listdir(dataset_dir)]
         for p in files:
             if re.search("\\.actions$", p) is None:
                 continue
+            Log.out("Loading ProofTraceActions", {
+                'path': p,
+            })
             with open(p, 'rb') as f:
                 ptra = pickle.load(f)
+            Log.out("Embedding ProofTraceActions", {
+                'name': ptra.name(),
+            })
+            ptre = embedder.embed(ptra)
+            ptre_path = os.path.join(dataset_dir, ptre.path())
+            Log.out("Writing ProofTraceEmbeds", {
+                'path': ptre_path,
+            })
+            with open(ptre_path, 'wb') as f:
+                pickle.dump(ptra, f)
 
-            for a in ptra.actions():
-                if a.value == ACTION_TOKENS['TARGET']:
-                    if a.hash() not in seen:
-                        seen[a.hash()] = True
-                        targets.append([a])
-                        names.append(ptra.name())
-                if a.value == ACTION_TOKENS['PREMISE']:
-                    if a.hash() not in premises:
-                        seen[a.hash()] = True
-                        premises.append([a])
-
-    dataset_dir = "./data/prooftrace/{}/train_traces".format(
-        config.get("prooftrace_dataset_size"),
+    train_dataset_dir = os.path.join(
+        os.path.expanduser(config.get('prooftrace_dataset_dir')),
+        config.get('prooftrace_dataset_size'),
+        "train_traces",
     )
-    Log.out('Loading train traces', {
-        'dataset_dir': dataset_dir,
-    })
-    add_dataset(dataset_dir)
+    embed_dataset(train_dataset_dir)
 
-    # dataset_dir = "./data/prooftrace/{}/test_traces".format(
-    #     config.get("prooftrace_dataset_size"),
-    # )
-    # Log.out('Loading test traces', {
-    #     'dataset_dir': dataset_dir,
-    # })
-    # add_dataset(dataset_dir)
-
-    device = torch.device(config.get('device'))
-
-    model_E = E(config).to(device)
-
-    model_E.load_state_dict(torch.load(
-        config.get('prooftrace_load_dir') + "/model_E.pt",
-        map_location=device,
-    ))
-    Log.out('Loaded embedder', {
-        'parameter_count': model_E.parameters_count(),
-    })
-
-    Log.out('Embedding premises', {
-        'premise_count': len(premises),
-    })
-    premise_embeds = model_E(premises).squeeze(1)
-
-    Log.out('Embedding targets', {
-        'target_count': len(targets),
-    })
-    target_embeds = model_E(targets).squeeze(1)
-
-    embeds = torch.cat((premise_embeds, target_embeds), dim=0)
-
-    Log.out('Applying tSNE', {
-        'embed_count': len(embeds),
-    })
-
-    tSNE = TSNE(n_components=2)
-    Y = tSNE.fit_transform(embeds.cpu().data.numpy())
-
-    Log.out('DONE')
-
-    for i in range(len(premises)):
-        print("PREMISE_{},{},{}".format(i, Y[i][0], Y[i][1]))
-    for i in range(len(targets)):
-        j = i + len(premises)
-        print("{},{},{}".format(names[i], Y[j][0], Y[j][1]))
+    test_dataset_dir = os.path.join(
+        os.path.expanduser(config.get('prooftrace_dataset_dir')),
+        config.get('prooftrace_dataset_size'),
+        "test_traces",
+    )
+    embed_dataset(test_dataset_dir)
