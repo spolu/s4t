@@ -44,8 +44,7 @@ setup(
             'prooftrace_search_language_model=prooftrace.language_model_search:search',
             'prooftrace_language_model_syn_run=prooftrace.language_model_iota:syn_run',
             'prooftrace_language_model_ack_run=prooftrace.language_model_iota:ack_run',
-            'generic_test_tsne=generic.tsne:test',
-            'prooftrace_tsne_extract=prooftrace.tsne:extract',
+            'prooftrace_embeds_tsne_extract=prooftrace.embeds.tsne:extract',
         ],
     },
 )

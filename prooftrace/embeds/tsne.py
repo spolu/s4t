@@ -6,7 +6,7 @@ import typing
 import re
 
 from dataset.prooftrace import \
-    ProofTraceActions
+    ProofTraceActions, Action
 
 from prooftrace.models.embedder import E
 
@@ -19,31 +19,30 @@ from utils.log import Log
 class ProofTraceEmbeds():
     def __init__(
             self,
-            name: str,
-            embeds: typing.List[
-                typing.List[float]
-            ],
     ) -> None:
-        self._name = name
-        self._embeds = embeds
+        self._embeds = {}
 
-    def len(
+    def size(
             self,
     ) -> int:
         return len(self._embeds)
 
-    def name(
+    def add(
             self,
-    ) -> str:
-        return self._name
+            action: Action,
+            embed: typing.List[float],
+    ) -> None:
+        self._embeds[action.hash()] = embed
 
-    def path(
+    def get(
             self,
-    ) -> str:
-        return self.name() + '_' + str(self.len()) + '.embeds'
+            action: Action,
+    ) -> typing.List[float]:
+        assert action.hash() in self._embeds
+        return self._embeds[action.hash()]
 
 
-class Embedder:
+class TreeLSTMEmbedder:
     def __init__(
             self,
             config: Config,
@@ -55,7 +54,6 @@ class Embedder:
         self._load_dir = config.get('prooftrace_load_dir')
 
         self._model_E = E(config).to(self._device)
-        self._tSNE = TSNE(n_components=2)
 
         Log.out("Initializing prooftrace Embedder", {
             'parameter_count_E': self._model_E.parameters_count(),
@@ -80,12 +78,9 @@ class Embedder:
 
     def embed(
             self,
-            ptra: ProofTraceActions,
+            batch: typing.List[ProofTraceActions],
     ) -> ProofTraceEmbeds:
-        embeds = self._model_E([ptra.actions()]).squeeze(0)
-        tsne = self._tSNE.fit_transform(embeds.cpu().data.numpy())
-
-        return ProofTraceEmbeds(ptra.name(), tsne.tolist())
+        return self._model_E([ptra.actions() for ptra in batch])
 
 
 def extract():
@@ -126,9 +121,14 @@ def extract():
     #         ), 'rb') as f:
     #     tokenizer = pickle.load(f)
 
-    embedder = Embedder(config).load()
+    embedder = TreeLSTMEmbedder(config).load()
+    tSNE = TSNE(n_components=2)
 
     def embed_dataset(dataset_dir):
+        all_actions = []
+        all_embeds = []
+        all_index = {}
+
         files = [os.path.join(dataset_dir, f) for f in os.listdir(dataset_dir)]
         for p in files:
             if re.search("\\.actions$", p) is None:
@@ -141,13 +141,28 @@ def extract():
             Log.out("Embedding ProofTraceActions", {
                 'name': ptra.name(),
             })
-            ptre = embedder.embed(ptra)
-            ptre_path = os.path.join(dataset_dir, ptre.path())
-            Log.out("Writing ProofTraceEmbeds", {
-                'path': ptre_path,
-            })
-            with open(ptre_path, 'wb') as f:
-                pickle.dump(ptra, f)
+            embeds = embedder.embed([ptra]).cpu().data.numpy()
+            for i, a in enumerate(ptra.actions()):
+                if a.hash() not in all_index:
+                    all_index[a.hash()] = len(all_embeds)
+                    all_actions.append(a)
+                    all_embeds.append(embeds[0][i])
+
+        Log.out("Running t-SNE on all embeds", {
+            'embed_count': len(all_embeds),
+        })
+        tsne = tSNE.fit_transform(all_embeds)
+
+        ptre = ProofTraceEmbeds()
+        for i, a in enumerate(all_actions):
+            ptre.add(a, tsne[i])
+
+        ptre_path = os.path.join(dataset_dir, 'tarces.embeds')
+        Log.out("Writing ProofTraceEmbeds", {
+            'path': ptre_path,
+        })
+        with open(ptre_path, 'wb') as f:
+            pickle.dump(ptre, f)
 
     train_dataset_dir = os.path.join(
         os.path.expanduser(config.get('prooftrace_dataset_dir')),
