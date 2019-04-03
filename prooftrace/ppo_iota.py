@@ -100,9 +100,19 @@ class Rollouts:
         self.values[-1].copy_(next_values)
         self.returns[-1].copy_(next_values)
 
+        # for step in reversed(range(self._rollout_size)):
+        #     self.returns[step] = self.rewards[step] + \
+        #         (self._gamma * self.returns[step+1] * self.masks[step+1])
+
+        gae = 0
         for step in reversed(range(self._rollout_size)):
-            self.returns[step] = self.rewards[step] + \
-                (self._gamma * self.returns[step+1] * self.masks[step+1])
+            delta = (
+                self.rewards[step] +
+                self._gamma * self.values[step+1] * self.masks[step+1] -
+                self.values[step]
+            )
+            gae = delta + self._gamma * self._tau * self.masks[step+1] * gae
+            self.returns[step] = gae + self.value_preds[step]
 
     def after_update(
             self,
@@ -432,6 +442,16 @@ class ACK:
                     rollout_advantages,
                 ).mean()
 
+                # Clipped value loss.
+                clipped_values = rollout_values + \
+                    (values - rollout_values).clamp(-self._clip, self._clip)
+                value_loss = torch.max(
+                    F.mse_loss(values, rollout_returns),
+                    F.mse_loss(clipped_values, rollout_returns),
+                )
+
+                # value_loss = F.mse_loss(values, rollout_returns)
+
                 # Log.out("RATIO/ADV/LOSS", {
                 #     'clipped_ratio': torch.clamp(
                 #         ratio, 1.0 - self._clip, 1.0 + self._clip
@@ -440,17 +460,6 @@ class ACK:
                 #     'advantages': rollout_advantages.mean().item(),
                 #     'action_loss': action_loss.item(),
                 # })
-
-                # Clipped value loss.
-                # clipped_values = rollout_values + \
-                #     (values - rollout_values).clamp(-self._clip, self._clip)
-
-                # value_loss = 0.5 * torch.max(
-                #     (rollout_returns - values).pow(2),
-                #     (rollout_returns - clipped_values).pow(2),
-                # ).mean()
-
-                value_loss = F.mse_loss(values, rollout_returns)
 
                 if abs(action_loss.item()) > 10e2 or \
                         abs(value_loss.item()) > 10e2 or \
