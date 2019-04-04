@@ -41,7 +41,7 @@ class Env:
             dataset_dir = os.path.join(
                 os.path.expanduser(config.get('prooftrace_dataset_dir')),
                 config.get('prooftrace_dataset_size'),
-                'test_traces'
+                'train_traces'
             )
         assert os.path.isdir(dataset_dir)
 
@@ -261,11 +261,21 @@ class Env:
         )
 
         if self._run.seen(a):
+            Log.out('DONE SEEN   ', {
+                'ground_length': self._ground.action_len(),
+                'run_length': self._run.action_len(),
+                'name': self._ground.name(),
+            })
             return self.observation(), (0.0, 0.0, 0.0), True
 
         try:
             thm = self._repl.apply(a)
         except (FusionException, REPLException):
+            Log.out('DONE ILLEGAL', {
+                'ground_length': self._ground.action_len(),
+                'run_length': self._run.action_len(),
+                'name': self._ground.name(),
+            })
             return self.observation(), (0.0, 0.0, 0.0), True
 
         self._run.append(a)
@@ -293,6 +303,13 @@ class Env:
             done = True
         if self._run.len() >= self._sequence_length:
             done = True
+
+        if done:
+            Log.out('DONE', {
+                'ground_length': self._ground.action_len(),
+                'run_length': self._run.action_len(),
+                'name': self._ground.name(),
+            })
 
         return self.observation(), \
             (step_reward, match_reward, final_reward), \
