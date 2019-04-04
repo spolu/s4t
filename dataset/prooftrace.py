@@ -1,4 +1,5 @@
 import argparse
+import base64
 import os
 import json
 import pickle
@@ -236,6 +237,46 @@ class Action(BVT):
             self.right,
             self._index,
         )
+
+    def __iter__(
+            self,
+    ):
+        yield 'type', INV_ACTION_TOKENS[self.value]
+        yield 'hash', base64.b64encode(self.hash()).decode('utf-8')
+
+        if self.left is not None:
+            yield 'left', base64.b64encode(self.left.hash()).decode('utf-8')
+        else:
+            yield 'left', None
+        if self.right is not None:
+            yield 'right', base64.b64encode(self.right.hash()).decode('utf-8')
+        else:
+            yield 'right', None
+
+        def hypothesis(a):
+            return []
+
+        def term(a):
+            return a.value.term_string()
+
+        def subst(a):
+            return[]
+
+        def subst_type(a):
+            return []
+
+        if INV_ACTION_TOKENS[self.value] == 'TARGET':
+            yield 'hyp', hypothesis(self.left)
+            yield 'ccl', term(self.right)
+        if INV_ACTION_TOKENS[self.value] == 'PREMISE':
+            yield 'hyp', hypothesis(self.left)
+            yield 'ccl', term(self.right)
+        if INV_ACTION_TOKENS[self.value] == 'SUBST':
+            yield 'subst', subst(self)
+        if INV_ACTION_TOKENS[self.value] == 'SUBST_TYPE':
+            yield 'subst_type', subst_type(self)
+        if INV_ACTION_TOKENS[self.value] == 'TERM':
+            yield 'term', term(self.left)
 
     @staticmethod
     def from_action(
@@ -669,6 +710,10 @@ class ProofTraceActions():
                     ")"
         summary += "]"
         return summary
+
+    def __iter__( self,
+    ):
+        yield 'actions', [{}]
 
 
 class ProofTrace():

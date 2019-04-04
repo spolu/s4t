@@ -3,9 +3,10 @@ import eventlet
 import eventlet.wsgi
 import os
 import pickle
+import re
 
 from flask import Flask
-from flask import render_template
+from flask import render_template, jsonify
 
 from eventlet.green import threading
 
@@ -17,18 +18,23 @@ _app = Flask(__name__)
 
 _config = None
 
-_embeds = None
 _dump = None
+_traces = {}
 
 
 @_app.route('/prooftrace_embeds')
-def view_emebeds():
+def prooftrace_embeds():
     global _dump
 
     return render_template(
         'prooftrace_embeds.html',
         dump=_dump,
     )
+
+
+@_app.route('/prooftrace_embeds/traces/<trace>')
+def trace(trace):
+    return jsonify(_traces[trace])
 
 
 def run_server():
@@ -48,8 +54,8 @@ def run_server():
 
 def run():
     global _config
-    global _embeds
     global _dump
+    global _traces
 
     parser = argparse.ArgumentParser(description="")
 
@@ -94,19 +100,23 @@ def run():
         'path': ptre_path,
     })
     with open(ptre_path, 'rb') as f:
-        _embeds = pickle.load(f)
-        _dump = dict(_embeds)
+        embeds = pickle.load(f)
+        _dump = {
+            'embeds': dict(embeds),
+        }
 
-    # files = [os.path.join(dataset_dir, f) for f in os.listdir(dataset_dir)]
-    # for p in files:
-    #     if re.search("\\.actions$", p) is None:
-    #         continue
-    #     Log.out("Loading ProofTraceActions", {
-    #         'path': p,
-    #     })
-    #     with open(p, 'rb') as f:
-    #         ptra = pickle.load(f)
-    #         _traces.append(ptra)
+    files = [os.path.join(dataset_dir, f) for f in os.listdir(dataset_dir)]
+    for p in files:
+        if re.search("\\.actions$", p) is None:
+            continue
+        Log.out("Loading ProofTraceActions", {
+            'path': p,
+        })
+        with open(p, 'rb') as f:
+            ptra = pickle.load(f)
+            _traces[ptra.name()] = {'actions': []}
+            for a in ptra.actions():
+                _traces[ptra.name()]['actions'].append(dict(a))
 
     t = threading.Thread(target=run_server)
     t.start()
