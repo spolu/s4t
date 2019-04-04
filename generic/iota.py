@@ -118,7 +118,7 @@ class IOTASyn(IOTABase):
                 for name, param in self._modules[m].named_parameters():
                     key = "grad_{}_{}".format(m, name)
                     assert key in data
-                    param.grad = data[key] / len(updates)
+                    param.grad += data[key] / len(updates)
 
             infos.append(data['info'])
 
