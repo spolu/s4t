@@ -186,33 +186,32 @@
           )
           $('#steps #inner').append(item)
 
-          // var draw_line = (from, to) => {
-          //   tree_ctx.beginPath();
-          //   tree_ctx.lineWidth = 1
-          //   tree_ctx.strokeStyle = ACTION_COLORS[action['type']]
+          var draw_line = (from, to) => {
+            tree_ctx.beginPath();
+            tree_ctx.lineWidth = 1
+            tree_ctx.strokeStyle = ACTION_COLORS[action['type']]
 
-          //   tree_ctx.moveTo(
-          //     Math.floor((100 + from['embed'][0]) * scale),
-          //     Math.floor((100 + from['embed'][1]) * scale),
-          //   )
-          //   tree_ctx.lineTo(
-          //     Math.floor((100 + to['embed'][0]) * scale),
-          //     Math.floor((100 + to['embed'][1]) * scale),
-          //   )
-          //   tree_ctx.stroke();
-          // };
+            tree_ctx.moveTo(
+              Math.floor((100 + from['embed'][0]) * scale),
+              Math.floor((100 + from['embed'][1]) * scale),
+            )
+            tree_ctx.lineTo(
+              Math.floor((100 + to['embed'][0]) * scale),
+              Math.floor((100 + to['embed'][1]) * scale),
+            )
+            tree_ctx.stroke();
+          };
 
-          // console.log(action['left'])
-          // console.log(dump['embeds'][action['left']])
-          // if (action['left'] in dump['embeds']) {
-          //   console.log(action['hash'])
-          //   console.log(action['left'])
-          //   var from = dump['embeds'][action['hash']]
-          //   console.log(from)
-          //   var to = dump['embeds'][action['left']]
-          //   console.log(to)
-          //   draw_line(from, to);
-          // }
+          if (action['left'] in dump['embeds']) {
+            var from = dump['embeds'][action['hash']]
+            var to = dump['embeds'][action['left']]
+            draw_line(from, to);
+          }
+          if (action['right'] in dump['embeds']) {
+            var from = dump['embeds'][action['hash']]
+            var to = dump['embeds'][action['right']]
+            draw_line(from, to);
+          }
         })
       };
 

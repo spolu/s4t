@@ -42,9 +42,9 @@ def run_server():
 
     Log.out(
         "Starting embeds viewer server", {
-            'port': 5000,
+            'port': 5001,
         })
-    address = ('0.0.0.0', 5000)
+    address = ('0.0.0.0', 5001)
     try:
         eventlet.wsgi.server(eventlet.listen(address), _app)
     except KeyboardInterrupt:

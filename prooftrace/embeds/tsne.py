@@ -172,7 +172,9 @@ def extract():
         all_embeds = []
         all_ptras = {}
 
-        files = [os.path.join(dataset_dir, f) for f in os.listdir(dataset_dir)]
+        files = sorted(
+            [os.path.join(dataset_dir, f) for f in os.listdir(dataset_dir)]
+        )
         for p in files:
             if re.search("\\.actions$", p) is None:
                 continue
