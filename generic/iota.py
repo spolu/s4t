@@ -84,7 +84,7 @@ class IOTASyn(IOTABase):
         now = datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f")
         rnd = random.randint(0, 10e9)
         p = self.atomic_save(data, "broadcast_{}_{}".format(now, rnd))
-        Log.out("{IOTA} BROADCAST[NEW]", {'path': p})
+        # Log.out("{IOTA} BROADCAST[NEW]", {'path': p})
 
         files = self.list_files()
         gc = sorted([
@@ -94,7 +94,7 @@ class IOTASyn(IOTABase):
             for p in gc[2:]:
                 assert not re.search(now, p)
                 os.remove(p)
-                Log.out("{IOTA} BROADCAST[GC]", {'path': p})
+                # Log.out("{IOTA} BROADCAST[GC]", {'path': p})
 
     def aggregate(
             self,
@@ -126,7 +126,7 @@ class IOTASyn(IOTABase):
             infos.append(data['info'])
 
             os.remove(p)
-            Log.out("{IOTA} UPDATE[CONSUME]", {'path': p})
+            # Log.out("{IOTA} UPDATE[CONSUME]", {'path': p})
 
         return infos
 
