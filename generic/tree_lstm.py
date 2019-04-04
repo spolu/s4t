@@ -25,7 +25,7 @@ class BVT():
     ):
         if self._hash is None:
             h = xxhash.xxh64()
-            if type(self.value) is BVT:
+            if isinstance(self.value, BVT):
                 h.update(self.value.hash())
             else:
                 h.update(str(self.value))
@@ -290,4 +290,4 @@ def test():
 
     e, _ = tree_lstm.batch(trees, embedder)
     for i, t in enumerate(trees):
-        print("{}: {}".format(i, e[i]))
+        print("{}: {} {}".format(i, e[i], trees[i].hash()))

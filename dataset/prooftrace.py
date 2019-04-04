@@ -711,10 +711,6 @@ class ProofTraceActions():
         summary += "]"
         return summary
 
-    def __iter__( self,
-    ):
-        yield 'actions', [{}]
-
 
 class ProofTrace():
     def __init__(
@@ -1116,7 +1112,7 @@ class ProofTrace():
 
         return ProofTraceActions(
             self.name(),
-            sequence
+            sequence,
         )
 
 
