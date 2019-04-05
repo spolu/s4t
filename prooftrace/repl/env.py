@@ -67,6 +67,7 @@ class Env:
 
     def reset(
             self,
+            gamma: float,
     ) -> typing.Tuple[int, typing.List[Action]]:
         self._ground = None
         self._run = None
@@ -107,6 +108,14 @@ class Env:
 
         self._repl = REPL(self._tokenizer)
         self._target = self._repl.prepare(self._run)
+
+        # GAMMA Initialization.
+        if gamma > 0.0 and random.random() < gamma:
+            gamma_steps = random.randange(0, self._ground.action_len())
+            for i in range(gamma_steps):
+                a = self._ground.actions()[self._ground.prepare_len() + i]
+                self._run.append(a)
+                self._repl.apply(a)
 
         return self.observation()
 
@@ -187,10 +196,10 @@ class Env:
 
                     frame_count += 1
                     if not self._repl.valid(a):
-                        out.append(([action, left, right], prob))
+                        out.append(([action, left, right], prob - 1.0))
                         continue
 
-                    out.append(([action, left, right], 1.0 + prob))
+                    out.append(([action, left, right], prob + 1.0))
 
         out = sorted(out, key=lambda o: o[1], reverse=True)
 
@@ -348,12 +357,13 @@ class Pool:
 
     def reset(
             self,
+            gamma: float,
     ) -> typing.Tuple[
             typing.List[int],
             typing.List[typing.List[Action]],
     ]:
         def reset(env):
-            return env.reset()
+            return env.reset(gamma)
 
         observations = []
         for o in self._executor.map(reset, self._pool):
