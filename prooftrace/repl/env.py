@@ -331,9 +331,13 @@ class Env:
                 step_reward = 0.0
 
         if self._target.thm_string(True) == thm.thm_string(True):
-            final_reward = float(self._ground.action_len())
+            action_len = min(
+                self._run.action_len(),
+                self._ground.action_len(),
+            )
+            final_reward = float(action_len)
             done = True
-            info['demo_length'] = self._ground.action_len() - self._gamma_len
+            info['demo_length'] = action_len - self._gamma_len
             Log.out("DEMONSTRATED", {
                 'ground_length': self._ground.action_len(),
                 'run_length': self._run.action_len(),
