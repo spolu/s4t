@@ -83,7 +83,7 @@ class Env:
             match = re.search("_(\\d+)_(\\d+)\\.actions$", path)
             ptra_len = int(match.group(1))
 
-            if ptra_len <= self._sequence_length:
+            if ptra_len < self._sequence_length:
                 with open(path, 'rb') as f:
                     self._ground = pickle.load(f)
                 # Log.out("Selecting trace", {
@@ -132,7 +132,8 @@ class Env:
         actions = self._run.actions().copy()
 
         # If the len match this is a final observation, so no extract will be
-        # appended and that's fine.
+        # appended and that's fine because this observation won't make it to
+        # the agent.
         if len(actions) < self._sequence_length:
             actions.append(Action.from_action('EXTRACT', None, None))
 
@@ -479,7 +480,7 @@ class Pool:
 
         for i in range(len(dones)):
             if dones[i]:
-                self._pool[i].reset(gamma)
+                observations[i] = self._pool[i].reset(gamma)
 
         return self.collate(observations), rewards, dones, infos
 
