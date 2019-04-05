@@ -75,6 +75,8 @@ class Env:
         self._target = None
         self._gamma_len = 0
 
+        self._match_count = 0
+
         while self._ground is None:
             path = random.choice(self._trace_files)
 
@@ -261,6 +263,7 @@ class Env:
         typing.Tuple[int, typing.List[Action]],
         typing.Tuple[float, float, float],
         bool,
+        typing.Dict[str, int],
     ]:
         assert self._ground is not None
         assert self._run is not None
@@ -272,7 +275,10 @@ class Env:
                 'gamma_length': self._gamma_len,
                 'name': self._ground.name(),
             })
-            return self.observation(), (-1.0, 0.0, 0.0), True
+            return self.observation(), (-1.0, 0.0, 0.0), True, {
+                'match_count': self._match_count,
+                'demo_length': 0,
+            }
 
         a = Action.from_action(
             INV_ACTION_TOKENS[action[0] + len(PREPARE_TOKENS)],
@@ -287,7 +293,10 @@ class Env:
                 'gamma_length': self._gamma_len,
                 'name': self._ground.name(),
             })
-            return self.observation(), (-1.0, 0.0, 0.0), True
+            return self.observation(), (-1.0, 0.0, 0.0), True, {
+                'match_count': self._match_count,
+                'demo_length': 0,
+            }
 
         try:
             thm = self._repl.apply(a)
@@ -298,7 +307,10 @@ class Env:
                 'gamma_length': self._gamma_len,
                 'name': self._ground.name(),
             })
-            return self.observation(), (-1.0, 0.0, 0.0), True
+            return self.observation(), (-1.0, 0.0, 0.0), True, {
+                'match_count': self._match_count,
+                'demo_length': 0,
+            }
 
         a._index = thm.index()
         self._run.append(a)
@@ -307,18 +319,21 @@ class Env:
         match_reward = 0.0
         final_reward = 0.0
         done = False
+        info = {}
 
         if step_reward_prob > 0.0 and random.random() < step_reward_prob:
             step_reward = 1.0
 
         if self._ground.seen(a):
+            self._match_count += 1
             if match_reward_prob > 0.0 and random.random() < match_reward_prob:
-                match_reward = 2.0
+                match_reward = 1.0
                 step_reward = 0.0
 
         if self._target.thm_string(True) == thm.thm_string(True):
             final_reward = float(self._ground.action_len())
             done = True
+            info['demo_length'] = self._ground.action_len() - self._gamma_len
             Log.out("DEMONSTRATED", {
                 'ground_length': self._ground.action_len(),
                 'run_length': self._run.action_len(),
@@ -334,9 +349,12 @@ class Env:
                 'name': self._ground.name(),
             })
 
+        if done:
+            info['match_count'] = self._match_count
+
         return self.observation(), \
             (step_reward, match_reward, final_reward), \
-            done
+            done, info
 
 
 class Pool:
@@ -433,6 +451,7 @@ class Pool:
         ],
         typing.List[typing.Tuple[float, float, float]],
         typing.List[bool],
+        typing.List[typing.Dict[str, int]],
     ]:
         def step(a):
             return a[0].step(
@@ -446,17 +465,19 @@ class Pool:
         observations = []
         dones = []
         rewards = []
+        infos = []
 
-        for o, r, d in self._executor.map(step, args):
+        for o, r, d, i in self._executor.map(step, args):
             observations.append(o)
             rewards.append(r)
             dones.append(d)
+            infos.append(i)
 
         for i in range(len(dones)):
             if dones[i]:
                 self._pool[i].reset(gamma)
 
-        return self.collate(observations), rewards, dones
+        return self.collate(observations), rewards, dones, infos
 
 
 def test():

@@ -281,6 +281,8 @@ class ACK:
         act_loss_meter = Meter()
         val_loss_meter = Meter()
         entropy_meter = Meter()
+        match_count_meter = Meter()
+        demo_length_meter = Meter()
 
         frame_count = 0
 
@@ -316,13 +318,20 @@ class ACK:
                 )
                 frame_count += count
 
-                observations, rewards, dones = self._pool.step(
+                observations, rewards, dones, infos = self._pool.step(
                     [tuple(a) for a in actions.detach().cpu().numpy()],
                     self._step_reward_prob,
                     self._match_reward_prob,
                     self._reset_gamma,
                 )
                 frame_count += actions.size(0)
+                for i, info in enumerate(infos):
+                    if 'match_count' in info:
+                        assert dones[i]
+                        match_count_meter.update(info['match_count'])
+                    if 'demo_length' in info:
+                        assert dones[i]
+                        demo_length_meter.update(info['demo_length'])
 
                 log_probs = torch.cat((
                     prd_actions.gather(1, actions[:, 0].unsqueeze(1)),
@@ -497,6 +506,8 @@ class ACK:
 
                     self._ack.push({
                         'frame_count': frame_count,
+                        'match_count': (match_count_meter.avg or 0.0),
+                        'demo_length': (demo_length_meter.max or 0.0),
                         'stp_reward': (stp_reward_meter.avg or 0.0),
                         'mtc_reward': (mtc_reward_meter.avg or 0.0),
                         'fnl_reward': (fnl_reward_meter.avg or 0.0),
@@ -516,6 +527,8 @@ class ACK:
         Log.out("PROOFTRACE PPO ACK RUN", {
             'epoch': epoch,
             'ignored': ignored,
+            'match_count': "{:.2f}".format(match_count_meter.avg or 0.0),
+            'demo_length': "{:.2f}".format(demo_length_meter.max or 0.0),
             'stp_reward': "{:.4f}".format(stp_reward_meter.avg or 0.0),
             'mtc_reward': "{:.4f}".format(mtc_reward_meter.avg or 0.0),
             'fnl_reward': "{:.4f}".format(fnl_reward_meter.avg or 0.0),
@@ -733,6 +746,8 @@ class SYN:
         self._last_update = time.time()
 
         frame_count_meter = Meter()
+        match_count_meter = Meter()
+        demo_length_meter = Meter()
         stp_reward_meter = Meter()
         mtc_reward_meter = Meter()
         fnl_reward_meter = Meter()
@@ -743,6 +758,8 @@ class SYN:
 
         for info in infos:
             frame_count_meter.update(info['frame_count'])
+            match_count_meter.update(info['match_count'])
+            demo_length_meter.update(info['demo_length'])
             stp_reward_meter.update(info['stp_reward'])
             mtc_reward_meter.update(info['mtc_reward'])
             fnl_reward_meter.update(info['fnl_reward'])
@@ -761,6 +778,8 @@ class SYN:
             'update_count': len(infos),
             'frame_count': frame_count_meter.sum,
             'update_delta': "{:.2f}".format(update_delta),
+            'match_count': "{:.2f}".format(match_count_meter.avg or 0.0),
+            'demo_length': "{:.2f}".format(match_count_meter.max or 0.0),
             'stp_reward': "{:.4f}".format(stp_reward_meter.avg or 0.0),
             'mtc_reward': "{:.4f}".format(mtc_reward_meter.avg or 0.0),
             'fnl_reward': "{:.4f}".format(fnl_reward_meter.avg or 0.0),
@@ -775,6 +794,14 @@ class SYN:
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/update_delta",
                     update_delta, self._epoch,
+                )
+                self._tb_writer.add_scalar(
+                    "prooftrace_ppo_train/match_count",
+                    match_count_meter.avg, self._epoch,
+                )
+                self._tb_writer.add_scalar(
+                    "prooftrace_ppo_train/demo_length",
+                    demo_length_meter.avg, self._epoch,
                 )
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/act_loss",
