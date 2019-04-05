@@ -20,7 +20,7 @@
   "prooftrace_transformer_attention_head_count": 8,
   "prooftrace_transformer_layer_count": 4,
 
-  "prooftrace_lstm_layer_count": 1,
+  "prooftrace_lstm_layer_count": 0,
   "prooftrace_lstm_hidden_size": 512,
 
   "prooftrace_lm_batch_size": 32,
