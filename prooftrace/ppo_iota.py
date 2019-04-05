@@ -160,6 +160,8 @@ class ACK:
         self._value_coeff = config.get('prooftrace_ppo_value_coeff')
         self._learning_rate = config.get('prooftrace_ppo_learning_rate')
 
+        self._reset_gamma = \
+            config.get('prooftrace_ppo_reset_gamma')
         self._explore_alpha = \
             config.get('prooftrace_ppo_explore_alpha')
         self._explore_beta = \
@@ -188,10 +190,7 @@ class ACK:
         self._rollouts = Rollouts(self._config)
 
         self._pool = Pool(self._config, False)
-        self._rollouts.observations[0] = self._pool.reset()
-        with torch.no_grad():
-            (idx, trc) = self._pool.reset()
-            self._rollouts.observations[0] = (idx, trc)
+        self._rollouts.observations[0] = self._pool.reset(self._reset_gamma)
 
         self._episode_stp_reward = [0.0] * self._pool_size
         self._episode_mtc_reward = [0.0] * self._pool_size
@@ -221,6 +220,13 @@ class ACK:
             self._value_coeff = coeff
             Log.out("Updated", {
                 "prooftrace_ppo_value_coeff": coeff,
+            })
+
+        gamma = self._config.get('prooftrace_ppo_reset_gamma')
+        if gamma != self._reset_gamma:
+            self._reset_gamma = gamma
+            Log.out("Updated", {
+                "prooftrace_ppo_reset_gamma": gamma,
             })
 
         alpha = self._config.get('prooftrace_ppo_explore_alpha')
@@ -283,7 +289,7 @@ class ACK:
                 (idx, trc) = self._rollouts.observations[step]
 
                 embeds = self._modules['E'](trc).detach()
-                hiddens = self._modules['PHI'](embeds)
+                hiddens = self._modules['H'](embeds)
 
                 heads = torch.cat([
                     hiddens[i][idx[i]].unsqueeze(0)
@@ -314,6 +320,7 @@ class ACK:
                     [tuple(a) for a in actions.detach().cpu().numpy()],
                     self._step_reward_prob,
                     self._match_reward_prob,
+                    self._reset_gamma,
                 )
                 frame_count += actions.size(0)
 
@@ -435,7 +442,6 @@ class ACK:
                     F.mse_loss(values, rollout_returns),
                     F.mse_loss(clipped_values, rollout_returns),
                 )
-
                 # value_loss = F.mse_loss(values, rollout_returns)
 
                 # Log.out("RATIO/ADV/LOSS", {
@@ -593,9 +599,9 @@ class SYN:
                 )
             if os.path.isfile(self._load_dir + "/model_H.pt"):
                 Log.out('Loading H')
-                self._modules['PHI'].load_state_dict(
+                self._modules['H'].load_state_dict(
                     torch.load(
-                        self._load_dir + "/model_PHI.pt",
+                        self._load_dir + "/model_H.pt",
                         map_location=self._device,
                     ),
                 )

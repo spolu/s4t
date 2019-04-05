@@ -73,6 +73,7 @@ class Env:
         self._run = None
         self._repl = None
         self._target = None
+        self._gamma_len = 0
 
         while self._ground is None:
             path = random.choice(self._trace_files)
@@ -111,11 +112,15 @@ class Env:
 
         # GAMMA Initialization.
         if gamma > 0.0 and random.random() < gamma:
-            gamma_steps = random.randange(0, self._ground.action_len())
-            for i in range(gamma_steps):
+            self._gamma_len = random.randrange(0, self._ground.action_len())
+
+            for i in range(self._gamma_len):
+                assert self._ground.prepare_len() + i < self._ground.len() - 1
                 a = self._ground.actions()[self._ground.prepare_len() + i]
+
+                thm = self._repl.apply(a)
+                a._index = thm.index()
                 self._run.append(a)
-                self._repl.apply(a)
 
         return self.observation()
 
@@ -275,13 +280,15 @@ class Env:
         try:
             thm = self._repl.apply(a)
         except (FusionException, REPLException):
-            Log.out('DONE ILLEGAL', {
+            Log.out("DONE ILLEGAL", {
                 'ground_length': self._ground.action_len(),
                 'run_length': self._run.action_len(),
+                'gamma_length': self._gamma_len,
                 'name': self._ground.name(),
             })
             return self.observation(), (-1.0, 0.0, 0.0), True
 
+        a._index = thm.index()
         self._run.append(a)
 
         step_reward = 0.0
@@ -299,19 +306,19 @@ class Env:
 
         if self._target.thm_string(True) == thm.thm_string(True):
             final_reward = float(self._ground.len())
+            done = True
             Log.out("DEMONSTRATED", {
-                'name': self._ground.name(),
                 'ground_length': self._ground.action_len(),
                 'run_length': self._run.action_len(),
+                'gamma_length': self._gamma_len,
+                'name': self._ground.name(),
             })
-            done = True
         if self._run.len() >= self._sequence_length:
             done = True
-
-        if done:
-            Log.out('DONE', {
+            Log.out("DONE LENGTH ", {
                 'ground_length': self._ground.action_len(),
                 'run_length': self._run.action_len(),
+                'gamma_length': self._gamma_len,
                 'name': self._ground.name(),
             })
 
@@ -406,6 +413,7 @@ class Pool:
             actions: typing.List[typing.Tuple[int, int, int]],
             step_reward_prob: float,
             match_reward_prob: float,
+            gamma: float,
     ) -> typing.Tuple[
         typing.Tuple[
             typing.List[int],
@@ -434,7 +442,7 @@ class Pool:
 
         for i in range(len(dones)):
             if dones[i]:
-                self._pool[i].reset()
+                self._pool[i].reset(gamma)
 
         return self.collate(observations), rewards, dones
 
