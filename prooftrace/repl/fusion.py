@@ -317,6 +317,9 @@ class Fusion():
         ty = tyr1.right.left
         tyr2 = self.type_of(r2)
 
+        # TODO(stan): investigate
+        assume(tyr2.right is not None)
+
         assume(ty.type_string() == tyr2.type_string())
 
         return self._theorem(
