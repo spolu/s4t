@@ -244,26 +244,47 @@ class Action(BVT):
         yield 'type', INV_ACTION_TOKENS[self.value]
         yield 'hash', base64.b64encode(self.hash()).decode('utf-8')
 
-        if self.left is not None:
+        if self.left is not None and self.left.value != 0:
             yield 'left', base64.b64encode(self.left.hash()).decode('utf-8')
         else:
             yield 'left', None
-        if self.right is not None:
+        if self.right is not None and self.right.value != 0:
             yield 'right', base64.b64encode(self.right.hash()).decode('utf-8')
         else:
             yield 'right', None
 
         def hypothesis(a):
-            return []
+            if a is None:
+                return []
+            else:
+                return [a.left.value.term_string()] + hypothesis(a.right)
 
         def term(a):
             return a.value.term_string()
 
         def subst(a):
-            return[]
+            if a is None:
+                return []
+            else:
+                if a.left is not None:
+                    return [
+                        [a.left.left.value.term_string(),
+                         a.left.right.value.term_string()],
+                    ] + subst(a.right)
+                else:
+                    return [] + subst(a.right)
 
         def subst_type(a):
-            return []
+            if a is None:
+                return []
+            else:
+                if a.left is not None:
+                    return [
+                        [a.left.left.value.type_string(),
+                         a.left.right.value.type_string()],
+                    ] + subst_type(a.right)
+                else:
+                    return [] + subst_type(a.right)
 
         if INV_ACTION_TOKENS[self.value] == 'TARGET':
             yield 'hyp', hypothesis(self.left)
