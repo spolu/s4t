@@ -18,12 +18,12 @@
 
   "prooftrace_transformer_hidden_size": 512,
   "prooftrace_transformer_attention_head_count": 8,
-  "prooftrace_transformer_layer_count": 6,
+  "prooftrace_transformer_layer_count": 4,
 
   "prooftrace_lstm_layer_count": 1,
   "prooftrace_lstm_hidden_size": 512,
 
-  "prooftrace_lm_batch_size": 16,
+  "prooftrace_lm_batch_size": 32,
   "prooftrace_lm_accumulation_step_count": 1,
   "prooftrace_lm_learning_rate": 0.0005,
   "prooftrace_lm_value_coeff": 1.0,
