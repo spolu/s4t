@@ -201,7 +201,7 @@ class Env:
 
                     frame_count += 1
                     if not self._repl.valid(a):
-                        out.append(([action, left, right], prob - 1.0))
+                        out.append(([action, left, right], prob))
                         continue
 
                     out.append(([action, left, right], prob + 1.0))
@@ -266,7 +266,13 @@ class Env:
         assert self._run is not None
 
         if action[1] >= self._run.len() or action[2] >= self._run.len():
-            return self.observation(), (0.0, 0.0, 0.0), True
+            Log.out("DONE ILLEGAL[overflow]", {
+                'ground_length': self._ground.action_len(),
+                'run_length': self._run.action_len(),
+                'gamma_length': self._gamma_len,
+                'name': self._ground.name(),
+            })
+            return self.observation(), (-1.0, 0.0, 0.0), True
 
         a = Action.from_action(
             INV_ACTION_TOKENS[action[0] + len(PREPARE_TOKENS)],
@@ -275,12 +281,18 @@ class Env:
         )
 
         if self._run.seen(a):
-            return self.observation(), (0.0, 0.0, 0.0), False
+            Log.out("DONE ILLEGAL[seen]", {
+                'ground_length': self._ground.action_len(),
+                'run_length': self._run.action_len(),
+                'gamma_length': self._gamma_len,
+                'name': self._ground.name(),
+            })
+            return self.observation(), (-1.0, 0.0, 0.0), True
 
         try:
             thm = self._repl.apply(a)
         except (FusionException, REPLException):
-            Log.out("DONE ILLEGAL", {
+            Log.out("DONE ILLEGAL[fusion]", {
                 'ground_length': self._ground.action_len(),
                 'run_length': self._run.action_len(),
                 'gamma_length': self._gamma_len,
@@ -305,7 +317,7 @@ class Env:
                 step_reward = 0.0
 
         if self._target.thm_string(True) == thm.thm_string(True):
-            final_reward = float(self._ground.len())
+            final_reward = float(self._ground.action_len())
             done = True
             Log.out("DEMONSTRATED", {
                 'ground_length': self._ground.action_len(),
