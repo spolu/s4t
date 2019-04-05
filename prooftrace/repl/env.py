@@ -83,7 +83,7 @@ class Env:
             match = re.search("_(\\d+)_(\\d+)\\.actions$", path)
             ptra_len = int(match.group(1))
 
-            if ptra_len < self._sequence_length:
+            if ptra_len <= self._sequence_length:
                 with open(path, 'rb') as f:
                     self._ground = pickle.load(f)
                 # Log.out("Selecting trace", {
