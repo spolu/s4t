@@ -261,12 +261,7 @@ class Env:
         )
 
         if self._run.seen(a):
-            Log.out('DONE SEEN   ', {
-                'ground_length': self._ground.action_len(),
-                'run_length': self._run.action_len(),
-                'name': self._ground.name(),
-            })
-            return self.observation(), (0.0, 0.0, 0.0), True
+            return self.observation(), (0.0, 0.0, 0.0), False
 
         try:
             thm = self._repl.apply(a)
@@ -276,7 +271,7 @@ class Env:
                 'run_length': self._run.action_len(),
                 'name': self._ground.name(),
             })
-            return self.observation(), (0.0, 0.0, 0.0), True
+            return self.observation(), (-1.0, 0.0, 0.0), True
 
         self._run.append(a)
 
@@ -297,8 +292,8 @@ class Env:
             final_reward = float(self._ground.len())
             Log.out("DEMONSTRATED", {
                 'name': self._ground.name(),
-                'ground_length': self._ground.len(),
-                'run_length': self._run.len(),
+                'ground_length': self._ground.action_len(),
+                'run_length': self._run.action_len(),
             })
             done = True
         if self._run.len() >= self._sequence_length:
