@@ -801,7 +801,7 @@ class SYN:
                 )
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/demo_length",
-                    demo_length_meter.avg, self._epoch,
+                    demo_length_meter.max, self._epoch,
                 )
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/act_loss",
