@@ -532,9 +532,9 @@ class ACK:
             'stp_reward': "{:.4f}".format(stp_reward_meter.avg or 0.0),
             'mtc_reward': "{:.4f}".format(mtc_reward_meter.avg or 0.0),
             'fnl_reward': "{:.4f}".format(fnl_reward_meter.avg or 0.0),
-            'act_loss': "{:.4f}".format(act_loss_meter.avg),
-            'val_loss': "{:.4f}".format(val_loss_meter.avg),
-            'entropy': "{:.4f}".format(entropy_meter.avg),
+            'act_loss': "{:.4f}".format(act_loss_meter.avg or 0.0),
+            'val_loss': "{:.4f}".format(val_loss_meter.avg or 0.0),
+            'entropy': "{:.4f}".format(entropy_meter.avg or 0.0),
         })
 
 
