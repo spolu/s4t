@@ -787,7 +787,7 @@ class SYN:
             'run_time': "{:.2f}".format(time.time() - run_start),
             'update_count': len(infos),
             'frame_count': frame_count_meter.sum,
-            'update_delta': update_delta,
+            'update_delta': "{:.2f}".format(update_delta),
             'stp_reward': "{:.4f}".format(stp_reward_meter.avg or 0.0),
             'mtc_reward': "{:.4f}".format(mtc_reward_meter.avg or 0.0),
             'fnl_reward': "{:.4f}".format(fnl_reward_meter.avg or 0.0),
