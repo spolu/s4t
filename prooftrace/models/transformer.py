@@ -52,10 +52,11 @@ class H(nn.Module):
         ]
         self.torso = nn.Sequential(*torso)
 
-        self.lstm = nn.LSTM(
-            self.lstm_hidden_size, self.lstm_hidden_size,
-            num_layers=self.lstm_layer_count, batch_first=True,
-        )
+        if self.lstm_layer_count > 0:
+            self.lstm = nn.LSTM(
+                self.lstm_hidden_size, self.lstm_hidden_size,
+                num_layers=self.lstm_layer_count, batch_first=True,
+            )
 
     def parameters_count(
             self,
@@ -75,6 +76,7 @@ class H(nn.Module):
         pos_embeds = self.position_embedding(pos_embeds)
 
         hiddens = self.torso(embeds + pos_embeds)
-        hiddens, _ = self.lstm(hiddens)
+        if self.lstm_layer_count > 0:
+            hiddens, _ = self.lstm(hiddens)
 
         return hiddens

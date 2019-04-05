@@ -12,7 +12,7 @@ from tensorboardX import SummaryWriter
 
 from prooftrace.models.embedder import E
 from prooftrace.models.heads import PH, VH
-from prooftrace.models.lstm import H
+from prooftrace.models.transformer import H
 
 from utils.config import Config
 from utils.meter import Meter
