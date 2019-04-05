@@ -6,6 +6,7 @@ import shutil
 import torch
 import torch.nn as nn
 import typing
+import time
 
 from utils.log import Log
 
@@ -147,27 +148,32 @@ class IOTAAck(IOTABase):
             self,
             device: torch.device,
     ) -> typing.Dict[str, typing.Any]:
-        files = self.list_files()
-        broadcasts = sorted([
-            p for p in files if re.search(".*broadcast_.*", p)
-        ], reverse=True)
-
         info = None
+        done = False
 
-        if len(broadcasts) > 0 and self._last_broadcast != broadcasts[0]:
-            self._last_broadcast = broadcasts[0]
+        while not done:
+            files = self.list_files()
+            broadcasts = sorted([
+                p for p in files if re.search(".*broadcast_.*", p)
+            ], reverse=True)
 
-            data = torch.load(
-                self._last_broadcast, map_location=device,
-            )
+            if len(broadcasts) > 0 and self._last_broadcast != broadcasts[0]:
+                done = True
+                self._last_broadcast = broadcasts[0]
 
-            for m in self._modules:
-                key = "state_dict_{}".format(m)
-                assert key in data
-                self._modules[m].load_state_dict(data[key])
-            info = data['info']
+                data = torch.load(
+                    self._last_broadcast, map_location=device,
+                )
 
-            Log.out("{IOTA} FETCH", {'path': self._last_broadcast})
+                for m in self._modules:
+                    key = "state_dict_{}".format(m)
+                    assert key in data
+                    self._modules[m].load_state_dict(data[key])
+                info = data['info']
+
+                Log.out("{IOTA} FETCH", {'path': self._last_broadcast})
+            else:
+                time.sleep(1)
 
         return info
 
