@@ -45,24 +45,21 @@ class LanguageModel:
                 )
 
         self._inner_model_E = E(self._config).to(self._device)
-        self._inner_model_HV = H(self._config).to(self._device)
-        self._inner_model_HP = H(self._config).to(self._device)
+        self._inner_model_H = H(self._config).to(self._device)
         self._inner_model_PH = PH(self._config).to(self._device)
         self._inner_model_VH = VH(self._config).to(self._device)
 
         Log.out(
             "Initializing prooftrace LanguageModel", {
                 'parameter_count_E': self._inner_model_E.parameters_count(),
-                'parameter_count_HV': self._inner_model_HV.parameters_count(),
-                'parameter_count_HP': self._inner_model_HP.parameters_count(),
+                'parameter_count_H': self._inner_model_H.parameters_count(),
                 'parameter_count_PH': self._inner_model_PH.parameters_count(),
                 'parameter_count_VH': self._inner_model_VH.parameters_count(),
             },
         )
 
         self._model_E = self._inner_model_E
-        self._model_HV = self._inner_model_HV
-        self._model_HP = self._inner_model_HP
+        self._model_H = self._inner_model_H
         self._model_PH = self._inner_model_PH
         self._model_VH = self._inner_model_VH
 
@@ -80,12 +77,8 @@ class LanguageModel:
                 self._inner_model_E,
                 device_ids=[self._device],
             )
-            self._model_HV = torch.nn.parallel.DistributedDataParallel(
-                self._inner_model_HV,
-                device_ids=[self._device],
-            )
-            self._model_HP = torch.nn.parallel.DistributedDataParallel(
-                self._inner_model_HP,
+            self._model_H = torch.nn.parallel.DistributedDataParallel(
+                self._inner_model_H,
                 device_ids=[self._device],
             )
             self._model_PH = torch.nn.parallel.DistributedDataParallel(
@@ -100,8 +93,7 @@ class LanguageModel:
         self._optimizer = optim.Adam(
             [
                 {'params': self._model_E.parameters()},
-                {'params': self._model_HV.parameters()},
-                {'params': self._model_HP.parameters()},
+                {'params': self._model_H.parameters()},
                 {'params': self._model_PH.parameters()},
                 {'params': self._model_VH.parameters()},
             ],
@@ -175,17 +167,10 @@ class LanguageModel:
                         map_location=self._device,
                     ),
                 )
-                self._inner_model_HV.load_state_dict(
+                self._inner_model_H.load_state_dict(
                     torch.load(
                         self._load_dir +
-                        "/model_HV_{}.pt".format(rank),
-                        map_location=self._device,
-                    ),
-                )
-                self._inner_model_HP.load_state_dict(
-                    torch.load(
-                        self._load_dir +
-                        "/model_HP_{}.pt".format(rank),
+                        "/model_H_{}.pt".format(rank),
                         map_location=self._device,
                     ),
                 )
@@ -233,12 +218,8 @@ class LanguageModel:
                 self._save_dir + "/model_E_{}.pt".format(rank),
             )
             torch.save(
-                self._inner_model_HV.state_dict(),
-                self._save_dir + "/model_HV_{}.pt".format(rank),
-            )
-            torch.save(
-                self._inner_model_HP.state_dict(),
-                self._save_dir + "/model_HP_{}.pt".format(rank),
+                self._inner_model_H.state_dict(),
+                self._save_dir + "/model_H_{}.pt".format(rank),
             )
             torch.save(
                 self._inner_model_PH.state_dict(),
@@ -294,8 +275,7 @@ class LanguageModel:
         assert self._train_loader is not None
 
         self._model_E.train()
-        self._model_HV.train()
-        self._model_HP.train()
+        self._model_H.train()
         self._model_PH.train()
         self._model_VH.train()
 
@@ -309,14 +289,10 @@ class LanguageModel:
 
         for it, (idx, trc, trh, val) in enumerate(self._train_loader):
             embeds = self._model_E(trc)
-            hiddens_v = self._model_HV(embeds)
-            hiddens_p = self._model_HP(embeds)
+            hiddens = self._model_H(embeds)
 
-            head_v = torch.cat([
-                hiddens_v[i][idx[i]].unsqueeze(0) for i in range(len(idx))
-            ], dim=0)
-            head_p = torch.cat([
-                hiddens_p[i][idx[i]].unsqueeze(0) for i in range(len(idx))
+            heads = torch.cat([
+                hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
             targets = torch.cat([
                 embeds[i][0].unsqueeze(0) for i in range(len(idx))
@@ -334,8 +310,8 @@ class LanguageModel:
             values = torch.tensor(val).unsqueeze(1).to(self._device)
 
             prd_actions, prd_lefts, prd_rights = \
-                self._model_PH(head_p, targets)
-            prd_values = self._model_VH(head_v, targets)
+                self._model_PH(heads, targets)
+            prd_values = self._model_VH(heads, targets)
 
             act_loss = self._nll_loss(prd_actions, actions)
             lft_loss = self._nll_loss(prd_lefts, lefts)
