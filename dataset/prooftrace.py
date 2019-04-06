@@ -98,6 +98,8 @@ class Type(BVT):
             if typ.token() == '__c':
                 token = typ.left.token()
                 if token == 'fun':
+                    if typ.right is None:
+                        raise Exception()
                     assert typ.right is not None
                     return "(" + dump(typ.right, "->") + ")"
                 if token == 'prod':
