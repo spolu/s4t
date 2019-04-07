@@ -25,7 +25,7 @@
 
   "prooftrace_env_pool_size": 16,
   "prooftrace_ppo_rollout_size": 32,
-  "prooftrace_ppo_batch_size": 256,
+  "prooftrace_ppo_batch_size": 128,
 
   "prooftrace_ppo_reset_gamma": 1.0,
   "prooftrace_ppo_explore_alpha": 0.0,
