@@ -54,6 +54,10 @@ PREPARE_TOKENS = {
 INV_ACTION_TOKENS = {v: k for k, v in ACTION_TOKENS.items()}
 
 
+class TypeException(Exception):
+    pass
+
+
 class Type(BVT):
     def __init__(
             self,
@@ -99,11 +103,11 @@ class Type(BVT):
                 token = typ.left.token()
                 if token == 'fun':
                     if typ.right is None:
-                        raise Exception()
-                    assert typ.right is not None
+                        raise TypeException()
                     return "(" + dump(typ.right, "->") + ")"
                 if token == 'prod':
-                    assert typ.right is not None
+                    if typ.right is None:
+                        raise TypeException()
                     return "(" + dump(typ.right, "#") + ")"
                 if typ.right is None:
                     return token

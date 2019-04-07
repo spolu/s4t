@@ -5,7 +5,7 @@ import re
 
 from dataset.prooftrace import \
     ACTION_TOKENS, INV_ACTION_TOKENS, \
-    ProofTraceTokenizer, Action, ProofTraceActions
+    ProofTraceTokenizer, Action, ProofTraceActions, TypeException
 
 from prooftrace.repl.fusion import Fusion, Thm, FusionException
 
@@ -40,7 +40,7 @@ class REPL():
     ) -> bool:
         try:
             self.apply(action, True)
-        except (FusionException, REPLException):
+        except (FusionException, REPLException, TypeException):
             return False
         return True
 

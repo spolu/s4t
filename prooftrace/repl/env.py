@@ -10,7 +10,7 @@ import typing
 
 from dataset.prooftrace import \
     ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, \
-    Action, ProofTraceActions
+    Action, ProofTraceActions, TypeException
 
 from prooftrace.repl.fusion import FusionException
 from prooftrace.repl.repl import REPL, REPLException
@@ -301,7 +301,7 @@ class Env:
 
         try:
             thm = self._repl.apply(a)
-        except (FusionException, REPLException):
+        except (FusionException, REPLException, TypeException):
             Log.out("DONE ILLEGAL[fusion]", {
                 'ground_length': self._ground.action_len(),
                 'run_length': self._run.action_len(),
