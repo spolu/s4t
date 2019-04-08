@@ -66,10 +66,11 @@ class ProofTraceEmbeds():
     def add(
             self,
             action: Action,
+            argument: Action,
             embed: typing.List[float],
             ptras: typing.List[ProofTraceActions],
     ) -> None:
-        self._embeds[action.hash()] = Embed(action, embed, ptras)
+        self._embeds[argument.hash()] = Embed(action, embed, ptras)
 
     def get(
             self,
@@ -168,6 +169,7 @@ def extract():
     tSNE = TSNE(n_components=2)
 
     def embed_dataset(dataset_dir):
+        all_arguments = []
         all_actions = []
         all_embeds = []
         all_ptras = {}
@@ -187,12 +189,15 @@ def extract():
                 'name': ptra.name(),
             })
             embeds = embedder.embed([ptra]).cpu().data.numpy()
-            for i, a in enumerate(ptra.actions()):
-                if a.hash() not in all_ptras:
-                    all_ptras[a.hash()] = []
-                    all_actions.append(a)
+            for i in range(ptra.len()):
+                action = ptra.actions()[i]
+                argument = ptra.arguments()[i]
+                if action.hash() not in all_ptras:
+                    all_ptras[action.hash()] = []
+                    all_arguments.append(argument)
+                    all_actions.append(action)
                     all_embeds.append(embeds[0][i])
-                all_ptras[a.hash()].append(ptra)
+                all_ptras[action.hash()].append(ptra)
 
         Log.out("Running t-SNE on all embeds", {
             'embed_count': len(all_embeds),
@@ -200,8 +205,14 @@ def extract():
         tsne = tSNE.fit_transform(np.array(all_embeds))
 
         ptre = ProofTraceEmbeds()
-        for i, a in enumerate(all_actions):
-            ptre.add(a, tsne[i].tolist(), all_ptras[a.hash()])
+        for i in range(len(all_actions)):
+            action = all_actions[i]
+            argument = all_arguments[i]
+            ptre.add(
+                action, argument,
+                tsne[i].tolist(),
+                all_ptras[action.hash()],
+            )
 
         ptre_path = os.path.join(dataset_dir, 'traces.embeds')
         Log.out("Writing ProofTraceEmbeds", {

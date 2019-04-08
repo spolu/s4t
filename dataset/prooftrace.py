@@ -290,15 +290,15 @@ class Action(BVT):
                 else:
                     return [] + subst_type(a.right)
 
-        if INV_ACTION_TOKENS[self.value] == 'THEOREM':
-            yield 'hyp', hypothesis(self.left)
-            yield 'ccl', term(self.right)
         if INV_ACTION_TOKENS[self.value] == 'SUBST':
             yield 'subst', subst(self)
         if INV_ACTION_TOKENS[self.value] == 'SUBST_TYPE':
             yield 'subst_type', subst_type(self)
         if INV_ACTION_TOKENS[self.value] == 'TERM':
             yield 'term', term(self.left)
+        if INV_ACTION_TOKENS[self.value] == 'THEOREM':
+            yield 'hyp', hypothesis(self.left)
+            yield 'ccl', term(self.right)
 
     @staticmethod
     def from_action(

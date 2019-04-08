@@ -115,8 +115,16 @@ def run():
         with open(p, 'rb') as f:
             ptra = pickle.load(f)
             _traces[ptra.name()] = {'actions': []}
-            for a in ptra.actions():
-                _traces[ptra.name()]['actions'].append(dict(a))
+            for i in range(ptra.len()):
+                action = dict(ptra.actions()[i])
+                argument = dict(ptra.arguments()[i])
+
+                if 'hyp' in argument:
+                    action['hyp'] = argument['hyp']
+                    action['ccl'] = argument['ccl']
+                action['hash'] = argument['hash']
+
+                _traces[ptra.name()]['actions'].append(action)
 
     t = threading.Thread(target=run_server)
     t.start()

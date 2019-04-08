@@ -171,8 +171,7 @@
 
       var ACTION_COLORS = {
         'EMPTY': '#F9ECE1',
-        'TARGET': 'red',
-        'PREMISE': 'yellow',
+        'THEOREM': 'yellow',
         'SUBST': '#95F767',
         'SUBST_TYPE': '#60E534',
         'TERM': '#407A23',
@@ -211,15 +210,17 @@
           ctx.stroke();
         };
 
-        if (action['left'] in dump['embeds']) {
-          var from = dump['embeds'][action['hash']]
-          var to = dump['embeds'][action['left']]
-          draw_line(from, to);
-        }
-        if (action['right'] in dump['embeds']) {
-          var from = dump['embeds'][action['hash']]
-          var to = dump['embeds'][action['right']]
-          draw_line(from, to);
+        if (action['hash'] in dump['embeds']) {
+          if (action['left'] in dump['embeds']) {
+            var from = dump['embeds'][action['hash']]
+            var to = dump['embeds'][action['left']]
+            draw_line(from, to);
+          }
+          if (action['right'] in dump['embeds']) {
+            var from = dump['embeds'][action['hash']]
+            var to = dump['embeds'][action['right']]
+            draw_line(from, to);
+          }
         }
       };
 
