@@ -180,11 +180,21 @@ class REPL():
             if i == 0:
                 target = Thm(
                     a.index(),
-                    self.build_hypothesis(ptra.actions()[0].left),
+                    self.build_hypothesis(a.left),
                     a.right.value,
                 )
             if a.value not in INV_PREPARE_TOKENS:
-                a._index = self.apply(a).index()
+                index = self.apply(a).index()
+                ptra.actions()[i]._index = index
+                ptra.arguments()[i]._index = index
+
+                # ground = Thm(
+                #     index,
+                #     self.build_hypothesis(ptra.arguments()[i].left),
+                #     ptra.arguments()[i].right.value,
+                # )
+                # assert self._fusion._theorems[index].thm_string() == \
+                #     ground.thm_string()
 
         last = self._fusion._theorems[ptra.actions()[-1].index()]
         assert last.thm_string() == target.thm_string()

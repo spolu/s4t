@@ -82,12 +82,12 @@ class ACK:
         for m in self._modules:
             self._modules[m].train()
 
-        for it, (idx, trc, trh, val) in enumerate(self._train_loader):
+        for it, (idx, act, arg, trh, val) in enumerate(self._train_loader):
             info = self._ack.fetch(self._device)
             if info is not None:
                 self.update(info['config'])
 
-            embeds = self._modules['E'](trc)
+            embeds = self._modules['E'](act)
             hiddens = self._modules['H'](embeds)
 
             head = torch.cat([
@@ -101,10 +101,10 @@ class ACK:
                 trh[i].value - len(PREPARE_TOKENS) for i in range(len(trh))
             ], dtype=torch.int64).to(self._device)
             lefts = torch.tensor([
-                trc[i].index(trh[i].left) for i in range(len(trh))
+                arg[i].index(trh[i].left) for i in range(len(trh))
             ], dtype=torch.int64).to(self._device)
             rights = torch.tensor([
-                trc[i].index(trh[i].right) for i in range(len(trh))
+                arg[i].index(trh[i].right) for i in range(len(trh))
             ], dtype=torch.int64).to(self._device)
             values = torch.tensor(val).unsqueeze(1).to(self._device)
 

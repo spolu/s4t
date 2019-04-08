@@ -695,6 +695,29 @@ class ProofTraceActions():
         self.hashes()
         self._hashes[action.hash()] = len(self._actions) - 1
 
+    def build_argument(
+            self,
+            conclusion: Term,
+            hypotheses: typing.List[Term],
+            index: int,
+    ) -> Action:
+        def build_hypothesis(hypotheses):
+            if len(hypotheses) == 0:
+                return None
+            else:
+                return Action.from_action(
+                    'HYPOTHESIS',
+                    Action.from_term(self._kernel.term(hypotheses[0])),
+                    build_hypothesis(hypotheses[1:]),
+                )
+
+        return Action.from_action(
+            'THEOREM',
+            build_hypothesis(hypotheses),
+            Action.from_term(conclusion),
+            index,
+        )
+
     def seen(
             self,
             action: Action,
@@ -719,8 +742,8 @@ class ProofTraceActions():
         summary = "["
         for a in self._actions:
             if a.value not in INV_PREPARE_TOKENS:
-                left = self._actions.index(a.left)
-                right = self._actions.index(a.right)
+                left = self._arguments.index(a.left)
+                right = self._arguments.index(a.right)
                 summary += \
                     "(" + \
                     str(a.value) + "," + str(left) + "," + str(right) + \
@@ -1202,20 +1225,21 @@ class ProofTraceLMDataset(Dataset):
             ptra = pickle.load(f)
 
         truth = ptra.actions()[self._cases[idx][1]]
-        trace = ptra.actions()[:self._cases[idx][1]]
+        actions = ptra.actions()[:self._cases[idx][1]]
+        arguments = ptra.arguments()[:self._cases[idx][1]]
 
         # value = 0.0
         # for i in range(ptra.len() - len(trace)):
         #     value = 1.0 + 0.99 * value
         # value = ptra.action_len() * 0.99 ** (ptra.len() - len(trace))
-        value = float(ptra.len() - len(trace))
+        value = float(ptra.len() - len(actions))
 
-        trace.append(Action.from_action('EXTRACT', None, None))
+        actions.append(Action.from_action('EXTRACT', None, None))
         empty = Action.from_action('EMPTY', None, None)
-        while len(trace) < self._sequence_length:
-            trace.append(empty)
+        while len(actions) < self._sequence_length:
+            actions.append(empty)
 
-        return (self._cases[idx][1], trace, truth, value)
+        return (self._cases[idx][1], actions, arguments, truth, value)
 
 
 def lm_collate(
@@ -1227,17 +1251,19 @@ def lm_collate(
     typing.List[float],
 ]:
     indices = []
-    traces = []
+    actions = []
+    arguments = []
     truths = []
     values = []
 
-    for (idx, trc, trh, val) in batch:
+    for (idx, act, arg, trh, val) in batch:
         indices.append(idx)
-        traces.append(trc)
+        actions.append(act)
+        arguments.append(arg)
         truths.append(trh)
         values.append(val)
 
-    return (indices, traces, truths, values)
+    return (indices, actions, arguments, truths, values)
 
 
 def extract():
