@@ -1475,7 +1475,9 @@ def extract():
     })
 
     # small: term_token_count=427 type_token_count=70
+    # small[1024]: term_token_count=338 type_token_count=70
     # medium term_token_count=14227 type_token_count=983
+    # medium[1024]: term_token_count=1785 type_token_count=548
 
 
 def dump_shared():

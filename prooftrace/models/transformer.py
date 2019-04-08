@@ -30,11 +30,11 @@ class H(nn.Module):
             config.get('prooftrace_lstm_hidden_size')
 
         self.position_embedding = nn.Embedding(
-            self.sequence_length, 2*self.hidden_size
+            self.sequence_length, self.hidden_size
         )
 
         torso = [
-            nn.Linear(2*self.hidden_size, self.transformer_hidden_size),
+            nn.Linear(self.hidden_size, self.transformer_hidden_size),
         ]
 
         for _ in range(self.transformer_layer_count):
@@ -76,8 +76,8 @@ class H(nn.Module):
         )
         pos_embeds = self.position_embedding(pos_embeds)
 
-        embeds = torch.cat([action_embeds, argument_embeds], dim=2)
-        hiddens = self.torso(embeds + pos_embeds)
+        hiddens = self.torso(action_embeds + argument_embeds + pos_embeds)
+
         if self.lstm_layer_count > 0:
             hiddens, _ = self.lstm(hiddens)
 
