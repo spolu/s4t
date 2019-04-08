@@ -25,5 +25,7 @@ prooftrace_ppo_ack_run configs/prooftrace_ppo.json --sync_dir=~/tmp/iota/ --devi
 
 ## Demonstration Length Milestones
 
+```
 - *3*  20190401: LM + tree search [LSTM 2x512]
 - *11* 20190405: PPO iota [Transformer 4x512]
+```
