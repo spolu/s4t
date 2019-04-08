@@ -375,6 +375,7 @@
         $('#prooftraces #inner').append(item)
 
         item.mouseover(() => {
+          console.log(traces[k])
           show_trace(traces[k]);
         });
         item.mouseout(() => {

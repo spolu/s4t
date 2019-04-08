@@ -288,14 +288,16 @@ class LanguageModel:
             self._train_sampler.set_epoch(epoch)
 
         for it, (idx, act, arg, trh, val) in enumerate(self._train_loader):
-            embeds = self._model_E(act)
-            hiddens = self._model_H(embeds)
+            action_embeds = self._model_E(act)
+            argument_embeds = self._model_E(arg)
+
+            hiddens = self._model_H(action_embeds, argument_embeds)
 
             heads = torch.cat([
                 hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
             targets = torch.cat([
-                embeds[i][0].unsqueeze(0) for i in range(len(idx))
+                action_embeds[i][0].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
 
             actions = torch.tensor([

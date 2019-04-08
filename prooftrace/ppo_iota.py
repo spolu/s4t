@@ -78,7 +78,11 @@ class Rollouts:
             self,
             step: int,
             observations: typing.List[
-                typing.Tuple[int, typing.List[Action]]
+                typing.Tuple[
+                    int,
+                    typing.List[Action],
+                    typing.List[Action],
+                ]
             ],
             actions,
             log_probs,
@@ -135,7 +139,8 @@ class Rollouts:
             sz = self._pool_size
             yield \
                 ([self.observations[:-1][i//sz][0][i % sz] for i in sample],
-                 [self.observations[:-1][i//sz][1][i % sz] for i in sample]), \
+                 [self.observations[:-1][i//sz][1][i % sz] for i in sample],
+                 [self.observations[:-1][i//sz][2][i % sz] for i in sample]), \
                 self.actions.view(-1, self.actions.size(-1))[indices], \
                 self.values[:-1].view(-1, 1)[indices], \
                 self.returns[:-1].view(-1, 1)[indices], \
@@ -288,17 +293,19 @@ class ACK:
 
         for step in range(self._rollout_size):
             with torch.no_grad():
-                (idx, act) = self._rollouts.observations[step]
+                (idx, act, arg) = self._rollouts.observations[step]
 
-                embeds = self._modules['E'](act).detach()
-                hiddens = self._modules['H'](embeds)
+                action_embeds = self._modules['E'](act).detach()
+                argument_embeds = self._modules['E'](arg).detach()
+
+                hiddens = self._modules['H'](action_embeds, argument_embeds)
 
                 heads = torch.cat([
                     hiddens[i][idx[i]].unsqueeze(0)
                     for i in range(len(idx))
                 ], dim=0)
                 targets = torch.cat([
-                    embeds[i][0].unsqueeze(0)
+                    action_embeds[i][0].unsqueeze(0)
                     for i in range(len(idx))
                 ], dim=0)
 
@@ -366,17 +373,19 @@ class ACK:
             )
 
         with torch.no_grad():
-            (idx, act) = self._rollouts.observations[-1]
+            (idx, act, arg) = self._rollouts.observations[-1]
 
-            embeds = self._modules['E'](act)
-            hiddens = self._modules['H'](embeds)
+            action_embeds = self._modules['E'](act)
+            argument_embeds = self._modules['E'](arg)
+
+            hiddens = self._modules['H'](action_embeds, argument_embeds)
 
             heads = torch.cat([
                 hiddens[i][idx[i]].unsqueeze(0)
                 for i in range(len(idx))
             ], dim=0)
             targets = torch.cat([
-                embeds[i][0].unsqueeze(0)
+                action_embeds[i][0].unsqueeze(0)
                 for i in range(len(idx))
             ], dim=0)
 
@@ -409,17 +418,19 @@ class ACK:
                     rollout_log_probs, \
                     rollout_advantages = batch
 
-                (idx, act) = rollout_observations
+                (idx, act, arg) = rollout_observations
 
-                embeds = self._modules['E'](act)
-                hiddens = self._modules['H'](embeds)
+                action_embeds = self._modules['E'](act)
+                argument_embeds = self._modules['E'](arg)
+
+                hiddens = self._modules['H'](action_embeds, argument_embeds)
 
                 heads = torch.cat([
                     hiddens[i][idx[i]].unsqueeze(0)
                     for i in range(len(idx))
                 ], dim=0)
                 targets = torch.cat([
-                    embeds[i][0].unsqueeze(0)
+                    action_embeds[i][0].unsqueeze(0)
                     for i in range(len(idx))
                 ], dim=0)
 

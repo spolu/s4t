@@ -130,8 +130,13 @@ class Env:
 
     def observation(
             self,
-    ) -> typing.Tuple[int, typing.List[Action]]:
+    ) -> typing.Tuple[
+        int,
+        typing.List[Action],
+        typing.List[Action],
+    ]:
         actions = self._run.actions().copy()
+        arguments = self._run.arguments().copy()
 
         # If the len match this is a final observation, so no extract will be
         # appended and that's fine because this observation won't make it to
@@ -140,10 +145,13 @@ class Env:
             actions.append(Action.from_action('EXTRACT', None, None))
 
         # Finally we always return actions with the same length.
+        empty = Action.from_action('EMPTY', None, None)
         while len(actions) < self._sequence_length:
-            actions.append(Action.from_action('EMPTY', None, None))
+            actions.append(empty)
+        while len(arguments) < self._sequence_length:
+            arguments.append(empty)
 
-        return (self._run.len(), actions)
+        return (self._run.len(), actions, arguments)
 
     def alpha_oracle(
             self,
@@ -392,21 +400,25 @@ class Pool:
     ) -> typing.Tuple[
             typing.List[int],
             typing.List[typing.List[Action]],
+            typing.List[typing.List[Action]],
     ]:
         indices = []
         actions = []
+        arguments = []
 
-        for (idx, act) in observations:
+        for (idx, act, arg) in observations:
             indices.append(idx)
             actions.append(act)
+            arguments.append(arg)
 
-        return (indices, actions)
+        return (indices, actions, arguments)
 
     def reset(
             self,
             gamma: float,
     ) -> typing.Tuple[
             typing.List[int],
+            typing.List[typing.List[Action]],
             typing.List[typing.List[Action]],
     ]:
         def reset(env):
@@ -457,6 +469,7 @@ class Pool:
     ) -> typing.Tuple[
         typing.Tuple[
             typing.List[int],
+            typing.List[typing.List[Action]],
             typing.List[typing.List[Action]],
         ],
         typing.List[typing.Tuple[float, float, float]],

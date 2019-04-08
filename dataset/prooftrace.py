@@ -636,6 +636,7 @@ class ProofTraceActions():
     def len(
             self,
     ) -> int:
+        assert len(self._arguments) == len(self._actions)
         return len(self._actions)
 
     def prepare_len(
@@ -681,19 +682,25 @@ class ProofTraceActions():
     ) -> typing.Dict[bytes, bool]:
         if self._hashes is None:
             self._hashes = {}
-            for i, a in enumerate(self._actions):
-                self._hashes[a.hash()] = i
+            for i in range(self.len()):
+                action = self._actions[i]
+                argument = self._arguments[i]
+                self._hashes[action.hash()] = i
+                self._hashes[argument.hash()] = i
         return self._hashes
 
     def append(
             self,
             action: Action,
-            theorem: Action,
+            argument: Action,
     ) -> None:
         self._actions.append(action)
-        self._arguments.append(theorem)
+        self._arguments.append(argument)
+
         self.hashes()
+
         self._hashes[action.hash()] = len(self._actions) - 1
+        self._hashes[argument.hash()] = len(self._arguments) - 1
 
     def build_argument(
             self,
@@ -707,7 +714,7 @@ class ProofTraceActions():
             else:
                 return Action.from_action(
                     'HYPOTHESIS',
-                    Action.from_term(self._kernel.term(hypotheses[0])),
+                    Action.from_term(hypotheses[0]),
                     build_hypothesis(hypotheses[1:]),
                 )
 
@@ -1235,9 +1242,12 @@ class ProofTraceLMDataset(Dataset):
         value = float(ptra.len() - len(actions))
 
         actions.append(Action.from_action('EXTRACT', None, None))
+
         empty = Action.from_action('EMPTY', None, None)
         while len(actions) < self._sequence_length:
             actions.append(empty)
+        while len(arguments) < self._sequence_length:
+            arguments.append(empty)
 
         return (self._cases[idx][1], actions, arguments, truth, value)
 
@@ -1403,6 +1413,17 @@ def extract():
     os.mkdir(traces_path_test)
 
     for i, tr in enumerate(traces):
+        tl = len(tr._sequence) + \
+            len(tr._premises) + \
+            len(tr._terms) + \
+            len(tr._substs) + len(tr._subst_types)
+        if tl > config.get('prooftrace_sequence_length'):
+            Log.out*("Filtering Trace", {
+                'name': tr.name(),
+                'length': tl,
+            })
+            continue
+
         ptra = tr.actions()
         trace_lengths.append(ptra.len())
 
