@@ -225,9 +225,6 @@ class PPO:
 
         self._pool = Pool(self._config, False)
         self._rollouts.observations[0] = self._pool.reset()
-        with torch.no_grad():
-            (idx, trc) = self._pool.reset()
-            self._rollouts.observations[0] = (idx, trc)
 
         Log.out('Training initialization', {
             "world_size": self._config.get('distributed_world_size'),
@@ -434,9 +431,9 @@ class PPO:
 
         for step in range(self._rollout_size):
             with torch.no_grad():
-                (idx, trc) = self._rollouts.observations[step]
+                (idx, act) = self._rollouts.observations[step]
 
-                embeds = self._model_E(trc).detach()
+                embeds = self._model_E(act).detach()
                 hiddens = self._model_H(embeds)
 
                 head = torch.cat([
@@ -504,9 +501,9 @@ class PPO:
             )
 
         with torch.no_grad():
-            (idx, trc) = self._rollouts.observations[-1]
+            (idx, act) = self._rollouts.observations[-1]
 
-            embeds = self._model_E(trc)
+            embeds = self._model_E(act)
             hiddens = self._model_H(embeds)
 
             head = torch.cat([
@@ -540,9 +537,9 @@ class PPO:
                     rollout_log_probs, \
                     rollout_advantages = batch
 
-                (idx, trc) = rollout_observations
+                (idx, act) = rollout_observations
 
-                embeds = self._model_E(trc)
+                embeds = self._model_E(act)
                 hiddens = self._model_H(embeds)
 
                 head = torch.cat([

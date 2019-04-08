@@ -287,8 +287,8 @@ class LanguageModel:
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(epoch)
 
-        for it, (idx, trc, trh, val) in enumerate(self._train_loader):
-            embeds = self._model_E(trc)
+        for it, (idx, act, arg, trh, val) in enumerate(self._train_loader):
+            embeds = self._model_E(act)
             hiddens = self._model_H(embeds)
 
             heads = torch.cat([
@@ -302,10 +302,10 @@ class LanguageModel:
                 trh[i].value - len(PREPARE_TOKENS) for i in range(len(trh))
             ], dtype=torch.int64).to(self._device)
             lefts = torch.tensor([
-                trc[i].index(trh[i].left) for i in range(len(trh))
+                arg[i].index(trh[i].left) for i in range(len(trh))
             ], dtype=torch.int64).to(self._device)
             rights = torch.tensor([
-                trc[i].index(trh[i].right) for i in range(len(trh))
+                arg[i].index(trh[i].right) for i in range(len(trh))
             ], dtype=torch.int64).to(self._device)
             values = torch.tensor(val).unsqueeze(1).to(self._device)
 

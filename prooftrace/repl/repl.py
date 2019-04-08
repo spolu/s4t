@@ -4,7 +4,7 @@ import pickle
 import re
 
 from dataset.prooftrace import \
-    ACTION_TOKENS, INV_ACTION_TOKENS, \
+    ACTION_TOKENS, INV_ACTION_TOKENS, INV_PREPARE_TOKENS, \
     ProofTraceTokenizer, Action, ProofTraceActions, TypeException
 
 from prooftrace.repl.fusion import Fusion, Thm, FusionException
@@ -53,7 +53,7 @@ class REPL():
 
         thm = None
 
-        if action_token == 'PREMISE':
+        if action_token == 'THEOREM':
             thm = Thm(
                 action.index(),
                 self.build_hypothesis(action.left),
@@ -176,24 +176,25 @@ class REPL():
             self,
             ptra: ProofTraceActions,
     ) -> Thm:
-        for a in ptra.actions():
-            if a.value == ACTION_TOKENS['TARGET']:
+        for i, a in enumerate(ptra.actions()):
+            if i == 0:
                 target = Thm(
                     a.index(),
                     self.build_hypothesis(a.left),
                     a.right.value,
                 )
-            if a.value not in \
-                    [
-                        ACTION_TOKENS['TARGET'],
-                        ACTION_TOKENS['EMPTY'],
-                        ACTION_TOKENS['PREMISE'],
-                        ACTION_TOKENS['SUBST'],
-                        ACTION_TOKENS['SUBST_TYPE'],
-                        ACTION_TOKENS['TERM'],
-                    ]:
+            if a.value not in INV_PREPARE_TOKENS:
+                index = self.apply(a).index()
+                ptra.actions()[i]._index = index
+                ptra.arguments()[i]._index = index
 
-                a._index = self.apply(a).index()
+                # ground = Thm(
+                #     index,
+                #     self.build_hypothesis(ptra.arguments()[i].left),
+                #     ptra.arguments()[i].right.value,
+                # )
+                # assert self._fusion._theorems[index].thm_string() == \
+                #     ground.thm_string()
 
         last = self._fusion._theorems[ptra.actions()[-1].index()]
         assert last.thm_string() == target.thm_string()
@@ -204,14 +205,14 @@ class REPL():
             self,
             ptra: ProofTraceActions,
     ) -> Thm:
-        for a in ptra.actions():
-            if a.value == ACTION_TOKENS['TARGET']:
+        for i, a in enumerate(ptra.actions()):
+            if i == 0:
                 target = Thm(
-                    a.index(),
-                    self.build_hypothesis(a.left),
-                    a.right.value,
+                    ptra.actions()[0].index(),
+                    self.build_hypothesis(ptra.actions()[0].left),
+                    ptra.actions()[0].right.value,
                 )
-            if a.value == ACTION_TOKENS['PREMISE']:
+            if i > 0 and a.value == ACTION_TOKENS['THEOREM']:
                 self.apply(a)
 
         return target

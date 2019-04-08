@@ -19,39 +19,38 @@ from utils.log import Log
 
 ACTION_TOKENS = {
     'EMPTY': 0,
-    'TARGET': 1,
-    'EXTRACT': 2,
-    'PREMISE': 3,
-    'HYPOTHESIS': 4,
-    'SUBST': 5,
-    'SUBST_TYPE': 6,
-    'SUBST_PAIR': 7,
-    'TERM': 8,
-    'REFL': 9,
-    'TRANS': 10,
-    'MK_COMB': 11,
-    'ABS': 12,
-    'BETA': 13,
-    'ASSUME': 14,
-    'EQ_MP': 15,
-    'DEDUCT_ANTISYM_RULE': 16,
-    'INST': 17,
-    'INST_TYPE': 18,
+    'EXTRACT': 1,
+    'THEOREM': 2,
+    'HYPOTHESIS': 3,
+    'SUBST': 4,
+    'SUBST_TYPE': 5,
+    'SUBST_PAIR': 6,
+    'TERM': 7,
+    'REFL': 8,
+    'TRANS': 9,
+    'MK_COMB': 10,
+    'ABS': 11,
+    'BETA': 12,
+    'ASSUME': 13,
+    'EQ_MP': 14,
+    'DEDUCT_ANTISYM_RULE': 15,
+    'INST': 16,
+    'INST_TYPE': 17,
 }
 PREPARE_TOKENS = {
     'EMPTY': 0,
-    'TARGET': 1,
-    'EXTRACT': 2,
-    'PREMISE': 3,
-    'HYPOTHESIS': 4,
-    'SUBST': 5,
-    'SUBST_TYPE': 6,
-    'SUBST_PAIR': 7,
-    'TERM': 8,
+    'EXTRACT': 1,
+    'THEOREM': 2,
+    'HYPOTHESIS': 3,
+    'SUBST': 4,
+    'SUBST_TYPE': 5,
+    'SUBST_PAIR': 6,
+    'TERM': 7,
 }
 
 
 INV_ACTION_TOKENS = {v: k for k, v in ACTION_TOKENS.items()}
+INV_PREPARE_TOKENS = {v: k for k, v in PREPARE_TOKENS.items()}
 
 
 class TypeException(Exception):
@@ -223,10 +222,9 @@ class Action(BVT):
         super(Action, self).__init__(
             value, left, right
         )
-        # `self._index` stores the original index of the associated action.
-        # It's used solely for PREMISE to store their index in order to be
-        # able to retrieve the associated theorem (through the proof) in the
-        # HOL Light environment as we create a prooftrace REPL environment.
+        # `self._index` stores the original index of the associated action. It
+        # is used to store the index of the theorem assosicated with this
+        # action for REPL/Fusion.
         self._index = index
 
     def index(
@@ -292,10 +290,7 @@ class Action(BVT):
                 else:
                     return [] + subst_type(a.right)
 
-        if INV_ACTION_TOKENS[self.value] == 'TARGET':
-            yield 'hyp', hypothesis(self.left)
-            yield 'ccl', term(self.right)
-        if INV_ACTION_TOKENS[self.value] == 'PREMISE':
+        if INV_ACTION_TOKENS[self.value] == 'THEOREM':
             yield 'hyp', hypothesis(self.left)
             yield 'ccl', term(self.right)
         if INV_ACTION_TOKENS[self.value] == 'SUBST':
@@ -624,9 +619,11 @@ class ProofTraceActions():
             self,
             name: str,
             actions: typing.List[Action],
+            arguments: typing.List[Action],
     ) -> None:
         self._name = name
         self._actions = actions
+        self._arguments = arguments
         self._hashes = None
 
     def dump(
@@ -646,14 +643,7 @@ class ProofTraceActions():
     ) -> int:
         prepare_len = 0
         for a in self._actions:
-            if a.value in [
-                    ACTION_TOKENS['TARGET'],
-                    ACTION_TOKENS['EMPTY'],
-                    ACTION_TOKENS['PREMISE'],
-                    ACTION_TOKENS['SUBST'],
-                    ACTION_TOKENS['SUBST_TYPE'],
-                    ACTION_TOKENS['TERM'],
-            ]:
+            if a.value in INV_PREPARE_TOKENS:
                 prepare_len += 1
             else:
                 break
@@ -681,6 +671,11 @@ class ProofTraceActions():
     ) -> typing.List[Action]:
         return self._actions
 
+    def arguments(
+            self,
+    ) -> typing.List[Action]:
+        return self._arguments
+
     def hashes(
             self,
     ) -> typing.Dict[bytes, bool]:
@@ -693,10 +688,35 @@ class ProofTraceActions():
     def append(
             self,
             action: Action,
+            theorem: Action,
     ) -> None:
         self._actions.append(action)
+        self._arguments.append(theorem)
         self.hashes()
         self._hashes[action.hash()] = len(self._actions) - 1
+
+    def build_argument(
+            self,
+            conclusion: Term,
+            hypotheses: typing.List[Term],
+            index: int,
+    ) -> Action:
+        def build_hypothesis(hypotheses):
+            if len(hypotheses) == 0:
+                return None
+            else:
+                return Action.from_action(
+                    'HYPOTHESIS',
+                    Action.from_term(self._kernel.term(hypotheses[0])),
+                    build_hypothesis(hypotheses[1:]),
+                )
+
+        return Action.from_action(
+            'THEOREM',
+            build_hypothesis(hypotheses),
+            Action.from_term(conclusion),
+            index,
+        )
 
     def seen(
             self,
@@ -710,6 +730,7 @@ class ProofTraceActions():
         ptra = ProofTraceActions(
             self._name,
             self._actions.copy(),
+            self._arguments.copy(),
         )
         ptra._hashes = dict(self._hashes)
 
@@ -720,17 +741,9 @@ class ProofTraceActions():
     ):
         summary = "["
         for a in self._actions:
-            if a.value not in \
-                    [
-                        ACTION_TOKENS['TARGET'],
-                        ACTION_TOKENS['EMPTY'],
-                        ACTION_TOKENS['PREMISE'],
-                        ACTION_TOKENS['SUBST'],
-                        ACTION_TOKENS['SUBST_TYPE'],
-                        ACTION_TOKENS['TERM'],
-                    ]:
-                left = self._actions.index(a.left)
-                right = self._actions.index(a.right)
+            if a.value not in INV_PREPARE_TOKENS:
+                left = self._arguments.index(a.left)
+                right = self._arguments.index(a.right)
                 summary += \
                     "(" + \
                     str(a.value) + "," + str(left) + "," + str(right) + \
@@ -754,6 +767,7 @@ class ProofTrace():
         self._subst_types = {}
 
         self._steps = {}
+        self._theorems = {}
         self._sequence = []
 
         self.walk(self._index)
@@ -890,6 +904,8 @@ class ProofTrace():
             assert False
 
         self._steps[index] = step
+        self._theorems[index] = self._kernel._theorems[index]
+
         self._sequence.append(index)
 
     def __iter__(
@@ -906,7 +922,15 @@ class ProofTrace():
     def actions(
             self,
     ) -> ProofTraceActions:
-        sequence = []
+        """ Concretize the ProofTraceActions from the ProofTrace
+
+        ProofTraceActions are composed of two sequences, an `actions` sequence
+        which are Action passed as input to our models and an `arguments`
+        sequence which are Actions representing theorems of previous actions
+        and used as "argument" to later actions.
+        """
+        actions = []
+        arguments = []
 
         cache = {
             'substs': {},
@@ -916,13 +940,13 @@ class ProofTrace():
         }
 
         # Empty is used by unary actions as right argument, it lives at the
-        # start of the sequence after the target (index 1). We can't use None
-        # since the language model loss needs an index to use as right
+        # start of the actions sequence after the target (index 1). We can't
+        # use None since the language model loss needs an index to use as right
         # arguments even for right arguments of unary actions.
         empty = Action.from_action('EMPTY', None, None)
 
-        # Recursive function used to build theorems hypotheses used for TARGET
-        # and PREMISE actions.
+        # Recursive function used to build theorems hypotheses used for THEOREM
+        # actions.
         def build_hypothesis(hypotheses):
             if len(hypotheses) == 0:
                 return None
@@ -967,7 +991,7 @@ class ProofTrace():
         t = self._kernel._theorems[self._index]
 
         target = Action.from_action(
-            'TARGET',
+            'THEOREM',
             build_hypothesis(t['hy']),
             Action.from_term(self._kernel.term(t['cc'])),
         )
@@ -1013,115 +1037,100 @@ class ProofTrace():
             reverse=True,
         )
 
-        sequence = [target, empty] + substs + subst_types + terms
+        actions = [target, empty] + substs + subst_types + terms
+        arguments = [empty, empty] + substs + subst_types + terms
 
         for idx in self._premises:
             p = self._premises[idx]
 
             action = Action.from_action(
-                'PREMISE',
+                'THEOREM',
                 build_hypothesis(p['hy']),
                 Action.from_term(self._kernel.term(p['cc'])),
                 idx,
             )
-            cache['indices'][idx] = action
-            sequence.append(action)
+            theorem = action
+
+            cache['indices'][idx] = theorem
+
+            actions.append(action)
+            arguments.append(theorem)
 
         for idx in self._sequence:
             step = self._steps[idx]
-            actions = []
+            action = None
 
             if step[0] == 'REFL':
-                actions = [
-                    Action.from_action(
-                        'REFL',
-                        cache['terms'][step[1]],
-                        empty,
-                        idx,
-                    ),
-                ]
+                action = Action.from_action(
+                    'REFL',
+                    cache['terms'][step[1]],
+                    empty,
+                    idx,
+                )
             elif step[0] == 'TRANS':
-                actions = [
-                    Action.from_action(
-                        'TRANS',
-                        cache['indices'][step[1]],
-                        cache['indices'][step[2]],
-                        idx,
-                    ),
-                ]
+                action = Action.from_action(
+                    'TRANS',
+                    cache['indices'][step[1]],
+                    cache['indices'][step[2]],
+                    idx,
+                )
             elif step[0] == 'MK_COMB':
-                actions = [
-                    Action.from_action(
-                        'MK_COMB',
-                        cache['indices'][step[1]],
-                        cache['indices'][step[2]],
-                        idx,
-                    ),
-                ]
+                action = Action.from_action(
+                    'MK_COMB',
+                    cache['indices'][step[1]],
+                    cache['indices'][step[2]],
+                    idx,
+                )
             elif step[0] == 'ABS':
-                actions = [
-                    Action.from_action(
-                        'ABS',
-                        cache['indices'][step[1]],
-                        cache['terms'][step[2]],
-                        idx,
-                    ),
-                ]
+                action = Action.from_action(
+                    'ABS',
+                    cache['indices'][step[1]],
+                    cache['terms'][step[2]],
+                    idx,
+                )
             elif step[0] == 'BETA':
-                actions = [
-                    Action.from_action(
-                        'BETA',
-                        cache['terms'][step[1]],
-                        empty,
-                        idx,
-                    ),
-                ]
+                action = Action.from_action(
+                    'BETA',
+                    cache['terms'][step[1]],
+                    empty,
+                    idx,
+                )
             elif step[0] == 'ASSUME':
-                actions = [
-                    Action.from_action(
-                        'ASSUME',
-                        cache['terms'][step[1]],
-                        empty,
-                        idx,
-                    ),
-                ]
+                action = Action.from_action(
+                    'ASSUME',
+                    cache['terms'][step[1]],
+                    empty,
+                    idx,
+                )
             elif step[0] == 'EQ_MP':
-                actions = [
-                    Action.from_action(
-                        'EQ_MP',
-                        cache['indices'][step[1]],
-                        cache['indices'][step[2]],
-                        idx,
-                    ),
-                ]
+                action = Action.from_action(
+                    'EQ_MP',
+                    cache['indices'][step[1]],
+                    cache['indices'][step[2]],
+                    idx,
+                )
             elif step[0] == 'DEDUCT_ANTISYM_RULE':
-                actions = [
-                    Action.from_action(
-                        'DEDUCT_ANTISYM_RULE',
-                        cache['indices'][step[1]],
-                        cache['indices'][step[2]],
-                        idx,
-                    ),
-                ]
+                action = Action.from_action(
+                    'DEDUCT_ANTISYM_RULE',
+                    cache['indices'][step[1]],
+                    cache['indices'][step[2]],
+                    idx,
+                )
             elif step[0] == 'INST':
-                actions = [
-                    Action.from_action(
-                        'INST',
-                        cache['indices'][step[1]],
-                        cache['substs'][step[2]],
-                        idx,
-                    ),
-                ]
+                action = Action.from_action(
+                    'INST',
+                    cache['indices'][step[1]],
+                    cache['substs'][step[2]],
+                    idx,
+                )
 
             elif step[0] == 'INST_TYPE':
-                actions = [
-                    Action.from_action(
-                        'INST_TYPE',
-                        cache['indices'][step[1]],
-                        cache['subst_types'][step[2]],
-                        idx,
-                    ),
-                ]
+                action = Action.from_action(
+                    'INST_TYPE',
+                    cache['indices'][step[1]],
+                    cache['subst_types'][step[2]],
+                    idx,
+                )
 
             elif step[0] == 'AXIOM':
                 assert False
@@ -1132,14 +1141,23 @@ class ProofTrace():
             elif step[0] == 'TYPE_DEFINITION':
                 assert False
 
-            assert len(actions) == 1
-            cache['indices'][idx] = actions[-1]
+            theorem = Action.from_action(
+                'THEOREM',
+                build_hypothesis(self._theorems[idx]['hy']),
+                Action.from_term(self._kernel.term(
+                    self._theorems[idx]['cc']
+                )),
+                idx,
+            )
+            cache['indices'][idx] = theorem
 
-            sequence = sequence + actions
+            actions.append(action)
+            arguments.append(theorem)
 
         return ProofTraceActions(
             self.name(),
-            sequence,
+            actions,
+            arguments,
         )
 
 
@@ -1207,20 +1225,21 @@ class ProofTraceLMDataset(Dataset):
             ptra = pickle.load(f)
 
         truth = ptra.actions()[self._cases[idx][1]]
-        trace = ptra.actions()[:self._cases[idx][1]]
+        actions = ptra.actions()[:self._cases[idx][1]]
+        arguments = ptra.arguments()[:self._cases[idx][1]]
 
         # value = 0.0
         # for i in range(ptra.len() - len(trace)):
         #     value = 1.0 + 0.99 * value
         # value = ptra.action_len() * 0.99 ** (ptra.len() - len(trace))
-        value = float(ptra.len() - len(trace))
+        value = float(ptra.len() - len(actions))
 
-        trace.append(Action.from_action('EXTRACT', None, None))
+        actions.append(Action.from_action('EXTRACT', None, None))
         empty = Action.from_action('EMPTY', None, None)
-        while len(trace) < self._sequence_length:
-            trace.append(empty)
+        while len(actions) < self._sequence_length:
+            actions.append(empty)
 
-        return (self._cases[idx][1], trace, truth, value)
+        return (self._cases[idx][1], actions, arguments, truth, value)
 
 
 def lm_collate(
@@ -1232,17 +1251,19 @@ def lm_collate(
     typing.List[float],
 ]:
     indices = []
-    traces = []
+    actions = []
+    arguments = []
     truths = []
     values = []
 
-    for (idx, trc, trh, val) in batch:
+    for (idx, act, arg, trh, val) in batch:
         indices.append(idx)
-        traces.append(trc)
+        actions.append(act)
+        arguments.append(arg)
         truths.append(trh)
         values.append(val)
 
-    return (indices, traces, truths, values)
+    return (indices, actions, arguments, truths, values)
 
 
 def extract():

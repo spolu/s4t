@@ -9,7 +9,7 @@ import torch
 import typing
 
 from dataset.prooftrace import \
-    ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, \
+    ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, INV_PREPARE_TOKENS, \
     Action, ProofTraceActions, TypeException
 
 from prooftrace.repl.fusion import FusionException
@@ -97,15 +97,12 @@ class Env:
                 random.randint(0, 9999),
             ),
             [
-                a for a in self._ground.actions()
-                if a.value in [
-                        ACTION_TOKENS['TARGET'],
-                        ACTION_TOKENS['EMPTY'],
-                        ACTION_TOKENS['PREMISE'],
-                        ACTION_TOKENS['SUBST'],
-                        ACTION_TOKENS['SUBST_TYPE'],
-                        ACTION_TOKENS['TERM'],
-                ]
+                self._ground.actions()[i] for i in range(self._ground.len())
+                if self._ground.actions()[i].value in INV_PREPARE_TOKENS
+            ],
+            [
+                self._ground.arguments()[i] for i in range(self._ground.len())
+                if self._ground.actions()[i].value in INV_PREPARE_TOKENS
             ],
         )
 
@@ -118,11 +115,16 @@ class Env:
 
             for i in range(self._gamma_len):
                 assert self._ground.prepare_len() + i < self._ground.len() - 1
-                a = self._ground.actions()[self._ground.prepare_len() + i]
+                pos = self._ground.prepare_len() + i
+                action = self._ground.actions()[pos]
+                argument = self._ground.arguments()[pos]
 
-                thm = self._repl.apply(a)
-                a._index = thm.index()
-                self._run.append(a)
+                thm = self._repl.apply(action)
+
+                action._index = thm.index()
+                argument._index = thm.index()
+
+                self._run.append(action, argument)
 
         return self.observation()
 
@@ -194,8 +196,8 @@ class Env:
 
                     a = Action.from_action(
                         INV_ACTION_TOKENS[action + len(PREPARE_TOKENS)],
-                        self._run.actions()[left],
-                        self._run.actions()[right],
+                        self._run.arguments()[left],
+                        self._run.arguments()[right],
                     )
 
                     if self._run.seen(a):
@@ -283,8 +285,8 @@ class Env:
 
         a = Action.from_action(
             INV_ACTION_TOKENS[action[0] + len(PREPARE_TOKENS)],
-            self._run.actions()[action[1]],
-            self._run.actions()[action[2]],
+            self._run.arguments()[action[1]],
+            self._run.arguments()[action[2]],
         )
 
         if self._run.seen(a):
@@ -314,7 +316,10 @@ class Env:
             }
 
         a._index = thm.index()
-        self._run.append(a)
+        argument = self._run.build_argument(
+            thm.concl(), thm.hyp(), thm.index(),
+        )
+        self._run.append(a, argument)
 
         step_reward = 0.0
         match_reward = 0.0
@@ -389,13 +394,13 @@ class Pool:
             typing.List[typing.List[Action]],
     ]:
         indices = []
-        traces = []
+        actions = []
 
-        for (idx, trc) in observations:
+        for (idx, act) in observations:
             indices.append(idx)
-            traces.append(trc)
+            actions.append(act)
 
-        return (indices, traces)
+        return (indices, actions)
 
     def reset(
             self,
@@ -507,41 +512,42 @@ def test():
             args.dataset_size,
         )
 
-    sequence_size = config.get('prooftrace_sequence_length')
-    action_size = len(ACTION_TOKENS) - len(PREPARE_TOKENS)
+    # sequence_size = config.get('prooftrace_sequence_length')
+    # action_size = len(ACTION_TOKENS) - len(PREPARE_TOKENS)
 
-    prd_actions = torch.rand(action_size)
-    prd_lefts = torch.rand(sequence_size)
-    prd_rights = torch.rand(sequence_size)
+    # prd_actions = torch.rand(action_size)
+    # prd_lefts = torch.rand(sequence_size)
+    # prd_rights = torch.rand(sequence_size)
 
-    prd_actions = torch.log(prd_actions / prd_actions.sum())
-    prd_lefts = torch.log(prd_lefts / prd_lefts.sum())
-    prd_rights = torch.log(prd_rights / prd_rights.sum())
+    # prd_actions = torch.log(prd_actions / prd_actions.sum())
+    # prd_lefts = torch.log(prd_lefts / prd_lefts.sum())
+    # prd_rights = torch.log(prd_rights / prd_rights.sum())
 
-    env = Env(config, False)
-    env.reset()
-    env.explore(
-        prd_actions,
-        prd_lefts,
-        prd_rights,
-        1.0,
-        1.0,
-        3,
-    )
-    print(".")
-
-    # pool = Pool(config, False)
-    # pool.reset()
-
-    # observations, rewards, dones = pool.step(
-    #     [[8, 12, 13]] * config.get('prooftrace_env_pool_size'),
+    # env = Env(config, False)
+    # env.reset()
+    # env.explore(
+    #     prd_actions,
+    #     prd_lefts,
+    #     prd_rights,
+    #     1.0,
+    #     1.0,
+    #     3,
     # )
-    # for i in range(config.get('prooftrace_env_pool_size')):
-    #     Log.out("STEP", {
-    #         'index': i,
-    #         'reward': rewards[i],
-    #         'done': dones[i],
-    #     })
+    # print(".")
+
+    pool = Pool(config, False)
+    pool.reset(1.0)
+
+    observations, rewards, dones, infos = pool.step(
+        [[8, 12, 13]] * config.get('prooftrace_env_pool_size'),
+        1.0, 1.0, 3,
+    )
+    for i in range(config.get('prooftrace_env_pool_size')):
+        Log.out("STEP", {
+            'index': i,
+            'reward': rewards[i],
+            'done': dones[i],
+        })
 
     # observations, rewards, dones = pool.step(
     #     [[9, 12, 13]] * config.get('prooftrace_env_pool_size'),
