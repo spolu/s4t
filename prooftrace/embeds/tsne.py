@@ -123,7 +123,7 @@ class TreeLSTMEmbedder:
             self,
             batch: typing.List[ProofTraceActions],
     ) -> ProofTraceEmbeds:
-        return self._model_E([ptra.actions() for ptra in batch])
+        return self._model_E([ptra.arguments() for ptra in batch])
 
 
 def extract():
