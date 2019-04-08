@@ -619,9 +619,11 @@ class ProofTraceActions():
             self,
             name: str,
             actions: typing.List[Action],
+            arguments: typing.List[Action],
     ) -> None:
         self._name = name
         self._actions = actions
+        self._arguments = arguments
         self._hashes = None
 
     def dump(
@@ -669,6 +671,11 @@ class ProofTraceActions():
     ) -> typing.List[Action]:
         return self._actions
 
+    def arguments(
+            self,
+    ) -> typing.List[Action]:
+        return self._arguments
+
     def hashes(
             self,
     ) -> typing.Dict[bytes, bool]:
@@ -681,8 +688,10 @@ class ProofTraceActions():
     def append(
             self,
             action: Action,
+            theorem: Action,
     ) -> None:
         self._actions.append(action)
+        self._arguments.append(theorem)
         self.hashes()
         self._hashes[action.hash()] = len(self._actions) - 1
 
@@ -698,6 +707,7 @@ class ProofTraceActions():
         ptra = ProofTraceActions(
             self._name,
             self._actions.copy(),
+            self._arguments.copy(),
         )
         ptra._hashes = dict(self._hashes)
 
@@ -734,6 +744,7 @@ class ProofTrace():
         self._subst_types = {}
 
         self._steps = {}
+        self._theorems = {}
         self._sequence = []
 
         self.walk(self._index)
@@ -870,6 +881,8 @@ class ProofTrace():
             assert False
 
         self._steps[index] = step
+        self._theorems[index] = self._kernel._theorems[index]
+
         self._sequence.append(index)
 
     def __iter__(
@@ -886,7 +899,15 @@ class ProofTrace():
     def actions(
             self,
     ) -> ProofTraceActions:
-        sequence = []
+        """ Concretize the ProofTraceActions from the ProofTrace
+
+        ProofTraceActions are composed of two sequences, an `actions` sequence
+        which are Action passed as input to our models and an `arguments`
+        sequence which are Actions representing theorems of previous actions
+        and used as "argument" to later actions.
+        """
+        actions = []
+        arguments = []
 
         cache = {
             'substs': {},
@@ -896,8 +917,8 @@ class ProofTrace():
         }
 
         # Empty is used by unary actions as right argument, it lives at the
-        # start of the sequence after the target (index 1). We can't use None
-        # since the language model loss needs an index to use as right
+        # start of the actions sequence after the target (index 1). We can't
+        # use None since the language model loss needs an index to use as right
         # arguments even for right arguments of unary actions.
         empty = Action.from_action('EMPTY', None, None)
 
@@ -993,7 +1014,8 @@ class ProofTrace():
             reverse=True,
         )
 
-        sequence = [target, empty] + substs + subst_types + terms
+        actions = [target, empty] + substs + subst_types + terms
+        arguments = [empty, empty] + substs + subst_types + terms
 
         for idx in self._premises:
             p = self._premises[idx]
@@ -1004,104 +1026,88 @@ class ProofTrace():
                 Action.from_term(self._kernel.term(p['cc'])),
                 idx,
             )
-            cache['indices'][idx] = action
-            sequence.append(action)
+            theorem = action
+
+            cache['indices'][idx] = theorem
+
+            actions.append(action)
+            arguments.append(theorem)
 
         for idx in self._sequence:
             step = self._steps[idx]
-            actions = []
+            action = None
 
             if step[0] == 'REFL':
-                actions = [
-                    Action.from_action(
-                        'REFL',
-                        cache['terms'][step[1]],
-                        empty,
-                        idx,
-                    ),
-                ]
+                action = Action.from_action(
+                    'REFL',
+                    cache['terms'][step[1]],
+                    empty,
+                    idx,
+                )
             elif step[0] == 'TRANS':
-                actions = [
-                    Action.from_action(
-                        'TRANS',
-                        cache['indices'][step[1]],
-                        cache['indices'][step[2]],
-                        idx,
-                    ),
-                ]
+                action = Action.from_action(
+                    'TRANS',
+                    cache['indices'][step[1]],
+                    cache['indices'][step[2]],
+                    idx,
+                )
             elif step[0] == 'MK_COMB':
-                actions = [
-                    Action.from_action(
-                        'MK_COMB',
-                        cache['indices'][step[1]],
-                        cache['indices'][step[2]],
-                        idx,
-                    ),
-                ]
+                action = Action.from_action(
+                    'MK_COMB',
+                    cache['indices'][step[1]],
+                    cache['indices'][step[2]],
+                    idx,
+                )
             elif step[0] == 'ABS':
-                actions = [
-                    Action.from_action(
-                        'ABS',
-                        cache['indices'][step[1]],
-                        cache['terms'][step[2]],
-                        idx,
-                    ),
-                ]
+                action = Action.from_action(
+                    'ABS',
+                    cache['indices'][step[1]],
+                    cache['terms'][step[2]],
+                    idx,
+                )
             elif step[0] == 'BETA':
-                actions = [
-                    Action.from_action(
-                        'BETA',
-                        cache['terms'][step[1]],
-                        empty,
-                        idx,
-                    ),
-                ]
+                action = Action.from_action(
+                    'BETA',
+                    cache['terms'][step[1]],
+                    empty,
+                    idx,
+                )
             elif step[0] == 'ASSUME':
-                actions = [
-                    Action.from_action(
-                        'ASSUME',
-                        cache['terms'][step[1]],
-                        empty,
-                        idx,
-                    ),
-                ]
+                action = Action.from_action(
+                    'ASSUME',
+                    cache['terms'][step[1]],
+                    empty,
+                    idx,
+                )
             elif step[0] == 'EQ_MP':
-                actions = [
-                    Action.from_action(
-                        'EQ_MP',
-                        cache['indices'][step[1]],
-                        cache['indices'][step[2]],
-                        idx,
-                    ),
-                ]
+                action = Action.from_action(
+                    'EQ_MP',
+                    cache['indices'][step[1]],
+                    cache['indices'][step[2]],
+                    idx,
+                )
             elif step[0] == 'DEDUCT_ANTISYM_RULE':
-                actions = [
-                    Action.from_action(
-                        'DEDUCT_ANTISYM_RULE',
-                        cache['indices'][step[1]],
-                        cache['indices'][step[2]],
-                        idx,
-                    ),
-                ]
+                action = Action.from_action(
+                    'DEDUCT_ANTISYM_RULE',
+                    cache['indices'][step[1]],
+                    cache['indices'][step[2]],
+                    idx,
+                )
             elif step[0] == 'INST':
-                actions = [
-                    Action.from_action(
-                        'INST',
-                        cache['indices'][step[1]],
-                        cache['substs'][step[2]],
-                        idx,
-                    ),
-                ]
+                action = Action.from_action(
+                    'INST',
+                    cache['indices'][step[1]],
+                    cache['substs'][step[2]],
+                    idx,
+                )
 
             elif step[0] == 'INST_TYPE':
-                actions = [
-                    Action.from_action(
-                        'INST_TYPE',
-                        cache['indices'][step[1]],
-                        cache['subst_types'][step[2]],
-                        idx,
-                    ),
-                ]
+                action = Action.from_action(
+                    'INST_TYPE',
+                    cache['indices'][step[1]],
+                    cache['subst_types'][step[2]],
+                    idx,
+                )
 
             elif step[0] == 'AXIOM':
                 assert False
@@ -1112,14 +1118,23 @@ class ProofTrace():
             elif step[0] == 'TYPE_DEFINITION':
                 assert False
 
-            assert len(actions) == 1
-            cache['indices'][idx] = actions[-1]
+            theorem = Action.from_action(
+                'THEOREM',
+                build_hypothesis(self._theorems[idx]['hy']),
+                Action.from_term(self._kernel.term(
+                    self._theorems[idx]['cc']
+                )),
+                idx,
+            )
+            cache['indices'][idx] = theorem
 
-            sequence = sequence + actions
+            actions.append(action)
+            arguments.append(theorem)
 
         return ProofTraceActions(
             self.name(),
-            sequence,
+            actions,
+            arguments,
         )
 
 
