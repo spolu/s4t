@@ -194,6 +194,9 @@
       var action_ctx = $('#embeds #action')[0].getContext('2d')
 
       var draw_action = (ctx, action, width) => {
+        if (['EMPTY', 'THEOREM', 'SUBST', 'SUBST_TYPE', 'TERM'].includes(action['type'])) {
+          return
+        }
         var draw_line = (from, to) => {
           ctx.beginPath();
           ctx.lineWidth = width
@@ -258,7 +261,6 @@
       var show_action = (action) => {
         $('#embeds #tree').css({ 'opacity': 0.8 })
         draw_action(action_ctx, action, 4)
-        console.log(action)
         if (action['term']) {
           var html = '';
           html += action['term']
@@ -375,7 +377,6 @@
         $('#prooftraces #inner').append(item)
 
         item.mouseover(() => {
-          console.log(traces[k])
           show_trace(traces[k]);
         });
         item.mouseout(() => {
