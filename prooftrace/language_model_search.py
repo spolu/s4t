@@ -8,7 +8,7 @@ import torch
 import typing
 
 from dataset.prooftrace import \
-    ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, \
+    ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, INV_PREPARE_TOKENS, \
     Action, ProofTraceActions, ProofTraceTokenizer
 
 from prooftrace.models.embedder import E
@@ -383,17 +383,7 @@ class Node:
                 datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f"),
                 random.randint(0, 9999),
             ),
-            [
-                a for a in ground.actions()
-                if a.value in [
-                        ACTION_TOKENS['TARGET'],
-                        ACTION_TOKENS['EMPTY'],
-                        ACTION_TOKENS['PREMISE'],
-                        ACTION_TOKENS['SUBST'],
-                        ACTION_TOKENS['SUBST_TYPE'],
-                        ACTION_TOKENS['TERM'],
-                ]
-            ],
+            [a for a in ground.actions() if a.value in INV_PREPARE_TOKENS],
         )
         repl = REPL(tokenizer)
         repl.prepare(ptra)

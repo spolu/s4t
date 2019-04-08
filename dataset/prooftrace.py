@@ -19,39 +19,38 @@ from utils.log import Log
 
 ACTION_TOKENS = {
     'EMPTY': 0,
-    'TARGET': 1,
-    'EXTRACT': 2,
-    'PREMISE': 3,
-    'HYPOTHESIS': 4,
-    'SUBST': 5,
-    'SUBST_TYPE': 6,
-    'SUBST_PAIR': 7,
-    'TERM': 8,
-    'REFL': 9,
-    'TRANS': 10,
-    'MK_COMB': 11,
-    'ABS': 12,
-    'BETA': 13,
-    'ASSUME': 14,
-    'EQ_MP': 15,
-    'DEDUCT_ANTISYM_RULE': 16,
-    'INST': 17,
-    'INST_TYPE': 18,
+    'EXTRACT': 1,
+    'THEOREM': 2,
+    'HYPOTHESIS': 3,
+    'SUBST': 4,
+    'SUBST_TYPE': 5,
+    'SUBST_PAIR': 6,
+    'TERM': 7,
+    'REFL': 8,
+    'TRANS': 9,
+    'MK_COMB': 10,
+    'ABS': 11,
+    'BETA': 12,
+    'ASSUME': 13,
+    'EQ_MP': 14,
+    'DEDUCT_ANTISYM_RULE': 15,
+    'INST': 16,
+    'INST_TYPE': 17,
 }
 PREPARE_TOKENS = {
     'EMPTY': 0,
-    'TARGET': 1,
-    'EXTRACT': 2,
-    'PREMISE': 3,
-    'HYPOTHESIS': 4,
-    'SUBST': 5,
-    'SUBST_TYPE': 6,
-    'SUBST_PAIR': 7,
-    'TERM': 8,
+    'EXTRACT': 1,
+    'THEOREM': 2,
+    'HYPOTHESIS': 3,
+    'SUBST': 4,
+    'SUBST_TYPE': 5,
+    'SUBST_PAIR': 6,
+    'TERM': 7,
 }
 
 
 INV_ACTION_TOKENS = {v: k for k, v in ACTION_TOKENS.items()}
+INV_PREPARE_TOKENS = {v: k for k, v in PREPARE_TOKENS.items()}
 
 
 class TypeException(Exception):
@@ -223,10 +222,9 @@ class Action(BVT):
         super(Action, self).__init__(
             value, left, right
         )
-        # `self._index` stores the original index of the associated action.
-        # It's used solely for PREMISE to store their index in order to be
-        # able to retrieve the associated theorem (through the proof) in the
-        # HOL Light environment as we create a prooftrace REPL environment.
+        # `self._index` stores the original index of the associated action. It
+        # is used to store the index of the theorem assosicated with this
+        # action for REPL/Fusion.
         self._index = index
 
     def index(
@@ -292,10 +290,7 @@ class Action(BVT):
                 else:
                     return [] + subst_type(a.right)
 
-        if INV_ACTION_TOKENS[self.value] == 'TARGET':
-            yield 'hyp', hypothesis(self.left)
-            yield 'ccl', term(self.right)
-        if INV_ACTION_TOKENS[self.value] == 'PREMISE':
+        if INV_ACTION_TOKENS[self.value] == 'THEOREM':
             yield 'hyp', hypothesis(self.left)
             yield 'ccl', term(self.right)
         if INV_ACTION_TOKENS[self.value] == 'SUBST':
@@ -646,14 +641,7 @@ class ProofTraceActions():
     ) -> int:
         prepare_len = 0
         for a in self._actions:
-            if a.value in [
-                    ACTION_TOKENS['TARGET'],
-                    ACTION_TOKENS['EMPTY'],
-                    ACTION_TOKENS['PREMISE'],
-                    ACTION_TOKENS['SUBST'],
-                    ACTION_TOKENS['SUBST_TYPE'],
-                    ACTION_TOKENS['TERM'],
-            ]:
+            if a.value in INV_PREPARE_TOKENS:
                 prepare_len += 1
             else:
                 break
@@ -720,15 +708,7 @@ class ProofTraceActions():
     ):
         summary = "["
         for a in self._actions:
-            if a.value not in \
-                    [
-                        ACTION_TOKENS['TARGET'],
-                        ACTION_TOKENS['EMPTY'],
-                        ACTION_TOKENS['PREMISE'],
-                        ACTION_TOKENS['SUBST'],
-                        ACTION_TOKENS['SUBST_TYPE'],
-                        ACTION_TOKENS['TERM'],
-                    ]:
+            if a.value not in INV_PREPARE_TOKENS:
                 left = self._actions.index(a.left)
                 right = self._actions.index(a.right)
                 summary += \
@@ -921,8 +901,8 @@ class ProofTrace():
         # arguments even for right arguments of unary actions.
         empty = Action.from_action('EMPTY', None, None)
 
-        # Recursive function used to build theorems hypotheses used for TARGET
-        # and PREMISE actions.
+        # Recursive function used to build theorems hypotheses used for THEOREM
+        # actions.
         def build_hypothesis(hypotheses):
             if len(hypotheses) == 0:
                 return None
@@ -967,7 +947,7 @@ class ProofTrace():
         t = self._kernel._theorems[self._index]
 
         target = Action.from_action(
-            'TARGET',
+            'THEOREM',
             build_hypothesis(t['hy']),
             Action.from_term(self._kernel.term(t['cc'])),
         )
@@ -1019,7 +999,7 @@ class ProofTrace():
             p = self._premises[idx]
 
             action = Action.from_action(
-                'PREMISE',
+                'THEOREM',
                 build_hypothesis(p['hy']),
                 Action.from_term(self._kernel.term(p['cc'])),
                 idx,

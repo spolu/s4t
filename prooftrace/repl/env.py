@@ -9,7 +9,7 @@ import torch
 import typing
 
 from dataset.prooftrace import \
-    ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, \
+    ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, INV_PREPARE_TOKENS, \
     Action, ProofTraceActions, TypeException
 
 from prooftrace.repl.fusion import FusionException
@@ -98,14 +98,7 @@ class Env:
             ),
             [
                 a for a in self._ground.actions()
-                if a.value in [
-                        ACTION_TOKENS['TARGET'],
-                        ACTION_TOKENS['EMPTY'],
-                        ACTION_TOKENS['PREMISE'],
-                        ACTION_TOKENS['SUBST'],
-                        ACTION_TOKENS['SUBST_TYPE'],
-                        ACTION_TOKENS['TERM'],
-                ]
+                if a.value in INV_PREPARE_TOKENS
             ],
         )
 
