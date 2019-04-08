@@ -21,7 +21,7 @@
   "prooftrace_transformer_layer_count": 0,
 
   "prooftrace_lstm_layer_count": 2,
-  "prooftrace_lstm_hidden_size": 512,
+  "prooftrace_lstm_hidden_size": 1024,
 
   "prooftrace_env_pool_size": 16,
   "prooftrace_ppo_rollout_size": 32,

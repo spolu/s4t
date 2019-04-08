@@ -11,8 +11,8 @@
   "prooftrace_load_dir": null,
   "prooftrace_save_dir": null,
 
-  "prooftrace_type_token_count": 984,
-  "prooftrace_term_token_count": 14228,
+  "prooftrace_type_token_count": 549,
+  "prooftrace_term_token_count": 1786,
   "prooftrace_hidden_size": 256,
   "prooftrace_sequence_length": 256,
 
@@ -21,7 +21,7 @@
   "prooftrace_transformer_layer_count": 0,
 
   "prooftrace_lstm_layer_count": 2,
-  "prooftrace_lstm_hidden_size": 512,
+  "prooftrace_lstm_hidden_size": 1024,
 
   "prooftrace_lm_batch_size": 32,
   "prooftrace_lm_accumulation_step_count": 1,
