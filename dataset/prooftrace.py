@@ -1418,7 +1418,7 @@ def extract():
             len(tr._terms) + \
             len(tr._substs) + len(tr._subst_types)
         if tl > config.get('prooftrace_sequence_length'):
-            Log.out*("Filtering Trace", {
+            Log.out("Filtering Trace", {
                 'name': tr.name(),
                 'length': tl,
             })
