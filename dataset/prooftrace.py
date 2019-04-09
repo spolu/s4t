@@ -727,9 +727,9 @@ class ProofTraceActions():
 
     def seen(
             self,
-            action: Action,
+            a: Action,
     ) -> bool:
-        return action.hash() in self.hashes()
+        return a.hash() in self.hashes()
 
     def copy(
             self,

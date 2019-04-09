@@ -169,6 +169,7 @@ class Env:
                     self._run.hashes()[a.right.hash()],
                 ]], dtype=torch.int64).to(self._device)
                 return actions, 0
+        import pdb; pdb.set_trace()
         assert False
 
     def beta_oracle(
@@ -291,13 +292,13 @@ class Env:
                 'demo_length': 0,
             }
 
-        a = Action.from_action(
+        action = Action.from_action(
             INV_ACTION_TOKENS[action[0] + len(PREPARE_TOKENS)],
             self._run.arguments()[action[1]],
             self._run.arguments()[action[2]],
         )
 
-        if self._run.seen(a):
+        if self._run.seen(action):
             Log.out("DONE ILLEGAL[seen]", {
                 'ground_length': self._ground.action_len(),
                 'run_length': self._run.action_len(),
@@ -310,7 +311,7 @@ class Env:
             }
 
         try:
-            thm = self._repl.apply(a)
+            thm = self._repl.apply(action)
         except (FusionException, REPLException, TypeException):
             Log.out("DONE ILLEGAL[fusion]", {
                 'ground_length': self._ground.action_len(),
@@ -323,11 +324,11 @@ class Env:
                 'demo_length': 0,
             }
 
-        a._index = thm.index()
+        action._index = thm.index()
         argument = self._run.build_argument(
             thm.concl(), thm.hyp(), thm.index(),
         )
-        self._run.append(a, argument)
+        self._run.append(action, argument)
 
         step_reward = 0.0
         match_reward = 0.0
@@ -338,7 +339,7 @@ class Env:
         if step_reward_prob > 0.0 and random.random() < step_reward_prob:
             step_reward = 1.0
 
-        if self._ground.seen(a):
+        if self._ground.seen(action):
             self._match_count += 1
             if match_reward_prob > 0.0 and random.random() < match_reward_prob:
                 match_reward = 1.0
