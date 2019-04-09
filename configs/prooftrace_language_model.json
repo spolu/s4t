@@ -23,7 +23,7 @@
   "prooftrace_lstm_layer_count": 0,
   "prooftrace_lstm_hidden_size": 512,
 
-  "prooftrace_lm_batch_size": 32,
+  "prooftrace_lm_batch_size": 24,
   "prooftrace_lm_accumulation_step_count": 1,
   "prooftrace_lm_learning_rate": 0.0005,
   "prooftrace_lm_value_coeff": 1.0,
