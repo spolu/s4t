@@ -227,6 +227,30 @@ class Action(BVT):
         # action for REPL/Fusion.
         self._index = index
 
+    def hash(
+            self,
+    ):
+        # Compute a hash that is not order depenednt for HYPOTHESIS.
+        if self.value == ACTION_TOKENS['HYPOTHESIS'] and self._hash is None:
+            hashes = [b'HYPOTHESIS']
+
+            def walk(h):
+                if h is None:
+                    return
+                if type(h.value) is Term:
+                    hashes.append(h.hash())
+                walk(h.left)
+                walk(h.right)
+
+            walk(self)
+
+            h = xxhash.xxh64()
+            for hh in sorted(hashes):
+                h.update(hh)
+            self._hash = h.digest()
+
+        return super(Action, self).hash()
+
     def index(
             self,
     ) -> int:

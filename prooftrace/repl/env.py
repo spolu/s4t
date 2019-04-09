@@ -169,7 +169,6 @@ class Env:
                     self._run.hashes()[a.right.hash()],
                 ]], dtype=torch.int64).to(self._device)
                 return actions, 0
-        import pdb; pdb.set_trace()
         assert False
 
     def beta_oracle(
