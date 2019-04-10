@@ -1,7 +1,8 @@
 import argparse
 import base64
-import os
+import concurrent.futures
 import json
+import os
 import pickle
 import random
 import re
@@ -621,6 +622,7 @@ class ProofTraceKernel():
             self,
             ty: str,
     ) -> Type:
+        return self._t.type(ty)
         h = self.type_hash(ty)
         if h not in self._type_cache:
             self._type_cache[h] = self._t.type(ty)
@@ -631,6 +633,7 @@ class ProofTraceKernel():
             self,
             tm: str,
     ) -> Term:
+        return self._t.term(tm)
         h = self.term_hash(tm)
         if h not in self._term_cache:
             self._term_cache[h] = self._t.term(tm)
@@ -1436,20 +1439,28 @@ def extract():
         shutil.rmtree(traces_path_test)
     os.mkdir(traces_path_test)
 
-    for i, tr in enumerate(traces):
+    executor = concurrent.futures.ThreadPoolExecutor()
+
+    def generate(a):
+        tr = a[0]
+        i = a[1]
+
+        Log.out("Generating ProofTraceActions", {
+            'trace': tr.name(),
+        })
+
         tl = len(tr._sequence) + \
             len(tr._premises) + \
             len(tr._terms) + \
             len(tr._substs) + len(tr._subst_types)
-        if tl > config.get('prooftrace_sequence_length'):
+        if tl > config.get('prooftrace_max_demo_length'):
             Log.out("Filtering Trace", {
                 'name': tr.name(),
                 'length': tl,
             })
-            continue
+            return None
 
         ptra = tr.actions()
-        trace_lengths.append(ptra.len())
 
         k = permutation[i]
         if k < train_size:
@@ -1458,18 +1469,26 @@ def extract():
             path = traces_path_test
 
         ptra_path = os.path.join(path, ptra.path())
-
         with open(ptra_path, 'wb') as f:
-            pickle.dump(ptra, f)
             Log.out("Writing ProofTraceActions", {
                 'path': ptra_path,
                 'index': i,
                 'total': len(traces),
             })
-
+            pickle.dump(ptra, f)
         # trace_path = os.path.join(path, tr.name() + '.trace')
         # with open(trace_path, 'w') as f:
         #     json.dump(dict(tr), f, sort_keys=False, indent=2)
+
+        return ptra.len()
+
+    args = []
+    for i, tr in enumerate(traces):
+        args.append([tr, i])
+
+    for ptra_len in executor.map(generate, args):
+        if ptra_len is not None:
+            trace_lengths.append(ptra_len)
 
     Log.histogram(
         "ProofTraces Length",
