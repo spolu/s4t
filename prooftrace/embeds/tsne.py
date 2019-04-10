@@ -7,7 +7,7 @@ import torch
 import typing
 import re
 
-from dataset.prooftrace import \
+from prooftrace.prooftrace import \
     INV_ACTION_TOKENS, ProofTraceActions, Action
 
 from prooftrace.models.embedder import E

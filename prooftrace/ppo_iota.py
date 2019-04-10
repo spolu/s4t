@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import typing
 
-from dataset.prooftrace import Action
+from prooftrace.prooftrace import Action
 
 from generic.iota import IOTAAck, IOTASyn
 

@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import typing
 
-from dataset.prooftrace import \
+from prooftrace.prooftrace import \
     Term, Type, Action, \
     ACTION_TOKENS, ProofTraceLMDataset
 

@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from dataset.prooftrace import ProofTraceLMDataset, lm_collate, PREPARE_TOKENS
+from prooftrace.prooftrace import ProofTraceLMDataset, lm_collate, PREPARE_TOKENS
 
 from generic.iota import IOTAAck, IOTASyn
 

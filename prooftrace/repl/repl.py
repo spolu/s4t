@@ -3,7 +3,7 @@ import os
 import pickle
 import re
 
-from dataset.prooftrace import \
+from prooftrace.prooftrace import \
     ACTION_TOKENS, INV_ACTION_TOKENS, INV_PREPARE_TOKENS, \
     ProofTraceTokenizer, Action, ProofTraceActions, TypeException
 

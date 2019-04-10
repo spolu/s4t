@@ -6,7 +6,7 @@ import torch.distributed as distributed
 import torch.utils.data.distributed
 import torch.optim as optim
 
-from dataset.prooftrace import ProofTraceLMDataset, lm_collate, PREPARE_TOKENS
+from prooftrace.prooftrace import ProofTraceLMDataset, lm_collate, PREPARE_TOKENS
 
 from tensorboardX import SummaryWriter
 

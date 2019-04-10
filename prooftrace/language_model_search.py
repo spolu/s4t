@@ -7,7 +7,7 @@ import re
 import torch
 import typing
 
-from dataset.prooftrace import \
+from prooftrace.prooftrace import \
     ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, INV_PREPARE_TOKENS, \
     Action, ProofTraceActions, ProofTraceTokenizer
 

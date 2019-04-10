@@ -3,7 +3,7 @@ import typing
 import os
 import pickle
 
-from dataset.prooftrace import \
+from prooftrace.prooftrace import \
     ProofTraceKernel, ProofTraceTokenizer, \
     Type, Term
 
