@@ -329,6 +329,7 @@
             done = true
           }
         })
+        done = false
         trace['actions'].forEach((right, idx) => {
           if (!done && right['hash'] == action['right']) {
             $('#info #right').html(action_html(right))
