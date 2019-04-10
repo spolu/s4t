@@ -321,16 +321,19 @@
 
         $('.step').removeClass('parent')
 
+        var done = false
         trace['actions'].forEach((left, idx) => {
-          if (left['hash'] == action['left']) {
+          if (!done && left['hash'] == action['left']) {
             $('#info #left').html(action_html(left))
             $('#step-' + idx).addClass('parent')
+            done = true
           }
         })
         trace['actions'].forEach((right, idx) => {
-          if (right['hash'] == action['right']) {
+          if (!done && right['hash'] == action['right']) {
             $('#info #right').html(action_html(right))
             $('#step-' + idx).addClass('parent')
+            done = true
           }
         })
 
