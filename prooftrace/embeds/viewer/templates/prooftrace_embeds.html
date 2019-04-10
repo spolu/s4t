@@ -35,6 +35,9 @@
       #prooftraces #inner #trace:hover {
           background-color: #555;
       }
+      #prooftraces #inner #trace.selected {
+        background-color: #555;
+      }
 
       #steps {
         position: absolute;
@@ -49,11 +52,14 @@
         padding-left: 5px;
       }
 
-      #steps #inner #step {
+      #steps #inner .step {
         cursor: pointer;
       }
-      #steps #inner #step:hover {
-          background-color: #333;
+      #steps #inner .step:hover {
+        background-color: #333;
+      }
+      #steps #inner .step.parent {
+        background-color: #555;
       }
 
       #embeds {
@@ -130,6 +136,15 @@
         padding: 10px;
       }
 
+      #info #action {
+        margin-top: 10px;
+      }
+      #info #left {
+      }
+      #info #right {
+        margin-top: 5px;
+      }
+
       #info .th {
         color: #aaa;
       }
@@ -159,10 +174,9 @@
     </div>
 
     <div id="info">
-      <div id="term"></div>
-      <div id="hyp"></div>
-      <div id="ccl"></div>
-      <div id="subst"></div>
+      <div id="left"></div>
+      <div id="right"></div>
+      <div id="action"></div>
     </div>
 
     <script src="/static/js/jquery-3.3.1.min.js"></script>
@@ -175,16 +189,16 @@
         'SUBST': '#95F767',
         'SUBST_TYPE': '#60E534',
         'TERM': '#407A23',
-        'REFL': '#541A1A',
-        'TRANS': '#272936',
-        'MK_COMB': '#93754C',
-        'ABS': '#3D362B',
-        'BETA': '#455450',
-        'ASSUME': '#342635',
+        'REFL': '#C33C3C',
+        'TRANS': '#CC0099',
+        'MK_COMB': '#FF9900',
+        'ABS': '#B5A997',
+        'BETA': '#ABBAB6',
+        'ASSUME': '#BDA6BF',
         'EQ_MP': '#6A934C',
-        'DEDUCT_ANTISYM_RULE': '#454954',
+        'DEDUCT_ANTISYM_RULE': '#6699FF',
         'INST': '#4C7B93',
-        'INST_TYPE': '#2A363D',
+        'INST_TYPE': '#A5B6C0',
       }
 
       var scale = 9.0
@@ -235,7 +249,7 @@
       };
 
       var show_trace = (tr) => {
-          tr.forEach((e) => {
+          tr.forEach((e, idx) => {
             trace_ctx.lineWidth = 1
             trace_ctx.strokeStyle = 'white'
             trace_ctx.strokeRect(
@@ -250,42 +264,33 @@
 
       var empty_action = () => {
         $('#embeds #tree').css({ 'opacity': 1.0 })
+
         action_ctx.clearRect(0, 0, 1800, 1800);
+
         $('#info').css({'display': 'none'})
-        $('#info #term').html('')
-        $('#info #hyp').html('')
-        $('#info #ccl').html('')
-        $('#info #subst').html('')
+        $('#info #action').html('')
+        $('#info #left').html('')
+        $('#info #right').html('')
       };
 
-      var show_action = (action) => {
-        $('#embeds #tree').css({ 'opacity': 0.8 })
-        draw_action(action_ctx, action, 4)
+      var action_html = (action) => {
+        var html = '<div id=\"step\" style="color:' +
+          ACTION_COLORS[action['type']] +
+          ';">' + action['type'] + '</div>'
+
         if (action['term']) {
-          var html = '';
           html += action['term']
-
-          $('#info #term').html(html)
-          $('#info').css({'display': 'block'})
-        }
-        if (action['ccl']) {
-          var html = '<span class="th">|- </span>';
-          html += action['ccl']
-
-          $('#info #ccl').html(html)
-          $('#info').css({'display': 'block'})
         }
         if (action['hyp']) {
-          var html = '';
           action['hyp'].forEach((h) => {
             html += '<div>' + h + '</div>'
           });
-
-          $('#info #hyp').html(html)
-          $('#info').css({'display': 'block'})
+        }
+        if (action['ccl']) {
+          html += '<div class="th">|- </div>';
+          html += action['ccl']
         }
         if (action['subst']) {
-          var html = '';
           action['subst'].forEach((s) => {
             html += '<div>' +
               '<span class="sl">' + s[0] + '</span>' +
@@ -293,12 +298,8 @@
               '<span class="sr">' + s[1] + '</span>' +
               '</div>'
           });
-
-          $('#info #subst').html(html)
-          $('#info').css({'display': 'block'})
         }
         if (action['subst_type']) {
-          var html = '';
           action['subst_type'].forEach((s) => {
             html += '<div>' +
               '<span class="sl">' + s[0] + '</span>' +
@@ -306,10 +307,34 @@
               '<span class="sr">' + s[1] + '</span>' +
               '</div>'
           });
-
-          $('#info #subst').html(html)
-          $('#info').css({'display': 'block'})
         }
+
+        return html
+      };
+
+      var show_action = (action, trace) => {
+        $('#embeds #tree').css({ 'opacity': 0.7 })
+
+        draw_action(action_ctx, action, 4)
+
+        $('#info #action').html(action_html(action))
+
+        $('.step').removeClass('parent')
+
+        trace['actions'].forEach((left, idx) => {
+          if (left['hash'] == action['left']) {
+            $('#info #left').html(action_html(left))
+            $('#step-' + idx).addClass('parent')
+          }
+        })
+        trace['actions'].forEach((right, idx) => {
+          if (right['hash'] == action['right']) {
+            $('#info #right').html(action_html(right))
+            $('#step-' + idx).addClass('parent')
+          }
+        })
+
+        $('#info').css({'display': 'block'})
       };
 
       // Steps display.
@@ -320,17 +345,17 @@
       };
 
       var show_steps = (trace) => {
-        trace['actions'].forEach((action) => {
+        trace['actions'].forEach((action, idx) => {
           if(action['type'] == 'EMPTY') {
             return
           }
           var item = $(
-            '<div id=\"step\" style="color:' +
+            '<div class=\"step\" id=\"step-' + idx + '\" style="color:' +
               ACTION_COLORS[action['type']] +
             ';">' + action['type'] + '</div>'
           )
           item.mouseover(() => {
-            show_action(action);
+            show_action(action, trace);
           });
           item.mouseout(() => {
             empty_action();
@@ -339,6 +364,17 @@
           $('#steps #inner').append(item)
 
           draw_action(tree_ctx, action, 1)
+
+          if (idx == trace['actions'].length-1) {
+            tree_ctx.lineWidth = 8
+            tree_ctx.strokeStyle = 'red'
+            var e = dump['embeds'][action['hash']]
+            tree_ctx.strokeRect(
+              Math.floor((100 + e['embed'][0]) * scale)-4,
+              Math.floor((100 + e['embed'][1]) * scale)-4,
+              8, 8,
+            )
+          }
         })
       };
 
@@ -369,6 +405,8 @@
         var item = $('<div id=\"trace\">' + k + '</div>')
 
         item.click(() => {
+          $('#prooftraces #inner #trace').removeClass('selected')
+          item.addClass('selected')
           empty_steps()
           $.getJSON("/prooftrace_embeds/traces/" + k, (data) => {
             show_steps(data);
