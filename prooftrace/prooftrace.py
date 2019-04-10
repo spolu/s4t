@@ -1528,6 +1528,18 @@ def extract():
 
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=32)
 
+    force_test = [
+        'IRRATIONAL_SQRT_NONSQUARE',
+        'IRRATIONAL_SQRT_PRIME',
+        'IRRATIONAL_SQRT_2',
+    ]
+    force_keep = [
+        'REAL_INTEGER_EQ_0',
+        'IRRATIONAL_SQRT_NONSQUARE',
+        'IRRATIONAL_SQRT_PRIME',
+        'IRRATIONAL_SQRT_2',
+    ]
+
     def generate(a):
         tr = a[0]
         i = a[1]
@@ -1537,16 +1549,26 @@ def extract():
             len(tr._terms) + \
             len(tr._substs) + len(tr._subst_types)
         if tl > config.get('prooftrace_max_demo_length'):
-            Log.out("Filtering Trace", {
-                'name': tr.name(),
-                'length': tl,
-            })
-            return None
+            keep = False
+            for nm in force_keep:
+                if re.search(nm, tr.name()) is not None:
+                    keep = True
+            if not keep:
+                Log.out("Filtering Trace", {
+                    'name': tr.name(),
+                    'length': tl,
+                })
+                return None
 
         ptra = tr.actions()
 
+        test = False
+        for nm in force_test:
+            if re.search(nm, tr.name()) is not None:
+                test = True
+
         k = permutation[i]
-        if k < train_size:
+        if k < train_size and not test:
             path = traces_path_train
         else:
             path = traces_path_test
