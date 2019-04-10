@@ -23,9 +23,11 @@ class PH(nn.Module):
         self.lstm_hidden_size = \
             config.get('prooftrace_lstm_hidden_size')
 
+        self.adapter = nn.Linear(self.hidden_size, self.lstm_hidden_size)
+
         self.action_head = nn.Sequential(
             nn.Linear(
-                self.lstm_hidden_size + self.hidden_size,
+                self.lstm_hidden_size,
                 self.lstm_hidden_size,
             ),
             GeLU(),
@@ -38,7 +40,7 @@ class PH(nn.Module):
         )
         self.left_head = nn.Sequential(
             nn.Linear(
-                self.hidden_size + self.lstm_hidden_size,
+                self.lstm_hidden_size,
                 self.lstm_hidden_size,
             ),
             GeLU(),
@@ -48,7 +50,7 @@ class PH(nn.Module):
         )
         self.right_head = nn.Sequential(
             nn.Linear(
-                self.hidden_size + self.lstm_hidden_size,
+                self.lstm_hidden_size,
                 self.lstm_hidden_size,
             ),
             GeLU(),
@@ -64,10 +66,10 @@ class PH(nn.Module):
 
     def forward(
             self,
-            head,
+            heads,
             targets,
     ):
-        residuals = torch.cat([targets, head], dim=1)
+        residuals = self.adapter(targets) + heads
 
         actions = self.action_head(residuals)
         lefts = self.left_head(residuals)
@@ -90,9 +92,11 @@ class VH(nn.Module):
         self.lstm_hidden_size = \
             config.get('prooftrace_lstm_hidden_size')
 
+        self.adapter = nn.Linear(self.hidden_size, self.lstm_hidden_size)
+
         self.value_head = nn.Sequential(
             nn.Linear(
-                self.hidden_size + self.lstm_hidden_size,
+                self.lstm_hidden_size,
                 self.lstm_hidden_size,
             ),
             GeLU(),
@@ -108,10 +112,10 @@ class VH(nn.Module):
 
     def forward(
             self,
-            head,
+            heads,
             targets,
     ):
-        residuals = torch.cat([targets, head], dim=1)
+        residuals = self.adapter(targets) + heads
 
         value = self.value_head(residuals)
 
