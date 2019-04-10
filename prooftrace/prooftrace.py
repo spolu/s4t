@@ -623,22 +623,22 @@ class ProofTraceKernel():
             ty: str,
     ) -> Type:
         return self._t.type(ty)
-        h = self.type_hash(ty)
-        if h not in self._type_cache:
-            self._type_cache[h] = self._t.type(ty)
+        # h = self.type_hash(ty)
+        # if h not in self._type_cache:
+        #     self._type_cache[h] = self._t.type(ty)
 
-        return self._type_cache[h]
+        # return self._type_cache[h]
 
     def term(
             self,
             tm: str,
     ) -> Term:
         return self._t.term(tm)
-        h = self.term_hash(tm)
-        if h not in self._term_cache:
-            self._term_cache[h] = self._t.term(tm)
+        # h = self.term_hash(tm)
+        # if h not in self._term_cache:
+        #     self._term_cache[h] = self._t.term(tm)
 
-        return self._term_cache[h]
+        # return self._term_cache[h]
 
 
 class ProofTraceActions():
