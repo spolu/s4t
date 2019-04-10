@@ -231,7 +231,7 @@ class Action(BVT):
     def hash(
             self,
     ):
-        # Compute a hash that is not order depenednt for HYPOTHESIS.
+        # Compute a hash that is not order dependent for HYPOTHESIS.
         if self.value == ACTION_TOKENS['HYPOTHESIS'] and self._hash is None:
             hashes = [b'HYPOTHESIS']
 
@@ -1439,15 +1439,11 @@ def extract():
         shutil.rmtree(traces_path_test)
     os.mkdir(traces_path_test)
 
-    executor = concurrent.futures.ThreadPoolExecutor()
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=32)
 
     def generate(a):
         tr = a[0]
         i = a[1]
-
-        Log.out("Generating ProofTraceActions", {
-            'trace': tr.name(),
-        })
 
         tl = len(tr._sequence) + \
             len(tr._premises) + \
