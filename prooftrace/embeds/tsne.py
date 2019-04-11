@@ -138,6 +138,10 @@ def extract():
         type=str, help="config override",
     )
     parser.add_argument(
+        '--device',
+        type=str, help="config override",
+    )
+    parser.add_argument(
         '--load_dir',
         type=str, help="config override",
     )
@@ -151,6 +155,8 @@ def extract():
             'prooftrace_dataset_size',
             args.dataset_size,
         )
+    if args.device is not None:
+        config.override('device', args.device)
     if args.load_dir is not None:
         config.override(
             'prooftrace_load_dir',
