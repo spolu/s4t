@@ -132,17 +132,20 @@
         bottom: 0px;
         left: 390px;
         right: 0px;
-        background-color: rgba(30, 30, 30, 0.8);
+        background-color: rgba(30, 30, 30, 0.9);
         padding: 10px;
+        z-index: 5;
       }
 
       #info #action {
         margin-top: 10px;
       }
       #info #left {
+        opacity: 0.8;
       }
       #info #right {
         margin-top: 5px;
+        opacity: 0.8;
       }
 
       #info .th {
@@ -207,9 +210,18 @@
       var tree_ctx = $('#embeds #tree')[0].getContext('2d')
       var action_ctx = $('#embeds #action')[0].getContext('2d')
 
-      var draw_action = (ctx, action, width) => {
+      var draw_action = (ctx, action, width, show_point) => {
         if (['EMPTY', 'THEOREM', 'SUBST', 'SUBST_TYPE', 'TERM'].includes(action['type'])) {
-          return
+          if (action['hash'] in dump['embeds'] && show_point) {
+            ctx.lineWidth = 4
+            ctx.strokeStyle = ACTION_COLORS[action['type']]
+            var e = dump['embeds'][action['hash']]
+            ctx.strokeRect(
+              Math.floor((100 + e['embed'][0]) * scale)-2,
+              Math.floor((100 + e['embed'][1]) * scale)-2,
+              4, 4,
+            )
+          }
         }
         var draw_line = (from, to) => {
           ctx.beginPath();
@@ -315,7 +327,7 @@
       var show_action = (action, trace) => {
         $('#embeds #tree').css({ 'opacity': 0.7 })
 
-        draw_action(action_ctx, action, 4)
+        draw_action(action_ctx, action, 4, true)
 
         $('#info #action').html(action_html(action))
 
@@ -367,16 +379,16 @@
 
           $('#steps #inner').append(item)
 
-          draw_action(tree_ctx, action, 1)
+          draw_action(tree_ctx, action, 1, false)
 
           if (idx == trace['actions'].length-1) {
-            tree_ctx.lineWidth = 8
+            tree_ctx.lineWidth = 6
             tree_ctx.strokeStyle = 'red'
             var e = dump['embeds'][action['hash']]
             tree_ctx.strokeRect(
-              Math.floor((100 + e['embed'][0]) * scale)-4,
-              Math.floor((100 + e['embed'][1]) * scale)-4,
-              8, 8,
+              Math.floor((100 + e['embed'][0]) * scale)-3,
+              Math.floor((100 + e['embed'][1]) * scale)-3,
+              6, 6,
             )
           }
         })

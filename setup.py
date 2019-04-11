@@ -1,8 +1,8 @@
 from setuptools import setup
 
 setup(
-    name='s4t',
-    version='0.0.3',
+    name='z3ta',
+    version='0.0.1',
     install_requires=[
     ],
     packages=[
