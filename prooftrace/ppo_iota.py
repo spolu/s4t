@@ -518,7 +518,8 @@ class ACK:
                     self._ack.push({
                         'frame_count': frame_count,
                         'match_count': (match_count_meter.avg or 0.0),
-                        'demo_length': (demo_length_meter.max or 0.0),
+                        'demo_length_avg': (demo_length_meter.avg or 0.0),
+                        'demo_length_max': (demo_length_meter.max or 0.0),
                         'stp_reward': (stp_reward_meter.avg or 0.0),
                         'mtc_reward': (mtc_reward_meter.avg or 0.0),
                         'fnl_reward': (fnl_reward_meter.avg or 0.0),
@@ -539,7 +540,10 @@ class ACK:
             'epoch': epoch,
             'ignored': ignored,
             'match_count': "{:.2f}".format(match_count_meter.avg or 0.0),
-            'demo_length': "{:.0f}".format(demo_length_meter.max or 0.0),
+            'demo_length': "{:.2f}/{:.0f}".format(
+                demo_length_meter.avg or 0.0,
+                demo_length_meter.max or 0.0,
+            ),
             'stp_reward': "{:.4f}".format(stp_reward_meter.avg or 0.0),
             'mtc_reward': "{:.4f}".format(mtc_reward_meter.avg or 0.0),
             'fnl_reward': "{:.4f}".format(fnl_reward_meter.avg or 0.0),
@@ -758,7 +762,8 @@ class SYN:
 
         frame_count_meter = Meter()
         match_count_meter = Meter()
-        demo_length_meter = Meter()
+        demo_length_avg_meter = Meter()
+        demo_length_max_meter = Meter()
         stp_reward_meter = Meter()
         mtc_reward_meter = Meter()
         fnl_reward_meter = Meter()
@@ -770,7 +775,8 @@ class SYN:
         for info in infos:
             frame_count_meter.update(info['frame_count'])
             match_count_meter.update(info['match_count'])
-            demo_length_meter.update(info['demo_length'])
+            demo_length_avg_meter.update(info['demo_length_avg'])
+            demo_length_max_meter.update(info['demo_length_max'])
             stp_reward_meter.update(info['stp_reward'])
             mtc_reward_meter.update(info['mtc_reward'])
             fnl_reward_meter.update(info['fnl_reward'])
@@ -790,7 +796,10 @@ class SYN:
             'frame_count': frame_count_meter.sum,
             'update_delta': "{:.2f}".format(update_delta),
             'match_count': "{:.2f}".format(match_count_meter.avg or 0.0),
-            'demo_length': "{:.0f}".format(demo_length_meter.max or 0.0),
+            'demo_length': "{:.2f}/{:.0f}".format(
+                demo_length_avg_meter.avg or 0.0,
+                demo_length_max_meter.max or 0.0,
+            ),
             'stp_reward': "{:.4f}".format(stp_reward_meter.avg or 0.0),
             'mtc_reward': "{:.4f}".format(mtc_reward_meter.avg or 0.0),
             'fnl_reward': "{:.4f}".format(fnl_reward_meter.avg or 0.0),
@@ -811,8 +820,12 @@ class SYN:
                     match_count_meter.avg, self._epoch,
                 )
                 self._tb_writer.add_scalar(
-                    "prooftrace_ppo_train/demo_length",
-                    demo_length_meter.max, self._epoch,
+                    "prooftrace_ppo_train/demo_length_avg",
+                    demo_length_avg_meter.avg, self._epoch,
+                )
+                self._tb_writer.add_scalar(
+                    "prooftrace_ppo_train/demo_length_max",
+                    demo_length_max_meter.max, self._epoch,
                 )
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/act_loss",
