@@ -13,8 +13,8 @@
 
   "prooftrace_max_demo_length": 1024,
 
-  "prooftrace_type_token_count": 565,
-  "prooftrace_term_token_count": 2248,
+  "prooftrace_type_token_count": 549,
+  "prooftrace_term_token_count": 1786,
   "prooftrace_hidden_size": 256,
   "prooftrace_sequence_length": 256,
 
