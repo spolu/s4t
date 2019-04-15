@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import typing
 
-# from apex import amp
+from apex import amp
 
 from prooftrace.prooftrace import Action
 
@@ -35,9 +35,6 @@ class Rollouts:
         self._config = config
 
         self._device = torch.device(config.get('device'))
-        self._dtype = torch.float32
-        if config.get('half'):
-            self._dtype = torch.float16
 
         self._rollout_size = config.get('prooftrace_ppo_rollout_size')
         self._pool_size = config.get('prooftrace_env_pool_size')
@@ -63,22 +60,22 @@ class Rollouts:
 
         self.log_probs = torch.zeros(
             self._rollout_size, self._pool_size, 3,
-        ).to(self._device, self._dtype)
+        ).to(self._device)
 
         self.rewards = torch.zeros(
             self._rollout_size, self._pool_size, 1
-        ).to(self._device, self._dtype)
+        ).to(self._device)
         self.values = torch.zeros(
             self._rollout_size+1, self._pool_size, 1
-        ).to(self._device, self._dtype)
+        ).to(self._device)
 
         self.masks = torch.ones(
             self._rollout_size+1, self._pool_size, 1,
-        ).to(self._device, self._dtype)
+        ).to(self._device)
 
         self.returns = torch.zeros(
             self._rollout_size+1, self._pool_size, 1,
-        ).to(self._device, self._dtype)
+        ).to(self._device)
 
     def insert(
             self,
@@ -193,9 +190,16 @@ class ACK:
             'PH': PH(self._config).to(self._device),
             'VH': VH(self._config).to(self._device),
         }
-        if config.get('half'):
-            for m in self._modules.keys():
-                self._modules[m] = self._modules[m].half()
+
+        modules = [
+            self._modules['H'],
+            self._modules['PH'],
+            self._modules['VH'],
+        ]
+        modules = amp.initialize(modules, None, opt_level="O2")
+        self._modules['H'] = modules[0]
+        self._modules['PH'] = modules[1]
+        self._modules['VH'] = modules[2]
 
         self._ack = IOTAAck(
             config.get('prooftrace_ppo_iota_sync_dir'),
@@ -938,6 +942,13 @@ def ack_run():
     while True:
         ack.run_once(epoch)
         epoch += 1
+
+
+# def ack_run():
+#     import cProfile
+#     cProfile.runctx(
+#         'ack_run_profile()', globals(), locals(), 'ack_run.profile'
+#     )
 
 
 def syn_run():

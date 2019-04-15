@@ -21,9 +21,6 @@ class TypeEmbedder(nn.Module):
         super(TypeEmbedder, self).__init__()
 
         self.device = torch.device(config.get('device'))
-        self.dtype = torch.float32
-        if config.get('half'):
-            self.dtype = torch.float16
 
         self.type_token_count = \
             config.get('prooftrace_type_token_count')
@@ -35,7 +32,7 @@ class TypeEmbedder(nn.Module):
         )
 
         self.tree_lstm = BinaryTreeLSTM(self.hidden_size)
-        self.tree_lstm.to(self.device, self.dtype)
+        self.tree_lstm.to(self.device)
 
     def parameters_count(
             self,
@@ -63,9 +60,6 @@ class TermEmbedder(nn.Module):
         super(TermEmbedder, self).__init__()
 
         self.device = torch.device(config.get('device'))
-        self.dtype = torch.float32
-        if config.get('half'):
-            self.dtype = torch.float16
 
         self.term_token_count = \
             config.get('prooftrace_term_token_count')
@@ -79,7 +73,7 @@ class TermEmbedder(nn.Module):
         )
 
         self.tree_lstm = BinaryTreeLSTM(self.hidden_size)
-        self.tree_lstm.to(self.device, self.dtype)
+        self.tree_lstm.to(self.device)
 
     def extract_values(
             self,
@@ -168,9 +162,6 @@ class E(nn.Module):
         super(E, self).__init__()
 
         self.device = torch.device(config.get('device'))
-        self.dtype = torch.float32
-        if config.get('half'):
-            self.dtype = torch.float16
 
         self.hidden_size = \
             config.get('prooftrace_hidden_size')
@@ -182,7 +173,7 @@ class E(nn.Module):
         )
 
         self.tree_lstm = BinaryTreeLSTM(self.hidden_size)
-        self.tree_lstm.to(self.device, self.dtype)
+        self.tree_lstm.to(self.device)
 
     def extract_values(
             self,
