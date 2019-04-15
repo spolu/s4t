@@ -83,6 +83,8 @@ class BinaryTreeLSTM(nn.Module):
         super(BinaryTreeLSTM, self).__init__()
 
         self.device = torch.device('cpu')
+        self.dtype = torch.float32
+
         self.hidden_size = hidden_size
 
         self.wx = nn.Linear(hidden_size, 5 * hidden_size)
@@ -93,10 +95,11 @@ class BinaryTreeLSTM(nn.Module):
             *args,
             **kwargs,
     ):
-        device, _, _ = torch._C._nn._parse_to(*args, **kwargs)
+        device, dtype, _ = torch._C._nn._parse_to(*args, **kwargs)
         self.device = device
+        self.dtype = dtype
 
-        super(BinaryTreeLSTM, self).to(*args, **kwargs)
+        return super(BinaryTreeLSTM, self).to(*args, **kwargs)
 
     def batch(
             self,
@@ -169,14 +172,22 @@ class BinaryTreeLSTM(nn.Module):
                     lh.append(H[L[d][i][0]][L[d][i][1]].unsqueeze(0))
                     lc.append(C[L[d][i][0]][L[d][i][1]].unsqueeze(0))
                 else:
-                    lh.append(torch.zeros(1, self.hidden_size).to(self.device))
-                    lc.append(torch.zeros(1, self.hidden_size).to(self.device))
+                    lh.append(torch.zeros(
+                        1, self.hidden_size,
+                    ).to(self.device, dtype=self.dtype))
+                    lc.append(torch.zeros(
+                        1, self.hidden_size,
+                    ).to(self.device, dtype=self.dtype))
                 if R[d][i][1] > -1:
                     rh.append(H[R[d][i][0]][R[d][i][1]].unsqueeze(0))
                     rc.append(C[R[d][i][0]][R[d][i][1]].unsqueeze(0))
                 else:
-                    rh.append(torch.zeros(1, self.hidden_size).to(self.device))
-                    rc.append(torch.zeros(1, self.hidden_size).to(self.device))
+                    rh.append(torch.zeros(
+                        1, self.hidden_size,
+                    ).to(self.device, dtype=self.dtype))
+                    rc.append(torch.zeros(
+                        1, self.hidden_size,
+                    ).to(self.device, dtype=self.dtype))
 
             lh = torch.cat(lh, dim=0)
             lc = torch.cat(lc, dim=0)
@@ -224,12 +235,20 @@ class BinaryTreeLSTM(nn.Module):
 
         if left_h is None:
             left_h, left_c = \
-                (torch.zeros(1, self.hidden_size).to(self.device),
-                 torch.zeros(1, self.hidden_size).to(self.device))
+                (torch.zeros(
+                    1, self.hidden_size,
+                ).to(self.device, dtype=self.dtype),
+                 torch.zeros(
+                     1, self.hidden_size,
+                 ).to(self.device, dtype=self.dtype))
         if right_h is None:
             right_h, right_c = \
-                (torch.zeros(1, self.hidden_size).to(self.device),
-                 torch.zeros(1, self.hidden_size).to(self.device))
+                (torch.zeros(
+                    1, self.hidden_size,
+                ).to(self.device, dtype=self.dtype),
+                 torch.zeros(
+                     1, self.hidden_size,
+                 ).to(self.device, dtype=self.dtype))
 
         return self.forward(
             embedder([tree.value]),

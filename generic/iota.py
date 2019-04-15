@@ -180,12 +180,18 @@ class IOTAAck(IOTABase):
     def push(
             self,
             info: typing.Dict[str, typing.Any],
+            hook: typing.Callable[
+                [str, str, torch.Tensor], torch.Tensor
+            ] = None,
     ) -> None:
         data = {}
         for m in self._modules:
             for name, param in self._modules[m].named_parameters():
                 key = "grad_{}_{}".format(m, name)
-                data[key] = param.grad.data
+                if hook is not None:
+                    data[key] = hook(m, name, param.grad.data)
+                else:
+                    data[key] = param.grad.data
         data['info'] = info
 
         now = datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f")
