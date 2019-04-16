@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import typing
 
-from apex import amp
+# from apex import amp
 
 from prooftrace.prooftrace import Action
 
@@ -191,15 +191,15 @@ class ACK:
             'VH': VH(self._config).to(self._device),
         }
 
-        modules = [
-            self._modules['H'],
-            self._modules['PH'],
-            self._modules['VH'],
-        ]
-        modules = amp.initialize(modules, None, opt_level="O2")
-        self._modules['H'] = modules[0]
-        self._modules['PH'] = modules[1]
-        self._modules['VH'] = modules[2]
+        # modules = [
+        #     self._modules['H'],
+        #     self._modules['PH'],
+        #     self._modules['VH'],
+        # ]
+        # modules = amp.initialize(modules, None, opt_level="O2")
+        # self._modules['H'] = modules[0]
+        # self._modules['PH'] = modules[1]
+        # self._modules['VH'] = modules[2]
 
         self._ack = IOTAAck(
             config.get('prooftrace_ppo_iota_sync_dir'),

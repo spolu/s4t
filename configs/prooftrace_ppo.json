@@ -36,7 +36,7 @@
   "prooftrace_ppo_step_reward_prob": 0.0,
   "prooftrace_ppo_match_reward_prob": 1.0,
 
-  "prooftrace_ppo_learning_rate": 0.00006,
+  "prooftrace_ppo_learning_rate": 0.00003,
   "prooftrace_ppo_gamma": 0.99,
   "prooftrace_ppo_tau": 0.95,
   "prooftrace_ppo_epoch_count": 4,
@@ -49,9 +49,9 @@
   "prooftrace_dataset_size": "medium",
 
   "prooftrace_ppo_iota_sync_dir": null,
-  "prooftrace_ppo_iota_min_update_count": 32,
+  "prooftrace_ppo_iota_min_update_count": 24,
 
-  "prooftrace_mixed_precision_scale": 512,
+  "prooftrace_mixed_precision_scale": 1.0,
 
   "tensorboard_log_dir": null
 }
