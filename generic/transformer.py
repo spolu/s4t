@@ -2,7 +2,6 @@ import math
 import torch
 import torch.nn as nn
 
-from generic.layer_norm import LayerNorm
 from generic.gelu import GeLU
 
 
@@ -113,12 +112,12 @@ class TransformerBlock(nn.Module):
             sequence_max_length, hidden_size,
             attention_head_count, dropout
         )
-        self.attention_layer_norm = LayerNorm(hidden_size)
+        self.attention_layer_norm = nn.LayerNorm(hidden_size)
 
         self.mlp = MLP(
             hidden_size, dropout,
         )
-        self.mlp_layer_norm = LayerNorm(hidden_size)
+        self.mlp_layer_norm = nn.LayerNorm(hidden_size)
 
         self.apply(self.init_weights)
 
@@ -130,9 +129,6 @@ class TransformerBlock(nn.Module):
             module.weight.data.normal_(mean=0.0, std=0.02)
             if module.bias is not None:
                 module.bias.data.zero_()
-        elif isinstance(module, LayerNorm):
-            module.beta.data.normal_(mean=0.0, std=0.02)
-            module.gamma.data.normal_(mean=0.0, std=0.02)
 
     def forward(
             self,

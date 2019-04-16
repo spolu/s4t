@@ -4,7 +4,6 @@ import torch.nn as nn
 from prooftrace.prooftrace import ACTION_TOKENS, PREPARE_TOKENS
 
 from generic.gelu import GeLU
-from generic.layer_norm import LayerNorm
 
 
 class PH(nn.Module):
@@ -31,7 +30,7 @@ class PH(nn.Module):
                 self.lstm_hidden_size,
             ),
             GeLU(),
-            LayerNorm(self.lstm_hidden_size),
+            nn.LayerNorm(self.lstm_hidden_size),
             nn.Linear(
                 self.lstm_hidden_size,
                 len(ACTION_TOKENS) - len(PREPARE_TOKENS)
@@ -44,7 +43,7 @@ class PH(nn.Module):
                 self.lstm_hidden_size,
             ),
             GeLU(),
-            LayerNorm(self.lstm_hidden_size),
+            nn.LayerNorm(self.lstm_hidden_size),
             nn.Linear(self.lstm_hidden_size, self.sequence_length),
             nn.LogSoftmax(dim=1),
         )
@@ -54,7 +53,7 @@ class PH(nn.Module):
                 self.lstm_hidden_size,
             ),
             GeLU(),
-            LayerNorm(self.lstm_hidden_size),
+            nn.LayerNorm(self.lstm_hidden_size),
             nn.Linear(self.lstm_hidden_size, self.sequence_length),
             nn.LogSoftmax(dim=1),
         )
@@ -100,7 +99,7 @@ class VH(nn.Module):
                 self.lstm_hidden_size,
             ),
             GeLU(),
-            LayerNorm(self.lstm_hidden_size),
+            nn.LayerNorm(self.lstm_hidden_size),
             nn.Linear(self.lstm_hidden_size, 1),
             nn.Softplus(),
         )
