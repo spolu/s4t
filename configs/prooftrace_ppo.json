@@ -51,7 +51,7 @@
   "prooftrace_ppo_iota_sync_dir": null,
   "prooftrace_ppo_iota_min_update_count": 32,
 
-  "prooftrace_mixed_precision_scale": 128,
+  "prooftrace_mixed_precision_scale": 512,
 
   "tensorboard_log_dir": null
 }
