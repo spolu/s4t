@@ -487,10 +487,12 @@ class ACK:
                 #     'action_loss': action_loss.item(),
                 # })
 
-                if abs(action_loss.item()) > 10e2 or \
-                        abs(value_loss.item()) > 10e2 or \
-                        math.isnan(value_loss.item()) or \
-                        math.isnan(entropy.item()):
+                if (
+                        abs(action_loss.item()) > 10e2 or
+                        abs(value_loss.item()) > 10e2 or
+                        math.isnan(value_loss.item()) or
+                        math.isnan(entropy.item())
+                ):
                     Log.out("IGNORING", {
                         'epoch': epoch,
                         'act_loss': "{:.4f}".format(action_loss.item()),
