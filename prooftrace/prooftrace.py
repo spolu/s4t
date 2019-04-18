@@ -1269,7 +1269,9 @@ class ProofTrace():
                 candidates.append((set(seen), set(queue)))
 
         candidates = sorted(candidates, key=lambda c: len(c[1]))
+
         assert len(candidates) > 0
+        assert len(candidates[0][1]) > 0
 
         return sorted(list(candidates[0][1]))
 
@@ -1739,5 +1741,7 @@ def extract():
 
     # small: term_token_count=427 type_token_count=70
     # small[1024]: term_token_count=338 type_token_count=70
+    # small[1024 min_cut]: term_token_count=427 type_token_count=70
+
     # medium term_token_count=14227 type_token_count=983
     # medium[1024]: term_token_count=2247 type_token_count=564
