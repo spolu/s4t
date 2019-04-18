@@ -7,6 +7,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 import typing
 
+# from apex import amp
+
 from prooftrace.prooftrace import Action
 
 from generic.iota import IOTAAck, IOTASyn
@@ -31,6 +33,7 @@ class Rollouts:
             config,
     ):
         self._config = config
+
         self._device = torch.device(config.get('device'))
 
         self._rollout_size = config.get('prooftrace_ppo_rollout_size')
@@ -164,6 +167,7 @@ class ACK:
         self._entropy_coeff = config.get('prooftrace_ppo_entropy_coeff')
         self._value_coeff = config.get('prooftrace_ppo_value_coeff')
         self._learning_rate = config.get('prooftrace_ppo_learning_rate')
+        self._mixed_scale = config.get('prooftrace_mixed_precision_scale')
 
         self._reset_gamma = \
             config.get('prooftrace_ppo_reset_gamma')
@@ -186,6 +190,16 @@ class ACK:
             'PH': PH(self._config).to(self._device),
             'VH': VH(self._config).to(self._device),
         }
+
+        # modules = [
+        #     self._modules['H'],
+        #     self._modules['PH'],
+        #     self._modules['VH'],
+        # ]
+        # modules = amp.initialize(modules, None, opt_level="O2")
+        # self._modules['H'] = modules[0]
+        # self._modules['PH'] = modules[1]
+        # self._modules['VH'] = modules[2]
 
         self._ack = IOTAAck(
             config.get('prooftrace_ppo_iota_sync_dir'),
@@ -473,10 +487,12 @@ class ACK:
                 #     'action_loss': action_loss.item(),
                 # })
 
-                if abs(action_loss.item()) > 10e2 or \
-                        abs(value_loss.item()) > 10e2 or \
-                        math.isnan(value_loss.item()) or \
-                        math.isnan(entropy.item()):
+                if (
+                        abs(action_loss.item()) > 10e2 or
+                        abs(value_loss.item()) > 10e2 or
+                        math.isnan(value_loss.item()) or
+                        math.isnan(entropy.item())
+                ):
                     Log.out("IGNORING", {
                         'epoch': epoch,
                         'act_loss': "{:.4f}".format(action_loss.item()),
@@ -489,9 +505,11 @@ class ACK:
                     for m in self._modules:
                         self._modules[m].zero_grad()
 
-                    (action_loss +
-                     self._value_coeff * value_loss -
-                     self._entropy_coeff * entropy).backward()
+                    (self._mixed_scale * (
+                        action_loss +
+                        self._value_coeff * value_loss -
+                        self._entropy_coeff * entropy
+                    )).backward()
 
                     if self._grad_norm_max > 0.0:
                         torch.nn.utils.clip_grad_norm_(
@@ -515,6 +533,18 @@ class ACK:
                     val_loss_meter.update(value_loss.item())
                     entropy_meter.update(entropy.item())
 
+                    def hook(m, name, grad):
+                        # Log.out("GRAD", {
+                        #     "name": name,
+                        #     "dtype": grad.dtype,
+                        #     "min": grad.abs().min(),
+                        #     "max": grad.abs().max(),
+                        #     "mean": grad.abs().mean(),
+                        # })
+                        if grad.dtype == torch.float16:
+                            grad = grad.float()
+                        return grad / self._mixed_scale
+
                     self._ack.push({
                         'frame_count': frame_count,
                         'match_count': (match_count_meter.avg or 0.0),
@@ -526,7 +556,7 @@ class ACK:
                         'act_loss': act_loss_meter.avg,
                         'val_loss': val_loss_meter.avg,
                         'entropy': entropy_meter.avg,
-                    })
+                    }, hook)
                     if frame_count > 0:
                         frame_count = 0
 
@@ -914,6 +944,13 @@ def ack_run():
     while True:
         ack.run_once(epoch)
         epoch += 1
+
+
+# def ack_run():
+#     import cProfile
+#     cProfile.runctx(
+#         'ack_run_profile()', globals(), locals(), 'ack_run.profile'
+#     )
 
 
 def syn_run():

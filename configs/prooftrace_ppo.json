@@ -13,43 +13,45 @@
 
   "prooftrace_max_demo_length": 1024,
 
-  "prooftrace_type_token_count": 549,
-  "prooftrace_term_token_count": 1786,
+  "prooftrace_type_token_count": 565,
+  "prooftrace_term_token_count": 2248,
   "prooftrace_hidden_size": 256,
   "prooftrace_sequence_length": 256,
 
   "prooftrace_transformer_hidden_size": 512,
   "prooftrace_transformer_attention_head_count": 8,
-  "prooftrace_transformer_layer_count": 0,
+  "prooftrace_transformer_layer_count": 8,
 
-  "prooftrace_lstm_layer_count": 2,
+  "prooftrace_lstm_layer_count": 0,
   "prooftrace_lstm_hidden_size": 512,
 
-  "prooftrace_env_pool_size": 16,
-  "prooftrace_ppo_rollout_size": 32,
-  "prooftrace_ppo_batch_size": 128,
+  "prooftrace_env_pool_size": 8,
+  "prooftrace_ppo_rollout_size": 16,
+  "prooftrace_ppo_batch_size": 24,
 
   "prooftrace_ppo_reset_gamma": 1.0,
-  "prooftrace_ppo_explore_alpha": 0.0,
-  "prooftrace_ppo_explore_beta": 0.0,
+  "prooftrace_ppo_explore_alpha": 0.1,
+  "prooftrace_ppo_explore_beta": 0.5,
   "prooftrace_ppo_explore_beta_width": 3,
   "prooftrace_ppo_step_reward_prob": 0.0,
   "prooftrace_ppo_match_reward_prob": 1.0,
 
-  "prooftrace_ppo_learning_rate": 0.000005,
+  "prooftrace_ppo_learning_rate": 0.00003,
   "prooftrace_ppo_gamma": 0.99,
   "prooftrace_ppo_tau": 0.95,
   "prooftrace_ppo_epoch_count": 4,
   "prooftrace_ppo_clip": 0.2,
   "prooftrace_ppo_grad_norm_max": 0.0,
-  "prooftrace_ppo_entropy_coeff": 0.01,
+  "prooftrace_ppo_entropy_coeff": 0.005,
   "prooftrace_ppo_value_coeff": 0.5,
 
   "prooftrace_dataset_dir": "./data/prooftrace",
   "prooftrace_dataset_size": "medium",
 
   "prooftrace_ppo_iota_sync_dir": null,
-  "prooftrace_ppo_iota_min_update_count": 16,
+  "prooftrace_ppo_iota_min_update_count": 24,
+
+  "prooftrace_mixed_precision_scale": 1.0,
 
   "tensorboard_log_dir": null
 }

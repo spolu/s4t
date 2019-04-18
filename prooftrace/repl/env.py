@@ -270,6 +270,7 @@ class Env:
             action: typing.Tuple[int, int, int],
             step_reward_prob: float,
             match_reward_prob: float,
+            gamma: float,
     ) -> typing.Tuple[
         typing.Tuple[int, typing.List[Action]],
         typing.Tuple[float, float, float],
@@ -279,6 +280,13 @@ class Env:
         assert self._ground is not None
         assert self._run is not None
 
+        def finish(rewards, done, info):
+            if done:
+                observation = self.reset(gamma)
+            else:
+                observation = self.observation()
+            return observation, rewards, done, info
+
         if action[1] >= self._run.len() or action[2] >= self._run.len():
             Log.out("DONE ILLEGAL[overflow]", {
                 'ground_length': self._ground.action_len(),
@@ -286,10 +294,10 @@ class Env:
                 'gamma_length': self._gamma_len,
                 'name': self._ground.name(),
             })
-            return self.observation(), (-1.0, 0.0, 0.0), True, {
+            return finish((-1.0, 0.0, 0.0), True, {
                 'match_count': self._match_count,
                 'demo_length': 0,
-            }
+            })
 
         action = Action.from_action(
             INV_ACTION_TOKENS[action[0] + len(PREPARE_TOKENS)],
@@ -304,10 +312,10 @@ class Env:
                 'gamma_length': self._gamma_len,
                 'name': self._ground.name(),
             })
-            return self.observation(), (-1.0, 0.0, 0.0), True, {
+            return finish((-1.0, 0.0, 0.0), True, {
                 'match_count': self._match_count,
                 'demo_length': 0,
-            }
+            })
 
         try:
             thm = self._repl.apply(action)
@@ -318,10 +326,10 @@ class Env:
                 'gamma_length': self._gamma_len,
                 'name': self._ground.name(),
             })
-            return self.observation(), (-1.0, 0.0, 0.0), True, {
+            return finish((-1.0, 0.0, 0.0), True, {
                 'match_count': self._match_count,
                 'demo_length': 0,
-            }
+            })
 
         action._index = thm.index()
         argument = self._run.build_argument(
@@ -370,9 +378,7 @@ class Env:
         if done:
             info['match_count'] = self._match_count
 
-        return self.observation(), \
-            (step_reward, match_reward, final_reward), \
-            done, info
+        return finish((step_reward, match_reward, final_reward), done, info)
 
 
 class Pool:
@@ -478,7 +484,7 @@ class Pool:
     ]:
         def step(a):
             return a[0].step(
-                a[1], step_reward_prob, match_reward_prob,
+                a[1], step_reward_prob, match_reward_prob, gamma,
             )
 
         args = []
@@ -495,10 +501,6 @@ class Pool:
             rewards.append(r)
             dones.append(d)
             infos.append(i)
-
-        for i in range(len(dones)):
-            if dones[i]:
-                observations[i] = self._pool[i].reset(gamma)
 
         return self.collate(observations), rewards, dones, infos
 
