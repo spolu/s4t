@@ -19,7 +19,12 @@ class Thm():
             conclusion: Term,
     ):
         self._index = index
-        self._hypotheses = hypotheses
+
+        # Sort hypotheses by hash to ensure that term strings are equal for
+        # equivalent theorems.
+        self._hypotheses = sorted(
+            hypotheses, key=lambda h: h.hash()
+        )
         self._conclusion = conclusion
 
     def index(
