@@ -575,9 +575,19 @@ class ProofTraceKernel():
             #     "index": index,
             # })
             self._names[index] = "SHARED_" + str(index)
-
             return True
+        return False
 
+    def name_cut_premise(
+            self,
+            index,
+    ) -> bool:
+        if index not in self._names:
+            # Log.out("CUT", {
+            #     "index": index,
+            # })
+            self._names[index] = "CUT_" + str(index)
+            return True
         return False
 
     def type_hash(
@@ -821,6 +831,15 @@ class ProofTrace():
             self,
     ):
         return str(self._index) + '_' + self._kernel._names[self._index]
+
+    def len(
+            self,
+    ):
+        return \
+            len(self._sequence) + \
+            len(self._premises) + \
+            len(self._terms) + \
+            len(self._substs) + len(self._subst_types)
 
     def record_term(
             self,
@@ -1194,6 +1213,66 @@ class ProofTrace():
             arguments,
         )
 
+    def min_cut(
+            self,
+            min_size: int,
+            max_size: int,
+    ) -> typing.List[int]:
+        candidates = []
+        seen, queue = set(), [self._sequence[-1]]
+
+        def add_step(idx):
+            if idx not in self._premises and idx not in seen:
+                queue.append(idx)
+
+        while len(queue) > 0:
+            idx = queue.pop(0)
+
+            if idx in seen:
+                continue
+            seen.add(idx)
+            step = self._steps[idx]
+
+            if step[0] == 'REFL':
+                pass
+            elif step[0] == 'TRANS':
+                add_step(step[1])
+                add_step(step[2])
+            elif step[0] == 'MK_COMB':
+                add_step(step[1])
+                add_step(step[2])
+            elif step[0] == 'ABS':
+                add_step(step[1])
+            elif step[0] == 'BETA':
+                pass
+            elif step[0] == 'ASSUME':
+                pass
+            elif step[0] == 'EQ_MP':
+                add_step(step[1])
+                add_step(step[2])
+            elif step[0] == 'DEDUCT_ANTISYM_RULE':
+                add_step(step[1])
+                add_step(step[2])
+            elif step[0] == 'INST':
+                add_step(step[1])
+            elif step[0] == 'INST_TYPE':
+                add_step(step[1])
+
+            elif step[0] == 'AXIOM':
+                assert False
+            elif step[0] == 'DEFINITION':
+                assert False
+            elif step[0] == 'TYPE_DEFINITION':
+                assert False
+
+            if len(seen) >= min_size and len(seen) <= max_size:
+                candidates.append((set(seen), set(queue)))
+
+        candidates = sorted(candidates, key=lambda c: len(c[1]))
+        assert len(candidates) > 0
+
+        return sorted(list(candidates[0][1]))
+
 
 class ProofTraceLMDataset(Dataset):
     def __init__(
@@ -1461,9 +1540,49 @@ def extract():
         "shared_premise_count": shared_premise_count,
     })
 
-    Log.out("Starting final prooftraces generation")
+    Log.out("Starting min_cut operations")
 
     kernel._shared = {}
+    traces = [ProofTrace(kernel, k) for k in kernel._names.keys()]
+    traces = [tr for tr in traces if len(tr._steps) > 0]
+
+    excess = [
+        tr for tr in traces
+        if tr.len() > config.get('prooftrace_max_demo_length')
+    ]
+    Log.out("Min-cut initialization", {
+        'excess': len(excess),
+    })
+
+    while len(excess) > 0:
+        orig = []
+        cut = []
+
+        for tr in excess:
+            orig.append(tr._index)
+            cut += tr.min_cut(
+                config.get('prooftrace_max_demo_length') * 1/2,
+                config.get('prooftrace_max_demo_length') * 3/4,
+            )
+
+        for idx in cut:
+            kernel.name_cut_premise(idx)
+
+        refresh = orig + cut
+        traces = [ProofTrace(kernel, k) for k in refresh]
+        excess = [
+            tr for tr in traces
+            if tr.len() > config.get('prooftrace_max_demo_length')
+        ]
+
+        Log.out("Min-cut processing loop", {
+            'excess': len(excess),
+            'orig': len(orig),
+            'cut': len(cut),
+        })
+
+    Log.out("Starting final prooftraces generation")
+
     traces = [ProofTrace(kernel, k) for k in kernel._names.keys()]
     traces = [tr for tr in traces if len(tr._steps) > 0]
     traces = sorted(traces, key=lambda tr: tr._index)
@@ -1526,7 +1645,7 @@ def extract():
         shutil.rmtree(traces_path_test)
     os.mkdir(traces_path_test)
 
-    executor = concurrent.futures.ThreadPoolExecutor(max_workers=32)
+    executor = concurrent.futures.ThreadPoolExecutor()
 
     force_test = [
         'IRRATIONAL_SQRT_NONSQUARE',
@@ -1544,11 +1663,7 @@ def extract():
         tr = a[0]
         i = a[1]
 
-        tl = len(tr._sequence) + \
-            len(tr._premises) + \
-            len(tr._terms) + \
-            len(tr._substs) + len(tr._subst_types)
-        if tl > config.get('prooftrace_max_demo_length'):
+        if tr.len() > config.get('prooftrace_max_demo_length'):
             keep = False
             for nm in force_keep:
                 if re.search(nm, tr.name()) is not None:
@@ -1556,7 +1671,7 @@ def extract():
             if not keep:
                 Log.out("Filtering Trace", {
                     'name': tr.name(),
-                    'length': tl,
+                    'length': tr.len(),
                 })
                 return None
 
