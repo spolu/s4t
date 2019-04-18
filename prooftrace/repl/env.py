@@ -169,8 +169,10 @@ class Env:
                     self._run.hashes()[a.right.hash()],
                 ]], dtype=torch.int64).to(self._device)
                 return actions, 0
-        import pdb; pdb.set_trace()
-        assert False
+
+        # We may reach this point as final actions are sometime repeated at the
+        # end of prooftraces.
+        return None, 0
 
     def beta_oracle(
             self,
@@ -242,7 +244,9 @@ class Env:
 
         # ALPHA Oracle.
         if alpha > 0.0 and random.random() < alpha:
-            return self.alpha_oracle()
+            actions, frame_count = self.alpha_oracle()
+            if actions is not None:
+                return actions, frame_count
 
         # BETA Oracle.
         if beta > 0.0 and random.random() < beta:
