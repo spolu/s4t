@@ -1269,9 +1269,12 @@ class ProofTrace():
                 candidates.append((set(seen), set(queue)))
 
         candidates = sorted(candidates, key=lambda c: len(c[1]))
+        candidates = [
+            c for c in candidates if len(c[1]) <= len(candidates[0][1]) + 2
+        ]
+        candidates = sorted(candidates, key=lambda c: len(c[0]))
 
         assert len(candidates) > 0
-        assert len(candidates[0][1]) > 0
 
         return sorted(list(candidates[0][1]))
 
