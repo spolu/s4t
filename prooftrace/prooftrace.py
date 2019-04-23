@@ -1566,7 +1566,7 @@ def extract():
         for tr in excess:
             orig.append(tr._index)
             cut += tr.min_cut(
-                config.get('prooftrace_max_demo_length') * 1/2,
+                config.get('prooftrace_max_demo_length') * 1/8,
                 config.get('prooftrace_max_demo_length') * 3/4,
             )
 
@@ -1650,7 +1650,7 @@ def extract():
         shutil.rmtree(traces_path_test)
     os.mkdir(traces_path_test)
 
-    executor = concurrent.futures.ThreadPoolExecutor()
+    # executor = concurrent.futures.ThreadPoolExecutor()
 
     force_test = [
         'IRRATIONAL_SQRT_NONSQUARE',
@@ -1664,10 +1664,7 @@ def extract():
         'IRRATIONAL_SQRT_2',
     ]
 
-    def generate(a):
-        tr = a[0]
-        i = a[1]
-
+    for i, tr in enumerate(traces):
         if tr.len() > config.get('prooftrace_max_demo_length'):
             keep = False
             for nm in force_keep:
@@ -1705,15 +1702,7 @@ def extract():
         # with open(trace_path, 'w') as f:
         #     json.dump(dict(tr), f, sort_keys=False, indent=2)
 
-        return ptra.len()
-
-    args = []
-    for i, tr in enumerate(traces):
-        args.append([tr, i])
-
-    for ptra_len in executor.map(generate, args):
-        if ptra_len is not None:
-            trace_lengths.append(ptra_len)
+        trace_lengths.append(ptra.len())
 
     Log.histogram(
         "ProofTraces Length",
@@ -1748,3 +1737,10 @@ def extract():
 
     # medium term_token_count=14227 type_token_count=983
     # medium[1024]: term_token_count=2247 type_token_count=564
+
+
+# def extract():
+#     import cProfile
+#     cProfile.runctx(
+#         'extract_profile()', globals(), locals(), 'extract.profile'
+#     )
