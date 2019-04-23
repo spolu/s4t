@@ -677,7 +677,9 @@ class ProofTraceActions():
             path,
     ) -> None:
         with open(path, 'wb') as f:
-            pickle.dump(self, f)
+            pickle.dump(
+                self, f, protocol=pickle.HIGHEST_PROTOCOL, fix_imports=False,
+            )
 
     def len(
             self,
@@ -1349,7 +1351,7 @@ class ProofTraceLMDataset(Dataset):
             idx: int,
     ):
         with open(self._ptra_files[self._cases[idx][0]], 'rb') as f:
-            ptra = pickle.load(f)
+            ptra = pickle.load(f, fix_imports=False)
 
         truth = ptra.actions()[self._cases[idx][1]]
         actions = ptra.actions()[:self._cases[idx][1]]
@@ -1719,18 +1721,12 @@ def extract():
             path = traces_path_test
 
         ptra_path = os.path.join(path, ptra.path())
-        with open(ptra_path, 'wb') as f:
-            Log.out("Writing ProofTraceActions", {
-                'path': ptra_path,
-                'index': i,
-                'total': len(traces),
-            })
-            pickle.dump(
-                ptra, f, protocol=pickle.HIGHEST_PROTOCOL, fix_imports=False,
-            )
-        # trace_path = os.path.join(path, tr.name() + '.trace')
-        # with open(trace_path, 'w') as f:
-        #     json.dump(dict(tr), f, sort_keys=False, indent=2)
+        Log.out("Writing ProofTraceActions", {
+            'path': ptra_path,
+            'index': i,
+            'total': len(traces),
+        })
+        ptra.dump(ptra_path)
 
         trace_lengths.append(ptra.len())
 
@@ -1754,7 +1750,9 @@ def extract():
                 config.get('prooftrace_dataset_size'),
                 'traces.tokenizer',
             ), 'wb') as f:
-        pickle.dump(kernel._t, f)
+        pickle.dump(
+            kernel._t, f, protocol=pickle.HIGHEST_PROTOCOL, fix_imports=False,
+        )
 
     Log.out("Dumped tokenizer", {
         "term_token_count": len(kernel._t._term_tokens),
