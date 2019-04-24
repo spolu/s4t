@@ -1,6 +1,6 @@
 import argparse
 import base64
-import concurrent.futures
+import gzip
 import json
 import os
 import pickle
@@ -676,7 +676,7 @@ class ProofTraceActions():
             self,
             path,
     ) -> None:
-        with open(path, 'wb') as f:
+        with gzip.open(path, 'wb') as f:
             pickle.dump(
                 self, f, protocol=pickle.HIGHEST_PROTOCOL, fix_imports=False,
             )
@@ -1350,7 +1350,7 @@ class ProofTraceLMDataset(Dataset):
             self,
             idx: int,
     ):
-        with open(self._ptra_files[self._cases[idx][0]], 'rb') as f:
+        with gzip.open(self._ptra_files[self._cases[idx][0]], 'rb') as f:
             ptra = pickle.load(f, fix_imports=False)
 
         truth = ptra.actions()[self._cases[idx][1]]
@@ -1564,7 +1564,7 @@ def extract():
 
     excess = [
         tr for tr in traces
-        if tr.len() > config.get('prooftrace_max_demo_length')
+        if tr.len() > config.get('prooftrace_max_demo_length') * 9/10
     ]
     Log.out("Min-cut initialization", {
         'excess': len(excess),
@@ -1745,7 +1745,7 @@ def extract():
         "train_size": train_size,
     })
 
-    with open(
+    with gzip.open(
             os.path.join(
                 os.path.expanduser(config.get('prooftrace_dataset_dir')),
                 config.get('prooftrace_dataset_size'),
