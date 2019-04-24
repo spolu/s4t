@@ -1604,10 +1604,10 @@ def extract():
 
     for tr in traces:
         if tr.len() < 16:
-            Log.out("Remove small prooftrace", {
-                'name': tr.name(),
-                'index': tr._index,
-            })
+            # Log.out("Remove small prooftrace", {
+            #     'name': tr.name(),
+            #     'index': tr._index,
+            # })
             kernel.remove_premise(tr._index)
 
     Log.out("Starting final prooftraces generation")
