@@ -1564,7 +1564,7 @@ def extract():
 
     excess = [
         tr for tr in traces
-        if tr.len() > config.get('prooftrace_max_demo_length') * 9/10
+        if tr.len() > config.get('prooftrace_max_demo_length') * 3/4
     ]
     Log.out("Min-cut initialization", {
         'excess': len(excess),
@@ -1766,6 +1766,7 @@ def extract():
 
     # medium term_token_count=14227 type_token_count=983
     # medium[1024]: term_token_count=2247 type_token_count=564
+    # medium[1024 min_cut]: term_token_count=18756 type_token_count=1017
 
 
 # def extract():
