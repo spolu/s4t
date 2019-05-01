@@ -1,6 +1,6 @@
 import argparse
 import base64
-import concurrent.futures
+import gzip
 import json
 import os
 import pickle
@@ -590,6 +590,15 @@ class ProofTraceKernel():
             return True
         return False
 
+    def remove_premise(
+            self,
+            index,
+    ) -> bool:
+        if index in self._names:
+            del self._names[index]
+        if index in self._shared:
+            del self._shared[index]
+
     def type_hash(
             self,
             typ,
@@ -667,8 +676,10 @@ class ProofTraceActions():
             self,
             path,
     ) -> None:
-        with open(path, 'wb') as f:
-            pickle.dump(self, f)
+        with gzip.open(path, 'wb') as f:
+            pickle.dump(
+                self, f, protocol=pickle.HIGHEST_PROTOCOL, fix_imports=False,
+            )
 
     def len(
             self,
@@ -1339,8 +1350,8 @@ class ProofTraceLMDataset(Dataset):
             self,
             idx: int,
     ):
-        with open(self._ptra_files[self._cases[idx][0]], 'rb') as f:
-            ptra = pickle.load(f)
+        with gzip.open(self._ptra_files[self._cases[idx][0]], 'rb') as f:
+            ptra = pickle.load(f, fix_imports=False)
 
         truth = ptra.actions()[self._cases[idx][1]]
         actions = ptra.actions()[:self._cases[idx][1]]
@@ -1553,7 +1564,7 @@ def extract():
 
     excess = [
         tr for tr in traces
-        if tr.len() > config.get('prooftrace_max_demo_length')
+        if tr.len() > config.get('prooftrace_max_demo_length') * 3/4
     ]
     Log.out("Min-cut initialization", {
         'excess': len(excess),
@@ -1566,7 +1577,7 @@ def extract():
         for tr in excess:
             orig.append(tr._index)
             cut += tr.min_cut(
-                config.get('prooftrace_max_demo_length') * 1/2,
+                config.get('prooftrace_max_demo_length') * 1/8,
                 config.get('prooftrace_max_demo_length') * 3/4,
             )
 
@@ -1586,6 +1597,19 @@ def extract():
             'cut': len(cut),
         })
 
+    Log.out("Stitching small prooftraces")
+
+    traces = [ProofTrace(kernel, k) for k in kernel._names.keys()]
+    traces = [tr for tr in traces if len(tr._steps) > 0]
+
+    for tr in traces:
+        if tr.len() < 16:
+            # Log.out("Remove small prooftrace", {
+            #     'name': tr.name(),
+            #     'index': tr._index,
+            # })
+            kernel.remove_premise(tr._index)
+
     Log.out("Starting final prooftraces generation")
 
     traces = [ProofTrace(kernel, k) for k in kernel._names.keys()]
@@ -1598,31 +1622,37 @@ def extract():
 
     Log.histogram(
         "ProofTraces Premises",
-        [len(pr._premises) for pr in traces],
+        [len(tr._premises) for tr in traces],
         buckets=[64, 128, 256, 512, 1024, 2048, 4096],
         labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
     )
     Log.histogram(
         "ProofTraces Substs",
-        [len(pr._substs) for pr in traces],
+        [len(tr._substs) for tr in traces],
         buckets=[64, 128, 256, 512, 1024, 2048, 4096],
         labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
     )
     Log.histogram(
         "ProofTraces SubstTypes",
-        [len(pr._subst_types) for pr in traces],
+        [len(tr._subst_types) for tr in traces],
         buckets=[64, 128, 256, 512, 1024, 2048, 4096],
         labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
     )
     Log.histogram(
         "ProofTraces Terms",
-        [len(pr._terms) for pr in traces],
+        [len(tr._terms) for tr in traces],
         buckets=[64, 128, 256, 512, 1024, 2048, 4096],
         labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
     )
     Log.histogram(
         "ProofTraces Steps",
-        [len(pr._steps) for pr in traces],
+        [len(tr._steps) for tr in traces],
+        buckets=[64, 128, 256, 512, 1024, 2048, 4096],
+        labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
+    )
+    Log.histogram(
+        "ProofTraces Length",
+        [tr.len() for tr in traces],
         buckets=[64, 128, 256, 512, 1024, 2048, 4096],
         labels=["0064", "0128", "0256", "0512", "1024", "2048", "4096"]
     )
@@ -1650,7 +1680,7 @@ def extract():
         shutil.rmtree(traces_path_test)
     os.mkdir(traces_path_test)
 
-    executor = concurrent.futures.ThreadPoolExecutor()
+    # executor = concurrent.futures.ThreadPoolExecutor()
 
     force_test = [
         'IRRATIONAL_SQRT_NONSQUARE',
@@ -1664,56 +1694,42 @@ def extract():
         'IRRATIONAL_SQRT_2',
     ]
 
-    def generate(a):
-        tr = a[0]
-        i = a[1]
-
+    for i, tr in enumerate(traces):
+        keep = True
         if tr.len() > config.get('prooftrace_max_demo_length'):
             keep = False
             for nm in force_keep:
                 if re.search(nm, tr.name()) is not None:
                     keep = True
-            if not keep:
-                Log.out("Filtering Trace", {
-                    'name': tr.name(),
-                    'length': tr.len(),
-                })
-                return None
 
-        ptra = tr.actions()
-
-        test = False
-        for nm in force_test:
-            if re.search(nm, tr.name()) is not None:
-                test = True
-
-        k = permutation[i]
-        if k < train_size and not test:
-            path = traces_path_train
+        if not keep:
+            Log.out("Filtering Trace", {
+                'name': tr.name(),
+                'length': tr.len(),
+            })
         else:
-            path = traces_path_test
+            ptra = tr.actions()
 
-        ptra_path = os.path.join(path, ptra.path())
-        with open(ptra_path, 'wb') as f:
+            test = False
+            for nm in force_test:
+                if re.search(nm, tr.name()) is not None:
+                    test = True
+
+            k = permutation[i]
+            if k < train_size and not test:
+                path = traces_path_train
+            else:
+                path = traces_path_test
+
+            ptra_path = os.path.join(path, ptra.path())
             Log.out("Writing ProofTraceActions", {
                 'path': ptra_path,
                 'index': i,
                 'total': len(traces),
             })
-            pickle.dump(ptra, f)
-        # trace_path = os.path.join(path, tr.name() + '.trace')
-        # with open(trace_path, 'w') as f:
-        #     json.dump(dict(tr), f, sort_keys=False, indent=2)
+            ptra.dump(ptra_path)
 
-        return ptra.len()
-
-    args = []
-    for i, tr in enumerate(traces):
-        args.append([tr, i])
-
-    for ptra_len in executor.map(generate, args):
-        if ptra_len is not None:
-            trace_lengths.append(ptra_len)
+            trace_lengths.append(ptra.len())
 
     Log.histogram(
         "ProofTraces Length",
@@ -1729,13 +1745,15 @@ def extract():
         "train_size": train_size,
     })
 
-    with open(
+    with gzip.open(
             os.path.join(
                 os.path.expanduser(config.get('prooftrace_dataset_dir')),
                 config.get('prooftrace_dataset_size'),
                 'traces.tokenizer',
             ), 'wb') as f:
-        pickle.dump(kernel._t, f)
+        pickle.dump(
+            kernel._t, f, protocol=pickle.HIGHEST_PROTOCOL, fix_imports=False,
+        )
 
     Log.out("Dumped tokenizer", {
         "term_token_count": len(kernel._t._term_tokens),
@@ -1748,3 +1766,11 @@ def extract():
 
     # medium term_token_count=14227 type_token_count=983
     # medium[1024]: term_token_count=2247 type_token_count=564
+    # medium[1024 min_cut]: term_token_count=18756 type_token_count=1017
+
+
+# def extract():
+#     import cProfile
+#     cProfile.runctx(
+#         'extract_profile()', globals(), locals(), 'extract.profile'
+#     )
