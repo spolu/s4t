@@ -1687,49 +1687,36 @@ def extract():
         'IRRATIONAL_SQRT_PRIME',
         'IRRATIONAL_SQRT_2',
     ]
-    force_keep = [
-        'REAL_INTEGER_EQ_0',
-        'IRRATIONAL_SQRT_NONSQUARE',
-        'IRRATIONAL_SQRT_PRIME',
-        'IRRATIONAL_SQRT_2',
-    ]
+    # force_keep = [
+    #     'REAL_INTEGER_EQ_0',
+    #     'IRRATIONAL_SQRT_NONSQUARE',
+    #     'IRRATIONAL_SQRT_PRIME',
+    #     'IRRATIONAL_SQRT_2',
+    # ]
 
     for i, tr in enumerate(traces):
-        keep = True
-        if tr.len() > config.get('prooftrace_max_demo_length'):
-            keep = False
-            for nm in force_keep:
-                if re.search(nm, tr.name()) is not None:
-                    keep = True
+        ptra = tr.actions()
 
-        if not keep:
-            Log.out("Filtering Trace", {
-                'name': tr.name(),
-                'length': tr.len(),
-            })
+        test = False
+        for nm in force_test:
+            if re.search(nm, tr.name()) is not None:
+                test = True
+
+        k = permutation[i]
+        if k < train_size and not test:
+            path = traces_path_train
         else:
-            ptra = tr.actions()
+            path = traces_path_test
 
-            test = False
-            for nm in force_test:
-                if re.search(nm, tr.name()) is not None:
-                    test = True
+        ptra_path = os.path.join(path, ptra.path())
+        Log.out("Writing ProofTraceActions", {
+            'path': ptra_path,
+            'index': i,
+            'total': len(traces),
+        })
+        ptra.dump(ptra_path)
 
-            k = permutation[i]
-            if k < train_size and not test:
-                path = traces_path_train
-            else:
-                path = traces_path_test
-
-            ptra_path = os.path.join(path, ptra.path())
-            Log.out("Writing ProofTraceActions", {
-                'path': ptra_path,
-                'index': i,
-                'total': len(traces),
-            })
-            ptra.dump(ptra_path)
-
-            trace_lengths.append(ptra.len())
+        trace_lengths.append(ptra.len())
 
     Log.histogram(
         "ProofTraces Length",
