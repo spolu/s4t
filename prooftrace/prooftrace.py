@@ -1709,7 +1709,7 @@ def extract():
                 'traces.tokenizer',
             ), 'wb') as f:
         pickle.dump(
-            kernel._t, f, protocol=pickle.HIGHEST_PROTOCOL, fix_imports=False,
+            tokenizer, f, protocol=pickle.HIGHEST_PROTOCOL, fix_imports=False,
         )
 
     Log.out("Dumped tokenizer", {
