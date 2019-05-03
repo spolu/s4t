@@ -1,11 +1,11 @@
 import argparse
 import base64
+import concurrent.futures
 import copy
 import gzip
 import json
 import os
 import pickle
-import random
 import re
 import shutil
 import sys
@@ -18,6 +18,13 @@ from torch.utils.data import Dataset
 
 from utils.config import Config
 from utils.log import Log
+
+TEST_FILTER = [
+    'IRRATIONAL_SQRT_NONSQUARE',
+    'IRRATIONAL_SQRT_PRIME',
+    'IRRATIONAL_SQRT_2',
+    'PAIR_EXISTS_THM',
+]
 
 ACTION_TOKENS = {
     'EMPTY': 0,
@@ -1526,6 +1533,42 @@ def dump_shared():
         print(dump)
 
 
+def dump_trace(args):
+    config, tokenizer, tr, idx, total = args
+    ptra = tr.actions(tokenizer)
+
+    test = False
+    for nm in TEST_FILTER:
+        if re.search(nm, tr.name()) is not None:
+            test = True
+
+    if test:
+        path = os.path.join(
+            os.path.expanduser(config.get('prooftrace_dataset_dir')),
+            config.get('prooftrace_dataset_size'),
+            "test_traces",
+        )
+    else:
+        path = os.path.join(
+            os.path.expanduser(config.get('prooftrace_dataset_dir')),
+            config.get('prooftrace_dataset_size'),
+            "train_traces",
+        )
+
+    ptra_path = os.path.join(path, ptra.path())
+    Log.out("Writing ProofTraceActions", {
+        'path': ptra_path,
+        'index': idx,
+        'total': total,
+    })
+    ptra.dump(ptra_path)
+
+    length = ptra.len()
+    del ptra
+
+    return length
+
+
 def extract():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument(
@@ -1746,41 +1789,15 @@ def extract():
         shutil.rmtree(traces_path_test)
     os.mkdir(traces_path_test)
 
-    # executor = concurrent.futures.ThreadPoolExecutor()
+    executor = concurrent.futures.ProcessPoolExecutor()
 
-    test_filter = [
-        'IRRATIONAL_SQRT_NONSQUARE',
-        'IRRATIONAL_SQRT_PRIME',
-        'IRRATIONAL_SQRT_2',
-        'PAIR_EXISTS_THM',
-    ]
-
-    trace_lengths = []
-    test_count = 0
-
+    map_args = []
     for i, tr in enumerate(traces):
-        ptra = tr.actions(tokenizer)
+        map_args.append([config, tokenizer, tr, i, len(traces)])
 
-        test = False
-        for nm in test_filter:
-            if re.search(nm, tr.name()) is not None:
-                test = True
-                test_count += 1
-
-        if test:
-            path = traces_path_test
-        else:
-            path = traces_path_train
-
-        ptra_path = os.path.join(path, ptra.path())
-        Log.out("Writing ProofTraceActions", {
-            'path': ptra_path,
-            'index': i,
-            'total': len(traces),
-        })
-        ptra.dump(ptra_path)
-
-        trace_lengths.append(ptra.len())
+    trace_lengths = [
+        l for l in executor.map(dump_trace, map_args, chunksize=32)
+    ]
 
     Log.histogram(
         "ProofTraces Length",
@@ -1793,7 +1810,6 @@ def extract():
         "traces_path_train": traces_path_train,
         "traces_path_test": traces_path_test,
         "trace_count": len(traces),
-        "test_count": test_count,
     })
 
     # small: term_token_count=427 type_token_count=70
