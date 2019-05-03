@@ -1741,7 +1741,7 @@ def extract():
         "traces_path_train": traces_path_train,
         "traces_path_test": traces_path_test,
         "trace_count": len(traces),
-        "test_count": len(test_count),
+        "test_count": test_count,
     })
 
     with gzip.open(
