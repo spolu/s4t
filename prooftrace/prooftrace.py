@@ -612,7 +612,7 @@ class ProofTraceActions():
     ) -> None:
         with gzip.open(path, 'wb') as f:
             pickle.dump(
-                self, f, protocol=pickle.HIGHEST_PROTOCOL, fix_imports=False,
+                self, f, protocol=pickle.HIGHEST_PROTOCOL,
             )
 
     def len(
@@ -762,17 +762,6 @@ class ProofTrace():
         self._name = str(self._index) + '_' + kernel._names[self._index]
 
         self.walk(self._index, kernel)
-
-        # Log.out(
-        #     "Constructed ProofTrace", {
-        #         'index': self._index,
-        #         'name': self.name(),
-        #         'premises_count': len(self._premises),
-        #         'step_count': len(self._steps),
-        #         'terms_count': len(self._terms),
-        #         'substs_count': len(self._substs),
-        #         'subst_types_count': len(self._subst_types),
-        #     })
 
     def name(
             self,
@@ -1317,7 +1306,7 @@ class ProofTraceLMDataset(Dataset):
             idx: int,
     ):
         with gzip.open(self._ptra_files[self._cases[idx][0]], 'rb') as f:
-            ptra = pickle.load(f, fix_imports=False)
+            ptra = pickle.load(f)
 
         truth = ptra.actions()[self._cases[idx][1]]
         actions = ptra.actions()[:self._cases[idx][1]]
@@ -1709,7 +1698,7 @@ def extract():
                 'traces.tokenizer',
             ), 'wb') as f:
         pickle.dump(
-            tokenizer, f, protocol=pickle.HIGHEST_PROTOCOL, fix_imports=False,
+            tokenizer, f, protocol=pickle.HIGHEST_PROTOCOL
         )
 
     Log.out("Dumped tokenizer", {

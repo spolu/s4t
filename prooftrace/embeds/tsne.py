@@ -1,5 +1,6 @@
 import argparse
 import base64
+import gzip
 import numpy as np
 import os
 import pickle
@@ -189,7 +190,7 @@ def extract():
             Log.out("Loading ProofTraceActions", {
                 'path': p,
             })
-            with open(p, 'rb') as f:
+            with gzip.open(p, 'rb') as f:
                 ptra = pickle.load(f)
             Log.out("Embedding ProofTraceActions", {
                 'name': ptra.name(),
@@ -224,7 +225,7 @@ def extract():
         Log.out("Writing ProofTraceEmbeds", {
             'path': ptre_path,
         })
-        with open(ptre_path, 'wb') as f:
+        with gzip.open(ptre_path, 'wb') as f:
             pickle.dump(ptre, f)
 
     test_dataset_dir = os.path.join(
