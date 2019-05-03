@@ -1,5 +1,6 @@
 import argparse
 import base64
+import copy
 import gzip
 import json
 import os
@@ -749,6 +750,7 @@ class ProofTrace():
     ):
         self._index = proof_index
 
+        self._target = None
         self._premises = {}
         self._terms = {}
         self._substs = {}
@@ -757,7 +759,6 @@ class ProofTrace():
         self._steps = {}
         self._theorems = {}
         self._sequence = []
-        self._target = None
 
         self._name = str(self._index) + '_' + kernel._names[self._index]
 
@@ -777,49 +778,18 @@ class ProofTrace():
             len(self._terms) + \
             len(self._substs) + len(self._subst_types)
 
-    def type_hash(
-            self,
-            typ,
-    ):
-        h = xxhash.xxh64()
-        h.update(typ)
-        return str(h.digest())
-
-    def term_hash(
-            self,
-            term,
-    ):
-        h = xxhash.xxh64()
-        h.update(term)
-        return str(h.digest())
-
-    def subst_hash(
-            self,
-            subst,
-    ):
-        h = xxhash.xxh64()
-        for s in subst:
-            assert len(s) == 2
-            h.update(s[0])
-            h.update(s[1])
-        return str(h.digest())
-
-    def subst_type_hash(
-            self,
-            subst_type,
-    ):
-        h = xxhash.xxh64()
-        for s in subst_type:
-            assert len(s) == 2
-            h.update(s[0])
-            h.update(s[1])
-        return str(h.digest())
-
     def record_term(
             self,
             term,
     ):
-        h = self.term_hash(term)
+        def term_hash(
+                term,
+        ):
+            h = xxhash.xxh64()
+            h.update(term)
+            return str(h.digest())
+
+        h = term_hash(term)
         if h in self._terms:
             assert term == self._terms[h]
         else:
@@ -830,7 +800,17 @@ class ProofTrace():
             self,
             subst,
     ):
-        h = self.subst_hash(subst)
+        def subst_hash(
+                subst,
+        ):
+            h = xxhash.xxh64()
+            for s in subst:
+                assert len(s) == 2
+                h.update(s[0])
+                h.update(s[1])
+            return str(h.digest())
+
+        h = subst_hash(subst)
         if h in self._substs:
             assert len(subst) == len(self._substs[h])
             for i, s in enumerate(subst):
@@ -844,7 +824,17 @@ class ProofTrace():
             self,
             subst_type,
     ):
-        h = self.subst_type_hash(subst_type)
+        def subst_type_hash(
+                subst_type,
+        ):
+            h = xxhash.xxh64()
+            for s in subst_type:
+                assert len(s) == 2
+                h.update(s[0])
+                h.update(s[1])
+            return str(h.digest())
+
+        h = subst_type_hash(subst_type)
         if h in self._subst_types:
             assert len(subst_type) == len(self._subst_types[h])
             for i, s in enumerate(subst_type):
@@ -1018,34 +1008,31 @@ class ProofTrace():
         substs = []
         # We first record subst as they are generally deeper than terms but
         # include very similar terms (optimize TreeLSTM cache hit).
-        for subst in self._substs.values():
+        for h in self._substs:
+            subst = self._substs[h]
             action = build_subst(subst)
-            cache['substs'][
-                self.subst_hash(subst)
-            ] = action
+            cache['substs'][h] = action
             substs.append(action)
 
         subst_types = []
         # We then record subst_type.
-        for subst_type in self._subst_types.values():
+        for h in self._subst_types:
+            subst_type = self._subst_types[h]
             action = build_subst_type(subst_type)
-            cache['subst_types'][
-                self.subst_type_hash(subst_type)
-            ] = action
+            cache['subst_types'][h] = action
             subst_types.append(action)
 
         terms = []
         # We then record terms as they are generally deeper than premises but
         # include very similar terms (optimize TreeLSTM cache hit).
-        for term in self._terms.values():
+        for h in self._terms:
+            term = self._terms[h]
             action = Action.from_action(
                 'TERM',
                 Action.from_term(t.term(term)),
                 None,
             )
-            cache['terms'][
-                self.term_hash(term)
-            ] = action
+            cache['terms'][h] = action
             terms.append(action)
 
         # Terms are unordered so we order them by depth to optimize cache hit
@@ -1243,6 +1230,76 @@ class ProofTrace():
         assert len(candidates) > 0
 
         return sorted(list(candidates[0][1]))
+
+    def localize(
+            self,
+    ) -> None:
+        cache = {
+            '_term_index': 0,
+            '_type_index': 0,
+        }
+
+        term_pattern = re.compile(r"v\(_[0-9]+\)")
+        type_pattern = re.compile(r"v\[\?[0-9]+\]")
+
+        def localize_blob(blob):
+            replacements = {}
+
+            for m in re.findall(term_pattern, blob):
+                if m not in cache:
+                    cache[m] = "v(_" + str(cache['_term_index']) + ")"
+                    cache['_term_index'] += 1
+                if m not in replacements:
+                    replacements[m] = cache[m]
+            for m in re.findall(type_pattern, blob):
+                if m not in cache:
+                    cache[m] = "v[?" + str(cache['_type_index']) + "]"
+                    cache['_type_index'] += 1
+                if m not in replacements:
+                    replacements[m] = cache[m]
+
+            for old in replacements:
+                blob = blob.replace(old, replacements[old])
+
+            return blob
+
+        def localize_term(term):
+            return localize_blob(term)
+
+        def localize_subst(subst):
+            new = copy.deepcopy(subst)
+            for i in range(len(subst)):
+                assert len(subst[i]) == 2
+                new[i][0] = localize_blob(subst[i][0])
+                new[i][1] = localize_blob(subst[i][1])
+            return new
+
+        def localize_subst_type(subst_type):
+            new = copy.deepcopy(subst_type)
+            for i in range(len(subst_type)):
+                assert len(subst_type[i]) == 2
+                new[i][0] = localize_blob(subst_type[i][0])
+                new[i][1] = localize_blob(subst_type[i][1])
+            return new
+
+        def localize_theorem(th):
+            new = copy.deepcopy(th)
+            new['cc'] = localize_blob(th['cc'])
+            for i in range(len(th['hy'])):
+                new['hy'][i] = localize_blob(th['hy'][i])
+            return new
+
+        self._target = localize_theorem(self._target)
+        for idx in self._premises:
+            self._premises[idx] = localize_theorem(self._premises[idx])
+        for idx in self._theorems:
+            self._theorems[idx] = localize_theorem(self._theorems[idx])
+        for h in self._terms:
+            self._terms[h] = localize_term(self._terms[h])
+        for h in self._substs:
+            self._substs[h] = localize_subst(self._substs[h])
+        for h in self._subst_types:
+            self._subst_types[h] = localize_subst_type(self._subst_types[h])
 
 
 class ProofTraceLMDataset(Dataset):
@@ -1521,7 +1578,7 @@ def extract():
 
     excess = [
         tr for tr in traces
-        if tr.len() > config.get('prooftrace_max_demo_length') * 3/4
+        if tr.len() > config.get('prooftrace_max_demo_length') * 4/5
     ]
     Log.out("Min-cut initialization", {
         'excess': len(excess),
@@ -1535,7 +1592,7 @@ def extract():
             orig.append(tr._index)
             cut += tr.min_cut(
                 config.get('prooftrace_max_demo_length') * 1/8,
-                config.get('prooftrace_max_demo_length') * 3/4,
+                config.get('prooftrace_max_demo_length') * 1/2,
             )
 
         for idx in cut:
@@ -1545,7 +1602,7 @@ def extract():
         traces = [ProofTrace(kernel, k) for k in refresh]
         excess = [
             tr for tr in traces
-            if tr.len() > config.get('prooftrace_max_demo_length')
+            if tr.len() > config.get('prooftrace_max_demo_length') * 4/5
         ]
 
         Log.out("Min-cut processing loop", {
@@ -1573,9 +1630,11 @@ def extract():
     traces = [tr for tr in traces if len(tr._steps) > 0]
     traces = sorted(traces, key=lambda tr: tr._index)
 
-    # TODO(stan): simplify invented terms and types
+    # Finally we localize the resulting traces.
+    for tr in traces:
+        tr.localize()
 
-    Log.out("Prooftraces computed, filtered and sorted", {
+    Log.out("Prooftraces computed, filtered, localized and sorted", {
         "traces_count": len(traces),
     })
 
@@ -1617,10 +1676,6 @@ def extract():
     )
     Log.out("Starting action generation")
 
-    train_size = int(len(traces) * 90 / 100)
-    permutation = random.sample(list(range(len(traces))), k=len(traces))
-    trace_lengths = []
-
     traces_path_train = os.path.join(
         os.path.expanduser(config.get('prooftrace_dataset_dir')),
         config.get('prooftrace_dataset_size'),
@@ -1641,31 +1696,29 @@ def extract():
 
     # executor = concurrent.futures.ThreadPoolExecutor()
 
-    force_test = [
+    test_filter = [
         'IRRATIONAL_SQRT_NONSQUARE',
         'IRRATIONAL_SQRT_PRIME',
         'IRRATIONAL_SQRT_2',
+        'PAIR_EXISTS_THM',
     ]
-    # force_keep = [
-    #     'REAL_INTEGER_EQ_0',
-    #     'IRRATIONAL_SQRT_NONSQUARE',
-    #     'IRRATIONAL_SQRT_PRIME',
-    #     'IRRATIONAL_SQRT_2',
-    # ]
+
+    trace_lengths = []
+    test_count = 0
 
     for i, tr in enumerate(traces):
         ptra = tr.actions(tokenizer)
 
         test = False
-        for nm in force_test:
+        for nm in test_filter:
             if re.search(nm, tr.name()) is not None:
                 test = True
+                test_count += 1
 
-        k = permutation[i]
-        if k < train_size and not test:
-            path = traces_path_train
-        else:
+        if test:
             path = traces_path_test
+        else:
+            path = traces_path_train
 
         ptra_path = os.path.join(path, ptra.path())
         Log.out("Writing ProofTraceActions", {
@@ -1688,7 +1741,7 @@ def extract():
         "traces_path_train": traces_path_train,
         "traces_path_test": traces_path_test,
         "trace_count": len(traces),
-        "train_size": train_size,
+        "test_count": len(test_count),
     })
 
     with gzip.open(
@@ -1709,10 +1762,12 @@ def extract():
     # small: term_token_count=427 type_token_count=70
     # small[1024]: term_token_count=338 type_token_count=70
     # small[1024 min_cut]: term_token_count=427 type_token_count=70
+    # small[1024 min_cut local]: term_token_count=114 type_token_count=28
 
     # medium term_token_count=14227 type_token_count=983
     # medium[1024]: term_token_count=2247 type_token_count=564
     # medium[1024 min_cut]: term_token_count=18756 type_token_count=1017
+    # medium[1024 min_cut local]: term_token_count= type_token_count=
 
 
 # def extract():
