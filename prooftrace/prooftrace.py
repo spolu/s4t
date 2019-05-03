@@ -400,8 +400,9 @@ class ProofTraceTokenizer():
             if t[0] == 'v':
                 chld = list(self.split(t, ['[', ']']))
                 assert len(chld) == 1
-                if chld[0] not in self._type_tokens:
-                    self._type_tokens[chld[0]] = len(self._type_tokens)
+                assert chld[0] in self._type_tokens
+                # if chld[0] not in self._type_tokens:
+                #     self._type_tokens[chld[0]] = len(self._type_tokens)
                 return Type(
                     self._type_tokens['__v'],
                     Type(self._type_tokens[chld[0]], None, None, chld[0]),
@@ -411,8 +412,9 @@ class ProofTraceTokenizer():
             if t[0] == 'c':
                 chld = list(self.split(t, ['[', ']']))
                 assert len(chld) == 2
-                if chld[0] not in self._type_tokens:
-                    self._type_tokens[chld[0]] = len(self._type_tokens)
+                assert chld[0] in self._type_tokens
+                # if chld[0] not in self._type_tokens:
+                #     self._type_tokens[chld[0]] = len(self._type_tokens)
                 args = [
                     self.type(ty)
                     for ty in list(self.split(chld[1], ['[', ']']))
@@ -456,8 +458,9 @@ class ProofTraceTokenizer():
             if t[0] == 'c':
                 chld = list(self.split(t, ['(', ')']))
                 assert len(chld) == 2
-                if chld[0] not in self._term_tokens:
-                    self._term_tokens[chld[0]] = len(self._term_tokens)
+                assert chld[0] in self._term_tokens
+                # if chld[0] not in self._term_tokens:
+                #     self._term_tokens[chld[0]] = len(self._term_tokens)
                 return Term(
                     self._term_tokens['__c'],
                     Term(self._term_tokens[chld[0]], None, None, chld[0]),
@@ -467,8 +470,9 @@ class ProofTraceTokenizer():
             if t[0] == 'v':
                 chld = list(self.split(t, ['(', ')']))
                 assert len(chld) == 2
-                if chld[0] not in self._term_tokens:
-                    self._term_tokens[chld[0]] = len(self._term_tokens)
+                assert chld[0] in self._term_tokens
+                # if chld[0] not in self._term_tokens:
+                #     self._term_tokens[chld[0]] = len(self._term_tokens)
                 return Term(
                     self._term_tokens['__v'],
                     Term(self._term_tokens[chld[0]], None, None, chld[0]),
@@ -491,9 +495,6 @@ class ProofTraceKernel():
 
         # Proof steps that are re-used >1 time.
         self._shared = {}
-
-        self._type_cache = {}
-        self._term_cache = {}
 
         self._dataset_dir = os.path.abspath(
             os.path.join(dataset_dir, dataset_size),
@@ -1301,6 +1302,34 @@ class ProofTrace():
         for h in self._subst_types:
             self._subst_types[h] = localize_subst_type(self._subst_types[h])
 
+    def tokenize(
+            self,
+            tokenizer: ProofTraceTokenizer,
+    ):
+        token_pattern = re.compile(r"[vc]\([^\(\)]+\)|[vc]\[[^\[\]]+\]")
+
+        def tokenize_blob(blob):
+            for m in re.findall(token_pattern, blob):
+                token = m[2:-1]
+                if m[1] == '[':
+                    if token not in tokenizer._type_tokens:
+                        tokenizer._type_tokens[token] = \
+                            len(tokenizer._type_tokens)
+                if m[1] == '(':
+                    if token not in tokenizer._term_tokens:
+                        tokenizer._term_tokens[token] = \
+                            len(tokenizer._term_tokens)
+
+        def tokenize_theorem(th):
+            tokenize_blob(th['cc'])
+            for i in range(len(th['hy'])):
+                tokenize_blob(th['hy'][i])
+
+        for idx in self._theorems:
+            tokenize_theorem(self._theorems[idx])
+        for idx in self._premises:
+            tokenize_theorem(self._premises[idx])
+
 
 class ProofTraceLMDataset(Dataset):
     def __init__(
@@ -1638,6 +1667,29 @@ def extract():
         "traces_count": len(traces),
     })
 
+    for tr in traces:
+        tr.tokenize(tokenizer)
+
+    Log.out("Pre-tokenized prooftraces", {
+        "term_token_count": len(tokenizer._term_tokens),
+        "type_token_count": len(tokenizer._type_tokens),
+    })
+
+    with gzip.open(
+            os.path.join(
+                os.path.expanduser(config.get('prooftrace_dataset_dir')),
+                config.get('prooftrace_dataset_size'),
+                'traces.tokenizer',
+            ), 'wb') as f:
+        pickle.dump(
+            tokenizer, f, protocol=pickle.HIGHEST_PROTOCOL
+        )
+
+    Log.out("Dumped tokenizer", {
+        "term_token_count": len(tokenizer._term_tokens),
+        "type_token_count": len(tokenizer._type_tokens),
+    })
+
     Log.histogram(
         "ProofTraces Premises",
         [len(tr._premises) for tr in traces],
@@ -1742,21 +1794,6 @@ def extract():
         "traces_path_test": traces_path_test,
         "trace_count": len(traces),
         "test_count": test_count,
-    })
-
-    with gzip.open(
-            os.path.join(
-                os.path.expanduser(config.get('prooftrace_dataset_dir')),
-                config.get('prooftrace_dataset_size'),
-                'traces.tokenizer',
-            ), 'wb') as f:
-        pickle.dump(
-            tokenizer, f, protocol=pickle.HIGHEST_PROTOCOL
-        )
-
-    Log.out("Dumped tokenizer", {
-        "term_token_count": len(tokenizer._term_tokens),
-        "type_token_count": len(tokenizer._type_tokens),
     })
 
     # small: term_token_count=427 type_token_count=70
