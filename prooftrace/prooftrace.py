@@ -1689,7 +1689,7 @@ def extract():
     traces = [tr for tr in traces if len(tr._steps) > 0]
 
     for tr in traces:
-        if tr.len() < 16:
+        if tr.len() < 32:
             # Log.out("Remove small prooftrace", {
             #     'name': tr.name(),
             #     'index': tr._index,
