@@ -23,8 +23,11 @@ setup(
             'prooftrace_test_fusion=prooftrace.repl.fusion:test',
             'prooftrace_test_repl_env=prooftrace.repl.env:test',
 
+            'prooftrace_train_language_model=prooftrace.language_model:train',
+
             'prooftrace_ppo_syn_run=prooftrace.ppo_iota:syn_run',
             'prooftrace_ppo_ack_run=prooftrace.ppo_iota:ack_run',
+
             'prooftrace_embeds_tsne_extract=prooftrace.embeds.tsne:extract',
             'prooftrace_embeds_viewer=prooftrace.embeds.viewer.viewer:run',
         ],
