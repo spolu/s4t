@@ -1,6 +1,7 @@
 import argparse
 import eventlet
 import eventlet.wsgi
+import gzip
 import os
 import pickle
 import re
@@ -99,7 +100,7 @@ def run():
     Log.out("Loading ProofTraceEmbeds", {
         'path': ptre_path,
     })
-    with open(ptre_path, 'rb') as f:
+    with gzip.open(ptre_path, 'rb') as f:
         embeds = pickle.load(f)
         _dump = {
             'embeds': dict(embeds),
@@ -112,7 +113,7 @@ def run():
         Log.out("Loading ProofTraceActions", {
             'path': p,
         })
-        with open(p, 'rb') as f:
+        with gzip.open(p, 'rb') as f:
             ptra = pickle.load(f)
             _traces[ptra.name()] = {'actions': []}
             for i in range(ptra.len()):

@@ -1,5 +1,6 @@
 import argparse
 import datetime
+import gzip
 import os
 import pickle
 import random
@@ -35,7 +36,7 @@ class Model:
         self._device = torch.device(config.get('device'))
         self._load_dir = config.get('prooftrace_load_dir')
 
-        with open(
+        with gzip.open(
                 os.path.join(
                     os.path.expanduser(config.get('prooftrace_dataset_dir')),
                     config.get('prooftrace_dataset_size'),
@@ -467,7 +468,7 @@ def search():
     ]
     cases = []
 
-    with open(
+    with gzip.open(
             os.path.join(
                 os.path.expanduser(config.get('prooftrace_dataset_dir')),
                 config.get('prooftrace_dataset_size'),
@@ -496,7 +497,7 @@ def search():
 
     for i in range(len(cases)):
         c = cases[i][0]
-        with open(c, 'rb') as f:
+        with gzip.open(c, 'rb') as f:
             ground = pickle.load(f)
 
         repl = REPL(tokenizer)

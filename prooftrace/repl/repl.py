@@ -1,4 +1,5 @@
 import argparse
+import gzip
 import os
 import pickle
 import re
@@ -252,7 +253,7 @@ def test():
     print("ProofTrace REPL testing \\o/")
     print("----------------------------")
 
-    with open(
+    with gzip.open(
             os.path.join(
                 os.path.expanduser(config.get('prooftrace_dataset_dir')),
                 config.get('prooftrace_dataset_size'),
@@ -260,14 +261,14 @@ def test():
             ), 'rb') as f:
         tokenizer = pickle.load(f)
 
-    dataset_dir = "./data/prooftrace/{}/test_traces".format(
+    dataset_dir = "./data/prooftrace/{}/train_traces".format(
         config.get("prooftrace_dataset_size"),
     )
     files = [os.path.join(dataset_dir, f) for f in os.listdir(dataset_dir)]
     for p in files:
         if re.search("\\.actions$", p) is None:
             continue
-        with open(p, 'rb') as f:
+        with gzip.open(p, 'rb') as f:
             ptra = pickle.load(f)
 
         Log.out("Replaying ProofTraceActions", {

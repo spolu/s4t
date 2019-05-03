@@ -1,6 +1,7 @@
 import argparse
 import concurrent.futures
 import datetime
+import gzip
 import os
 import pickle
 import random
@@ -52,7 +53,7 @@ class Env:
                 re.search("\\.actions$", f) is not None)
         ]
 
-        with open(
+        with gzip.open(
                 os.path.join(
                     os.path.expanduser(config.get('prooftrace_dataset_dir')),
                     config.get('prooftrace_dataset_size'),
@@ -84,7 +85,7 @@ class Env:
             ptra_len = int(match.group(1))
 
             if ptra_len <= self._sequence_length:
-                with open(path, 'rb') as f:
+                with gzip.open(path, 'rb') as f:
                     self._ground = pickle.load(f)
                 # Log.out("Selecting trace", {
                 #     "trace": self._ground.name(),

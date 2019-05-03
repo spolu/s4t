@@ -1,4 +1,5 @@
 import argparse
+import gzip
 import typing
 import os
 import pickle
@@ -728,7 +729,7 @@ def test():
             args.dataset_size,
         )
 
-    with open(
+    with gzip.open(
             os.path.join(
                 os.path.expanduser(config.get('prooftrace_dataset_dir')),
                 config.get('prooftrace_dataset_size'),

@@ -1,10 +1,11 @@
 import argparse
 import base64
+import concurrent.futures
+import copy
 import gzip
 import json
 import os
 import pickle
-import random
 import re
 import shutil
 import sys
@@ -17,6 +18,13 @@ from torch.utils.data import Dataset
 
 from utils.config import Config
 from utils.log import Log
+
+TEST_FILTER = [
+    'IRRATIONAL_SQRT_NONSQUARE',
+    'IRRATIONAL_SQRT_PRIME',
+    'IRRATIONAL_SQRT_2',
+    'PAIR_EXISTS_THM',
+]
 
 ACTION_TOKENS = {
     'EMPTY': 0,
@@ -399,8 +407,9 @@ class ProofTraceTokenizer():
             if t[0] == 'v':
                 chld = list(self.split(t, ['[', ']']))
                 assert len(chld) == 1
-                if chld[0] not in self._type_tokens:
-                    self._type_tokens[chld[0]] = len(self._type_tokens)
+                assert chld[0] in self._type_tokens
+                # if chld[0] not in self._type_tokens:
+                #     self._type_tokens[chld[0]] = len(self._type_tokens)
                 return Type(
                     self._type_tokens['__v'],
                     Type(self._type_tokens[chld[0]], None, None, chld[0]),
@@ -410,8 +419,9 @@ class ProofTraceTokenizer():
             if t[0] == 'c':
                 chld = list(self.split(t, ['[', ']']))
                 assert len(chld) == 2
-                if chld[0] not in self._type_tokens:
-                    self._type_tokens[chld[0]] = len(self._type_tokens)
+                assert chld[0] in self._type_tokens
+                # if chld[0] not in self._type_tokens:
+                #     self._type_tokens[chld[0]] = len(self._type_tokens)
                 args = [
                     self.type(ty)
                     for ty in list(self.split(chld[1], ['[', ']']))
@@ -455,8 +465,9 @@ class ProofTraceTokenizer():
             if t[0] == 'c':
                 chld = list(self.split(t, ['(', ')']))
                 assert len(chld) == 2
-                if chld[0] not in self._term_tokens:
-                    self._term_tokens[chld[0]] = len(self._term_tokens)
+                assert chld[0] in self._term_tokens
+                # if chld[0] not in self._term_tokens:
+                #     self._term_tokens[chld[0]] = len(self._term_tokens)
                 return Term(
                     self._term_tokens['__c'],
                     Term(self._term_tokens[chld[0]], None, None, chld[0]),
@@ -466,8 +477,9 @@ class ProofTraceTokenizer():
             if t[0] == 'v':
                 chld = list(self.split(t, ['(', ')']))
                 assert len(chld) == 2
-                if chld[0] not in self._term_tokens:
-                    self._term_tokens[chld[0]] = len(self._term_tokens)
+                assert chld[0] in self._term_tokens
+                # if chld[0] not in self._term_tokens:
+                #     self._term_tokens[chld[0]] = len(self._term_tokens)
                 return Term(
                     self._term_tokens['__v'],
                     Term(self._term_tokens[chld[0]], None, None, chld[0]),
@@ -483,7 +495,6 @@ class ProofTraceKernel():
             self,
             dataset_dir: str,
             dataset_size: str,
-            tokenizer: ProofTraceTokenizer = None,
     ) -> None:
         self._proofs = {}
         self._theorems = {}
@@ -491,14 +502,6 @@ class ProofTraceKernel():
 
         # Proof steps that are re-used >1 time.
         self._shared = {}
-
-        if tokenizer is None:
-            self._t = ProofTraceTokenizer()
-        else:
-            self._t = tokenizer
-
-        self._type_cache = {}
-        self._term_cache = {}
 
         self._dataset_dir = os.path.abspath(
             os.path.join(dataset_dir, dataset_size),
@@ -599,66 +602,6 @@ class ProofTraceKernel():
         if index in self._shared:
             del self._shared[index]
 
-    def type_hash(
-            self,
-            typ,
-    ):
-        h = xxhash.xxh64()
-        h.update(typ)
-        return str(h.digest())
-
-    def term_hash(
-            self,
-            term,
-    ):
-        h = xxhash.xxh64()
-        h.update(term)
-        return str(h.digest())
-
-    def subst_hash(
-            self,
-            subst,
-    ):
-        h = xxhash.xxh64()
-        for s in subst:
-            assert len(s) == 2
-            h.update(s[0])
-            h.update(s[1])
-        return str(h.digest())
-
-    def subst_type_hash(
-            self,
-            subst_type,
-    ):
-        h = xxhash.xxh64()
-        for s in subst_type:
-            assert len(s) == 2
-            h.update(s[0])
-            h.update(s[1])
-        return str(h.digest())
-
-    def type(
-            self,
-            ty: str,
-    ) -> Type:
-        return self._t.type(ty)
-        # h = self.type_hash(ty)
-        # if h not in self._type_cache:
-        #     self._type_cache[h] = self._t.type(ty)
-
-        # return self._type_cache[h]
-
-    def term(
-            self,
-            tm: str,
-    ) -> Term:
-        return self._t.term(tm)
-        # h = self.term_hash(tm)
-        # if h not in self._term_cache:
-        #     self._term_cache[h] = self._t.term(tm)
-
-        # return self._term_cache[h]
-
 
 class ProofTraceActions():
     def __init__(
@@ -678,7 +621,7 @@ class ProofTraceActions():
     ) -> None:
         with gzip.open(path, 'wb') as f:
             pickle.dump(
-                self, f, protocol=pickle.HIGHEST_PROTOCOL, fix_imports=False,
+                self, f, protocol=pickle.HIGHEST_PROTOCOL,
             )
 
     def len(
@@ -813,9 +756,9 @@ class ProofTrace():
             kernel: ProofTraceKernel,
             proof_index: int,
     ):
-        self._kernel = kernel
         self._index = proof_index
 
+        self._target = None
         self._premises = {}
         self._terms = {}
         self._substs = {}
@@ -825,23 +768,14 @@ class ProofTrace():
         self._theorems = {}
         self._sequence = []
 
-        self.walk(self._index)
+        self._name = str(self._index) + '_' + kernel._names[self._index]
 
-        # Log.out(
-        #     "Constructed ProofTrace", {
-        #         'index': self._index,
-        #         'name': self.name(),
-        #         'premises_count': len(self._premises),
-        #         'step_count': len(self._steps),
-        #         'terms_count': len(self._terms),
-        #         'substs_count': len(self._substs),
-        #         'subst_types_count': len(self._subst_types),
-        #     })
+        self.walk(self._index, kernel)
 
     def name(
             self,
     ):
-        return str(self._index) + '_' + self._kernel._names[self._index]
+        return self._name
 
     def len(
             self,
@@ -856,7 +790,14 @@ class ProofTrace():
             self,
             term,
     ):
-        h = self._kernel.term_hash(term)
+        def term_hash(
+                term,
+        ):
+            h = xxhash.xxh64()
+            h.update(term)
+            return str(h.digest())
+
+        h = term_hash(term)
         if h in self._terms:
             assert term == self._terms[h]
         else:
@@ -867,7 +808,17 @@ class ProofTrace():
             self,
             subst,
     ):
-        h = self._kernel.subst_hash(subst)
+        def subst_hash(
+                subst,
+        ):
+            h = xxhash.xxh64()
+            for s in subst:
+                assert len(s) == 2
+                h.update(s[0])
+                h.update(s[1])
+            return str(h.digest())
+
+        h = subst_hash(subst)
         if h in self._substs:
             assert len(subst) == len(self._substs[h])
             for i, s in enumerate(subst):
@@ -881,7 +832,17 @@ class ProofTrace():
             self,
             subst_type,
     ):
-        h = self._kernel.subst_type_hash(subst_type)
+        def subst_type_hash(
+                subst_type,
+        ):
+            h = xxhash.xxh64()
+            for s in subst_type:
+                assert len(s) == 2
+                h.update(s[0])
+                h.update(s[1])
+            return str(h.digest())
+
+        h = subst_type_hash(subst_type)
         if h in self._subst_types:
             assert len(subst_type) == len(self._subst_types[h])
             for i, s in enumerate(subst_type):
@@ -894,40 +855,44 @@ class ProofTrace():
     def record_premise(
             self,
             index,
+            theorem,
     ):
         if index not in self._premises:
-            self._premises[index] = self._kernel._theorems[index]
+            self._premises[index] = theorem
 
     def walk(
             self,
             index,
+            kernel: ProofTraceKernel,
     ):
         if index in self._steps:
             return
 
         if index != self._index:
             if (
-                    index in self._kernel._names or
-                    index in self._kernel._shared
+                    index in kernel._names or
+                    index in kernel._shared
             ):
-                self.record_premise(index)
+                self.record_premise(index, kernel._theorems[index])
                 return
+        else:
+            self._target = kernel._theorems[index]
 
-        step = self._kernel._proofs[index].copy()
+        step = kernel._proofs[index].copy()
 
         if step[0] == 'REFL':
             step[1] = self.record_term(step[1])
 
         elif step[0] == 'TRANS':
-            self.walk(step[1])
-            self.walk(step[2])
+            self.walk(step[1], kernel)
+            self.walk(step[2], kernel)
 
         elif step[0] == 'MK_COMB':
-            self.walk(step[1])
-            self.walk(step[2])
+            self.walk(step[1], kernel)
+            self.walk(step[2], kernel)
 
         elif step[0] == 'ABS':
-            self.walk(step[1])
+            self.walk(step[1], kernel)
             step[2] = self.record_term(step[2])
 
         elif step[0] == 'BETA':
@@ -937,54 +902,44 @@ class ProofTrace():
             step[1] = self.record_term(step[1])
 
         elif step[0] == 'EQ_MP':
-            self.walk(step[1])
-            self.walk(step[2])
+            self.walk(step[1], kernel)
+            self.walk(step[2], kernel)
 
         elif step[0] == 'DEDUCT_ANTISYM_RULE':
-            self.walk(step[1])
-            self.walk(step[2])
+            self.walk(step[1], kernel)
+            self.walk(step[2], kernel)
 
         elif step[0] == 'INST':
-            self.walk(step[1])
+            self.walk(step[1], kernel)
             step[2] = self.record_subst(step[2])
 
         elif step[0] == 'INST_TYPE':
-            self.walk(step[1])
+            self.walk(step[1], kernel)
             step[2] = self.record_subst_type(step[2])
 
         elif step[0] == 'AXIOM':
-            self.record_premise(index)
+            self.record_premise(index, kernel._theorems[index])
             return
 
         elif step[0] == 'DEFINITION':
-            self.record_premise(index)
+            self.record_premise(index, kernel._theorems[index])
             return
 
         elif step[0] == 'TYPE_DEFINITION':
-            self.record_premise(index)
+            self.record_premise(index, kernel._theorems[index])
             return
 
         else:
             assert False
 
         self._steps[index] = step
-        self._theorems[index] = self._kernel._theorems[index]
+        self._theorems[index] = kernel._theorems[index]
 
         self._sequence.append(index)
 
-    def __iter__(
-            self,
-    ):
-        yield 'index', self._index
-        yield 'target', self._kernel._theorems[self._index]
-        yield 'terms', self._terms,
-        yield 'substs', self._substs,
-        yield 'subst_types', self._subst_types,
-        yield 'premises', self._premises
-        yield 'steps', self._steps
-
     def actions(
             self,
+            t: ProofTraceTokenizer,
     ) -> ProofTraceActions:
         """ Concretize the ProofTraceActions from the ProofTrace
 
@@ -1017,7 +972,7 @@ class ProofTrace():
             else:
                 return Action.from_action(
                     'HYPOTHESIS',
-                    Action.from_term(self._kernel.term(hypotheses[0])),
+                    Action.from_term(t.term(hypotheses[0])),
                     build_hypothesis(hypotheses[1:]),
                 )
 
@@ -1030,8 +985,8 @@ class ProofTrace():
                     'SUBST',
                     Action.from_action(
                         'SUBST_PAIR',
-                        Action.from_term(self._kernel.term(subst[0][0])),
-                        Action.from_term(self._kernel.term(subst[0][1])),
+                        Action.from_term(t.term(subst[0][0])),
+                        Action.from_term(t.term(subst[0][1])),
                     ),
                     build_subst(subst[1:]),
                 )
@@ -1045,52 +1000,47 @@ class ProofTrace():
                     'SUBST_TYPE',
                     Action.from_action(
                         'SUBST_PAIR',
-                        Action.from_term(self._kernel.type(subst_type[0][0])),
-                        Action.from_term(self._kernel.type(subst_type[0][1])),
+                        Action.from_term(t.type(subst_type[0][0])),
+                        Action.from_term(t.type(subst_type[0][1])),
                     ),
                     build_subst_type(subst_type[1:]),
                 )
 
         # Start by recording the target theorem (TARGET action).
-        t = self._kernel._theorems[self._index]
-
         target = Action.from_action(
             'THEOREM',
-            build_hypothesis(t['hy']),
-            Action.from_term(self._kernel.term(t['cc'])),
+            build_hypothesis(self._target['hy']),
+            Action.from_term(t.term(self._target['cc'])),
         )
 
         substs = []
         # We first record subst as they are generally deeper than terms but
         # include very similar terms (optimize TreeLSTM cache hit).
-        for subst in self._substs.values():
+        for h in self._substs:
+            subst = self._substs[h]
             action = build_subst(subst)
-            cache['substs'][
-                self._kernel.subst_hash(subst)
-            ] = action
+            cache['substs'][h] = action
             substs.append(action)
 
         subst_types = []
         # We then record subst_type.
-        for subst_type in self._subst_types.values():
+        for h in self._subst_types:
+            subst_type = self._subst_types[h]
             action = build_subst_type(subst_type)
-            cache['subst_types'][
-                self._kernel.subst_type_hash(subst_type)
-            ] = action
+            cache['subst_types'][h] = action
             subst_types.append(action)
 
         terms = []
         # We then record terms as they are generally deeper than premises but
         # include very similar terms (optimize TreeLSTM cache hit).
-        for term in self._terms.values():
+        for h in self._terms:
+            term = self._terms[h]
             action = Action.from_action(
                 'TERM',
-                Action.from_term(self._kernel.term(term)),
+                Action.from_term(t.term(term)),
                 None,
             )
-            cache['terms'][
-                self._kernel.term_hash(term)
-            ] = action
+            cache['terms'][h] = action
             terms.append(action)
 
         # Terms are unordered so we order them by depth to optimize cache hit
@@ -1110,7 +1060,7 @@ class ProofTrace():
             action = Action.from_action(
                 'THEOREM',
                 build_hypothesis(p['hy']),
-                Action.from_term(self._kernel.term(p['cc'])),
+                Action.from_term(t.term(p['cc'])),
                 idx,
             )
             theorem = action
@@ -1208,7 +1158,7 @@ class ProofTrace():
             theorem = Action.from_action(
                 'THEOREM',
                 build_hypothesis(self._theorems[idx]['hy']),
-                Action.from_term(self._kernel.term(
+                Action.from_term(t.term(
                     self._theorems[idx]['cc']
                 )),
                 idx,
@@ -1289,6 +1239,104 @@ class ProofTrace():
 
         return sorted(list(candidates[0][1]))
 
+    def localize(
+            self,
+    ) -> None:
+        cache = {
+            '_term_index': 0,
+            '_type_index': 0,
+        }
+
+        term_pattern = re.compile(r"v\(_[0-9]+\)")
+        type_pattern = re.compile(r"v\[\?[0-9]+\]")
+
+        def localize_blob(blob):
+            replacements = {}
+
+            for m in re.findall(term_pattern, blob):
+                if m not in cache:
+                    cache[m] = "v(_" + str(cache['_term_index']) + ")"
+                    cache['_term_index'] += 1
+                if m not in replacements:
+                    replacements[m] = cache[m]
+            for m in re.findall(type_pattern, blob):
+                if m not in cache:
+                    cache[m] = "v[?" + str(cache['_type_index']) + "]"
+                    cache['_type_index'] += 1
+                if m not in replacements:
+                    replacements[m] = cache[m]
+
+            for old in replacements:
+                blob = blob.replace(old, replacements[old])
+
+            return blob
+
+        def localize_term(term):
+            return localize_blob(term)
+
+        def localize_subst(subst):
+            new = copy.deepcopy(subst)
+            for i in range(len(subst)):
+                assert len(subst[i]) == 2
+                new[i][0] = localize_blob(subst[i][0])
+                new[i][1] = localize_blob(subst[i][1])
+            return new
+
+        def localize_subst_type(subst_type):
+            new = copy.deepcopy(subst_type)
+            for i in range(len(subst_type)):
+                assert len(subst_type[i]) == 2
+                new[i][0] = localize_blob(subst_type[i][0])
+                new[i][1] = localize_blob(subst_type[i][1])
+            return new
+
+        def localize_theorem(th):
+            new = copy.deepcopy(th)
+            new['cc'] = localize_blob(th['cc'])
+            for i in range(len(th['hy'])):
+                new['hy'][i] = localize_blob(th['hy'][i])
+            return new
+
+        self._target = localize_theorem(self._target)
+        for idx in self._premises:
+            self._premises[idx] = localize_theorem(self._premises[idx])
+        for idx in self._theorems:
+            self._theorems[idx] = localize_theorem(self._theorems[idx])
+        for h in self._terms:
+            self._terms[h] = localize_term(self._terms[h])
+        for h in self._substs:
+            self._substs[h] = localize_subst(self._substs[h])
+        for h in self._subst_types:
+            self._subst_types[h] = localize_subst_type(self._subst_types[h])
+
+    def tokenize(
+            self,
+            tokenizer: ProofTraceTokenizer,
+    ):
+        token_pattern = re.compile(r"[vc]\([^\(\)]+\)|[vc]\[[^\[\]]+\]")
+
+        def tokenize_blob(blob):
+            for m in re.findall(token_pattern, blob):
+                token = m[2:-1]
+                if m[1] == '[':
+                    if token not in tokenizer._type_tokens:
+                        tokenizer._type_tokens[token] = \
+                            len(tokenizer._type_tokens)
+                if m[1] == '(':
+                    if token not in tokenizer._term_tokens:
+                        tokenizer._term_tokens[token] = \
+                            len(tokenizer._term_tokens)
+
+        def tokenize_theorem(th):
+            tokenize_blob(th['cc'])
+            for i in range(len(th['hy'])):
+                tokenize_blob(th['hy'][i])
+
+        for idx in self._theorems:
+            tokenize_theorem(self._theorems[idx])
+        for idx in self._premises:
+            tokenize_theorem(self._premises[idx])
+
 
 class ProofTraceLMDataset(Dataset):
     def __init__(
@@ -1351,7 +1399,7 @@ class ProofTraceLMDataset(Dataset):
             idx: int,
     ):
         with gzip.open(self._ptra_files[self._cases[idx][0]], 'rb') as f:
-            ptra = pickle.load(f, fix_imports=False)
+            ptra = pickle.load(f)
 
         truth = ptra.actions()[self._cases[idx][1]]
         actions = ptra.actions()[:self._cases[idx][1]]
@@ -1485,6 +1533,42 @@ def dump_shared():
         print(dump)
 
 
+def dump_trace(args):
+    config, tokenizer, tr, idx, total = args
+    ptra = tr.actions(tokenizer)
+
+    test = False
+    for nm in TEST_FILTER:
+        if re.search(nm, tr.name()) is not None:
+            test = True
+
+    if test:
+        path = os.path.join(
+            os.path.expanduser(config.get('prooftrace_dataset_dir')),
+            config.get('prooftrace_dataset_size'),
+            "test_traces",
+        )
+    else:
+        path = os.path.join(
+            os.path.expanduser(config.get('prooftrace_dataset_dir')),
+            config.get('prooftrace_dataset_size'),
+            "train_traces",
+        )
+
+    ptra_path = os.path.join(path, ptra.path())
+    Log.out("Writing ProofTraceActions", {
+        'path': ptra_path,
+        'index': idx,
+        'total': total,
+    })
+    ptra.dump(ptra_path)
+
+    length = ptra.len()
+    del ptra
+
+    return length
+
+
 def extract():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument(
@@ -1507,10 +1591,12 @@ def extract():
         )
 
     sys.setrecursionlimit(4096)
+
     kernel = ProofTraceKernel(
         os.path.expanduser(config.get('prooftrace_dataset_dir')),
         config.get('prooftrace_dataset_size'),
     )
+    tokenizer = ProofTraceTokenizer()
 
     Log.out("Starting cross steps detection")
 
@@ -1564,7 +1650,7 @@ def extract():
 
     excess = [
         tr for tr in traces
-        if tr.len() > config.get('prooftrace_max_demo_length') * 3/4
+        if tr.len() > config.get('prooftrace_max_demo_length') * 4/5
     ]
     Log.out("Min-cut initialization", {
         'excess': len(excess),
@@ -1578,7 +1664,7 @@ def extract():
             orig.append(tr._index)
             cut += tr.min_cut(
                 config.get('prooftrace_max_demo_length') * 1/8,
-                config.get('prooftrace_max_demo_length') * 3/4,
+                config.get('prooftrace_max_demo_length') * 1/2,
             )
 
         for idx in cut:
@@ -1588,7 +1674,7 @@ def extract():
         traces = [ProofTrace(kernel, k) for k in refresh]
         excess = [
             tr for tr in traces
-            if tr.len() > config.get('prooftrace_max_demo_length')
+            if tr.len() > config.get('prooftrace_max_demo_length') * 4/5
         ]
 
         Log.out("Min-cut processing loop", {
@@ -1603,7 +1689,7 @@ def extract():
     traces = [tr for tr in traces if len(tr._steps) > 0]
 
     for tr in traces:
-        if tr.len() < 16:
+        if tr.len() < 32:
             # Log.out("Remove small prooftrace", {
             #     'name': tr.name(),
             #     'index': tr._index,
@@ -1616,8 +1702,35 @@ def extract():
     traces = [tr for tr in traces if len(tr._steps) > 0]
     traces = sorted(traces, key=lambda tr: tr._index)
 
-    Log.out("Prooftraces computed, filtered and sorted", {
+    # Finally we localize the resulting traces.
+    for tr in traces:
+        tr.localize()
+
+    Log.out("Prooftraces computed, filtered, localized and sorted", {
         "traces_count": len(traces),
+    })
+
+    for tr in traces:
+        tr.tokenize(tokenizer)
+
+    Log.out("Pre-tokenized prooftraces", {
+        "term_token_count": len(tokenizer._term_tokens),
+        "type_token_count": len(tokenizer._type_tokens),
+    })
+
+    with gzip.open(
+            os.path.join(
+                os.path.expanduser(config.get('prooftrace_dataset_dir')),
+                config.get('prooftrace_dataset_size'),
+                'traces.tokenizer',
+            ), 'wb') as f:
+        pickle.dump(
+            tokenizer, f, protocol=pickle.HIGHEST_PROTOCOL
+        )
+
+    Log.out("Dumped tokenizer", {
+        "term_token_count": len(tokenizer._term_tokens),
+        "type_token_count": len(tokenizer._type_tokens),
     })
 
     Log.histogram(
@@ -1658,10 +1771,6 @@ def extract():
     )
     Log.out("Starting action generation")
 
-    train_size = int(len(traces) * 90 / 100)
-    permutation = random.sample(list(range(len(traces))), k=len(traces))
-    trace_lengths = []
-
     traces_path_train = os.path.join(
         os.path.expanduser(config.get('prooftrace_dataset_dir')),
         config.get('prooftrace_dataset_size'),
@@ -1680,56 +1789,15 @@ def extract():
         shutil.rmtree(traces_path_test)
     os.mkdir(traces_path_test)
 
-    # executor = concurrent.futures.ThreadPoolExecutor()
+    executor = concurrent.futures.ProcessPoolExecutor()
 
-    force_test = [
-        'IRRATIONAL_SQRT_NONSQUARE',
-        'IRRATIONAL_SQRT_PRIME',
-        'IRRATIONAL_SQRT_2',
-    ]
-    force_keep = [
-        'REAL_INTEGER_EQ_0',
-        'IRRATIONAL_SQRT_NONSQUARE',
-        'IRRATIONAL_SQRT_PRIME',
-        'IRRATIONAL_SQRT_2',
-    ]
-
+    map_args = []
     for i, tr in enumerate(traces):
-        keep = True
-        if tr.len() > config.get('prooftrace_max_demo_length'):
-            keep = False
-            for nm in force_keep:
-                if re.search(nm, tr.name()) is not None:
-                    keep = True
+        map_args.append([config, tokenizer, tr, i, len(traces)])
 
-        if not keep:
-            Log.out("Filtering Trace", {
-                'name': tr.name(),
-                'length': tr.len(),
-            })
-        else:
-            ptra = tr.actions()
-
-            test = False
-            for nm in force_test:
-                if re.search(nm, tr.name()) is not None:
-                    test = True
-
-            k = permutation[i]
-            if k < train_size and not test:
-                path = traces_path_train
-            else:
-                path = traces_path_test
-
-            ptra_path = os.path.join(path, ptra.path())
-            Log.out("Writing ProofTraceActions", {
-                'path': ptra_path,
-                'index': i,
-                'total': len(traces),
-            })
-            ptra.dump(ptra_path)
-
-            trace_lengths.append(ptra.len())
+    trace_lengths = [
+        l for l in executor.map(dump_trace, map_args, chunksize=32)
+    ]
 
     Log.histogram(
         "ProofTraces Length",
@@ -1742,31 +1810,17 @@ def extract():
         "traces_path_train": traces_path_train,
         "traces_path_test": traces_path_test,
         "trace_count": len(traces),
-        "train_size": train_size,
-    })
-
-    with gzip.open(
-            os.path.join(
-                os.path.expanduser(config.get('prooftrace_dataset_dir')),
-                config.get('prooftrace_dataset_size'),
-                'traces.tokenizer',
-            ), 'wb') as f:
-        pickle.dump(
-            kernel._t, f, protocol=pickle.HIGHEST_PROTOCOL, fix_imports=False,
-        )
-
-    Log.out("Dumped tokenizer", {
-        "term_token_count": len(kernel._t._term_tokens),
-        "type_token_count": len(kernel._t._type_tokens),
     })
 
     # small: term_token_count=427 type_token_count=70
     # small[1024]: term_token_count=338 type_token_count=70
     # small[1024 min_cut]: term_token_count=427 type_token_count=70
+    # small[1024 min_cut local]: term_token_count=114 type_token_count=28
 
     # medium term_token_count=14227 type_token_count=983
     # medium[1024]: term_token_count=2247 type_token_count=564
     # medium[1024 min_cut]: term_token_count=18756 type_token_count=1017
+    # medium[1024 min_cut local]: term_token_count= type_token_count=
 
 
 # def extract():
