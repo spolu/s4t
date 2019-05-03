@@ -261,7 +261,7 @@ def test():
             ), 'rb') as f:
         tokenizer = pickle.load(f)
 
-    dataset_dir = "./data/prooftrace/{}/test_traces".format(
+    dataset_dir = "./data/prooftrace/{}/train_traces".format(
         config.get("prooftrace_dataset_size"),
     )
     files = [os.path.join(dataset_dir, f) for f in os.listdir(dataset_dir)]
