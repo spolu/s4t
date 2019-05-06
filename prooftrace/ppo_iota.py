@@ -311,7 +311,7 @@ class ACK:
                 ], dim=0)
 
                 prd_actions, prd_lefts, prd_rights = \
-                    self._modules['PH'](heads, targets)
+                    self._modules['PH'](heads, hiddens, targets)
 
                 values = \
                     self._modules['VH'](heads, targets)
@@ -391,7 +391,7 @@ class ACK:
             ], dim=0)
 
             values = \
-                self._modules['VH'](heads, targets)
+                self._modules['VH'](heads, hiddens, targets)
 
             self._rollouts.compute_returns(values.detach())
 
@@ -436,7 +436,7 @@ class ACK:
                 ], dim=0)
 
                 prd_actions, prd_lefts, prd_rights = \
-                    self._modules['PH'](heads, targets)
+                    self._modules['PH'](heads, hiddens, targets)
 
                 values = \
                     self._modules['VH'](heads, targets)
