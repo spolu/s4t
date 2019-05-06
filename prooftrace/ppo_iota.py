@@ -13,7 +13,7 @@ from generic.iota import IOTAAck, IOTASyn
 
 from prooftrace.models.embedder import E
 from prooftrace.models.heads import PH, VH
-from prooftrace.models.transformer import H
+from prooftrace.models.torso import H
 from prooftrace.repl.env import Pool
 
 from tensorboardX import SummaryWriter

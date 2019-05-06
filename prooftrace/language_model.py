@@ -6,13 +6,14 @@ import torch.distributed as distributed
 import torch.utils.data.distributed
 import torch.optim as optim
 
-from prooftrace.prooftrace import ProofTraceLMDataset, lm_collate, PREPARE_TOKENS
+from prooftrace.prooftrace import \
+    ProofTraceLMDataset, lm_collate, PREPARE_TOKENS
 
 from tensorboardX import SummaryWriter
 
 from prooftrace.models.embedder import E
 from prooftrace.models.heads import PH, VH
-from prooftrace.models.transformer import H
+from prooftrace.models.torso import H
 
 from utils.config import Config
 from utils.meter import Meter
