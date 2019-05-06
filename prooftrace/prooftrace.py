@@ -1820,7 +1820,7 @@ def extract():
     # medium term_token_count=14227 type_token_count=983
     # medium[1024]: term_token_count=2247 type_token_count=564
     # medium[1024 min_cut]: term_token_count=18756 type_token_count=1017
-    # medium[1024 min_cut local]: term_token_count= type_token_count=
+    # medium[1024 min_cut local]: term_token_count=1124 type_token_count=69
 
 
 # def extract():

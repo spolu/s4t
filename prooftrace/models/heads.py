@@ -37,26 +37,50 @@ class PH(nn.Module):
             ),
             nn.LogSoftmax(dim=1),
         )
-        self.left_head = nn.Sequential(
-            nn.Linear(
-                self.lstm_hidden_size,
-                self.lstm_hidden_size,
-            ),
+
+        self.left_ptr_heads = nn.Linear(
+            self.lstm_hidden_size,
+            self.lstm_hidden_size,
+        )
+        self.left_ptr_hiddens = nn.Linear(
+            self.lstm_hidden_size,
+            self.lstm_hidden_size,
+        )
+        self.left_ptr_targets = nn.Linear(
+            self.lstm_hidden_size,
+            self.lstm_hidden_size,
+        )
+        self.left_ptr_proj = nn.Sequential(
             GeLU(),
             nn.LayerNorm(self.lstm_hidden_size),
-            nn.Linear(self.lstm_hidden_size, self.sequence_length),
-            nn.LogSoftmax(dim=1),
-        )
-        self.right_head = nn.Sequential(
             nn.Linear(
                 self.lstm_hidden_size,
-                self.lstm_hidden_size,
+                1,
             ),
+        )
+
+        self.right_ptr_heads = nn.Linear(
+            self.lstm_hidden_size,
+            self.lstm_hidden_size,
+        )
+        self.right_ptr_hiddens = nn.Linear(
+            self.lstm_hidden_size,
+            self.lstm_hidden_size,
+        )
+        self.right_ptr_targets = nn.Linear(
+            self.lstm_hidden_size,
+            self.lstm_hidden_size,
+        )
+        self.right_ptr_proj = nn.Sequential(
             GeLU(),
             nn.LayerNorm(self.lstm_hidden_size),
-            nn.Linear(self.lstm_hidden_size, self.sequence_length),
-            nn.LogSoftmax(dim=1),
+            nn.Linear(
+                self.lstm_hidden_size,
+                1,
+            ),
         )
+
+        self.log_softmax = nn.LogSoftmax(dim=1)
 
     def parameters_count(
             self,
@@ -66,13 +90,36 @@ class PH(nn.Module):
     def forward(
             self,
             heads,
+            hiddens,
             targets,
     ):
-        residuals = self.adapter(targets) + heads
+        targets = self.adapter(targets)
 
-        actions = self.action_head(residuals)
-        lefts = self.left_head(residuals)
-        rights = self.right_head(residuals)
+        actions = self.action_head(targets + heads)
+
+        lefts = self.log_softmax(
+            self.left_ptr_proj(
+                self.left_ptr_heads(
+                    heads
+                ).unsqueeze(1).expand(hiddens.size()) +
+                self.left_ptr_targets(
+                    targets
+                ).unsqueeze(1).expand(hiddens.size()) +
+                self.left_ptr_hiddens(hiddens)
+            ).squeeze(2),
+        )
+
+        rights = self.log_softmax(
+            self.right_ptr_proj(
+                self.right_ptr_heads(
+                    heads
+                ).unsqueeze(1).expand(hiddens.size()) +
+                self.right_ptr_targets(
+                    targets
+                ).unsqueeze(1).expand(hiddens.size()) +
+                self.right_ptr_hiddens(hiddens)
+            ).squeeze(2),
+        )
 
         return actions, lefts, rights
 
