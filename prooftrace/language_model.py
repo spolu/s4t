@@ -117,7 +117,7 @@ class LanguageModel:
             shuffle=(self._train_sampler is None),
             sampler=self._train_sampler,
             collate_fn=lm_collate,
-            num_workers=16,
+            num_workers=8,
         )
 
         Log.out('Training initialization', {
