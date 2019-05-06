@@ -391,7 +391,7 @@ class ACK:
             ], dim=0)
 
             values = \
-                self._modules['VH'](heads, hiddens, targets)
+                self._modules['VH'](heads, targets)
 
             self._rollouts.compute_returns(values.detach())
 
