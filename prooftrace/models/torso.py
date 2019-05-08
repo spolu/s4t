@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 
 from generic.transformer import TransformerBlock
-from generic.gelu import GeLU
 
 
 class H(nn.Module):
@@ -34,11 +33,7 @@ class H(nn.Module):
             self.sequence_length, self.hidden_size
         )
 
-        torso = [
-            GeLU(),
-            nn.LayerNorm(self.hidden_size),
-        ]
-
+        torso = []
         if self.transformer_layer_count > 0:
             torso += [
                 nn.Linear(self.hidden_size, self.transformer_hidden_size),
@@ -55,8 +50,6 @@ class H(nn.Module):
                 ]
 
             torso += [
-                GeLU(),
-                nn.LayerNorm(self.transformer_hidden_size),
                 nn.Linear(self.transformer_hidden_size, self.lstm_hidden_size),
             ]
         else:
