@@ -120,29 +120,28 @@ class PH(nn.Module):
         # lefts = self.left_head(targets + heads)
         # rights = self.right_head(targets + heads)
 
-        lefts = self.log_softmax(
-            self.left_ptr_proj(
-                self.left_ptr_heads(
-                    heads
-                ).unsqueeze(1).expand(hiddens.size()) +
-                self.left_ptr_targets(
-                    targets
-                ).unsqueeze(1).expand(hiddens.size()) +
-                self.left_ptr_hiddens(hiddens)
-            ).squeeze(2),
-        )
+        lefts = self.left_ptr_proj(
+            self.left_ptr_heads(
+                heads
+            ).unsqueeze(1).expand(hiddens.size()) +
+            self.left_ptr_targets(
+                targets
+            ).unsqueeze(1).expand(hiddens.size()) +
+            self.left_ptr_hiddens(hiddens)
+        ).squeeze(2)
 
-        rights = self.log_softmax(
-            self.right_ptr_proj(
-                self.right_ptr_heads(
-                    heads
-                ).unsqueeze(1).expand(hiddens.size()) +
-                self.right_ptr_targets(
-                    targets
-                ).unsqueeze(1).expand(hiddens.size()) +
-                self.right_ptr_hiddens(hiddens)
-            ).squeeze(2),
-        )
+        rights = self.right_ptr_proj(
+            self.right_ptr_heads(
+                heads
+            ).unsqueeze(1).expand(hiddens.size()) +
+            self.right_ptr_targets(
+                targets
+            ).unsqueeze(1).expand(hiddens.size()) +
+            self.right_ptr_hiddens(hiddens)
+        ).squeeze(2)
+
+        lefts = self.log_softmax(lefts)
+        rights = self.log_softmax(rights)
 
         return actions, lefts, rights
 
