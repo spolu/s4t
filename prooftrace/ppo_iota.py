@@ -988,6 +988,8 @@ def syn_run():
     if config.get('device') != 'cpu':
         torch.cuda.set_device(torch.device(config.get('device')))
 
+    torch.manual_seed(0)
+
     syn = SYN(config).load(True)
 
     while True:

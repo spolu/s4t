@@ -18,12 +18,12 @@
   "prooftrace_hidden_size": 256,
   "prooftrace_sequence_length": 256,
 
-  "prooftrace_transformer_hidden_size": 1024,
+  "prooftrace_transformer_hidden_size": 512,
   "prooftrace_transformer_attention_head_count": 8,
-  "prooftrace_transformer_layer_count": 0,
+  "prooftrace_transformer_layer_count": 8,
 
-  "prooftrace_lstm_layer_count": 2,
-  "prooftrace_lstm_hidden_size": 1024,
+  "prooftrace_lstm_layer_count": 0,
+  "prooftrace_lstm_hidden_size": 512,
 
   "prooftrace_env_pool_size": 16,
   "prooftrace_ppo_rollout_size": 32,

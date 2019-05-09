@@ -119,29 +119,29 @@ class TransformerBlock(nn.Module):
         )
         self.mlp_layer_norm = nn.LayerNorm(hidden_size)
 
-        self.apply(self.init_weights)
+        # self.apply(self.init_weights)
 
-    def init_weights(
-            self,
-            module,
-    ):
-        if isinstance(module, nn.Linear):
-            module.weight.data.normal_(mean=0.0, std=0.02)
-            if module.bias is not None:
-                module.bias.data.zero_()
+    # def init_weights(
+    #         self,
+    #         module,
+    # ):
+    #     if isinstance(module, nn.Linear):
+    #         module.weight.data.normal_(mean=0.0, std=0.02)
+    #         if module.bias is not None:
+    #             module.bias.data.zero_()
 
     def forward(
             self,
             input_tensor,
     ):
-        attention_output = self.attention(input_tensor)
-        attention_output = self.attention_layer_norm(
-            input_tensor + attention_output
+        attention_output = self.attention(
+            self.attention_layer_norm(input_tensor),
         )
+        attention_output = input_tensor + attention_output
 
-        mlp_output = self.mlp(attention_output)
-        mlp_output = self.mlp_layer_norm(
-            attention_output + mlp_output
+        mlp_output = self.mlp(
+            self.mlp_layer_norm(attention_output)
         )
+        mlp_output = attention_output + mlp_output
 
         return mlp_output
