@@ -13,8 +13,8 @@
 
   "prooftrace_type_token_count": 70,
   "prooftrace_term_token_count": 1125,
-  "prooftrace_hidden_size": 128,
-  "prooftrace_sequence_length": 18,
+  "prooftrace_hidden_size": 16,
+  "prooftrace_sequence_length": 128,
 
   "prooftrace_transformer_hidden_size": 32,
   "prooftrace_transformer_attention_head_count": 2,
