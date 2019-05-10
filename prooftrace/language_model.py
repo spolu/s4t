@@ -413,6 +413,8 @@ class LanguageModel:
         rgt_loss_meter = Meter()
         # val_loss_meter = Meter()
 
+        test_batch = 0
+
         with torch.no_grad():
             for it, (idx, act, arg, trh, val) in enumerate(self._test_loader):
                 action_embeds = self._model_E(act)
@@ -454,11 +456,14 @@ class LanguageModel:
 
                 Log.out("TEST BATCH", {
                     'train_batch': self._train_batch,
+                    'test_batch': test_batch,
                     'act_loss_avg': "{:.4f}".format(act_loss.item()),
                     'lft_loss_avg': "{:.4f}".format(lft_loss.item()),
                     'rgt_loss_avg': "{:.4f}".format(rgt_loss.item()),
                     # 'val_loss_avg': "{:.4f}".format(val_loss.item()),
                 })
+
+                test_batch += 1
 
             Log.out("PROOFTRACE TEST", {
                 'train_batch': self._train_batch,
