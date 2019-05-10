@@ -381,7 +381,7 @@ class LanguageModel:
                 rgt_loss_meter = Meter()
                 # val_loss_meter = Meter()
 
-            if self._train_batch % 100 == 0 and self._train_batch != 0:
+            if self._train_batch % 100 == 0:
                 self.save()
 
                 self.test()
@@ -403,10 +403,10 @@ class LanguageModel:
     ):
         assert self._test_loader is not None
 
-        self._model_E.test()
-        self._model_H.test()
-        self._model_PH.test()
-        self._model_VH.test()
+        self._model_E.eval()
+        self._model_H.eval()
+        self._model_PH.eval()
+        self._model_VH.eval()
 
         act_loss_meter = Meter()
         lft_loss_meter = Meter()
