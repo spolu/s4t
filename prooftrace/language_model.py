@@ -283,7 +283,7 @@ class LanguageModel:
         act_loss_meter = Meter()
         lft_loss_meter = Meter()
         rgt_loss_meter = Meter()
-        val_loss_meter = Meter()
+        # val_loss_meter = Meter()
 
         if self._config.get('distributed_training'):
             self._train_sampler.set_epoch(epoch)
@@ -291,9 +291,11 @@ class LanguageModel:
         for it, (idx, act, arg, trh, val) in enumerate(self._train_loader):
             action_embeds = self._model_E(act)
             argument_embeds = self._model_E(arg)
-            
-            # action_embeds = torch.zeros(action_embeds.size()).to(self._device)
-            # argument_embeds = torch.zeros(argument_embeds.size()).to(self._device)
+
+            # action_embeds = \
+            #     torch.zeros(action_embeds.size()).to(self._device)
+            # argument_embeds = \
+            #     torch.zeros(argument_embeds.size()).to(self._device)
 
             hiddens = self._model_H(action_embeds, argument_embeds)
 
@@ -313,7 +315,7 @@ class LanguageModel:
             rights = torch.tensor([
                 arg[i].index(trh[i].right) for i in range(len(trh))
             ], dtype=torch.int64).to(self._device)
-            values = torch.tensor(val).unsqueeze(1).to(self._device)
+            # values = torch.tensor(val).unsqueeze(1).to(self._device)
 
             prd_actions, prd_lefts, prd_rights = \
                 self._model_PH(heads, hiddens, targets)
@@ -367,7 +369,7 @@ class LanguageModel:
                 act_loss_meter = Meter()
                 lft_loss_meter = Meter()
                 rgt_loss_meter = Meter()
-                val_loss_meter = Meter()
+                # val_loss_meter = Meter()
 
             if self._train_batch % 50 == 0 and self._train_batch != 0:
                 self.save()
@@ -468,7 +470,7 @@ def train():
     if config.get('device') != 'cpu':
         torch.cuda.set_device(torch.device(config.get('device')))
 
-    torch.manual_seed(0) 
+    torch.manual_seed(0)
 
     train_dataset = ProofTraceLMDataset(
         os.path.expanduser(config.get('prooftrace_dataset_dir')),
