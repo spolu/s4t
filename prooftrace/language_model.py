@@ -413,77 +413,78 @@ class LanguageModel:
         rgt_loss_meter = Meter()
         # val_loss_meter = Meter()
 
-        for it, (idx, act, arg, trh, val) in enumerate(self._test_loader):
-            action_embeds = self._model_E(act)
-            argument_embeds = self._model_E(arg)
+        with torch.no_grad():
+            for it, (idx, act, arg, trh, val) in enumerate(self._test_loader):
+                action_embeds = self._model_E(act)
+                argument_embeds = self._model_E(arg)
 
-            hiddens = self._model_H(action_embeds, argument_embeds)
+                hiddens = self._model_H(action_embeds, argument_embeds)
 
-            heads = torch.cat([
-                hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
-            ], dim=0)
-            targets = torch.cat([
-                action_embeds[i][0].unsqueeze(0) for i in range(len(idx))
-            ], dim=0)
+                heads = torch.cat([
+                    hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
+                ], dim=0)
+                targets = torch.cat([
+                    action_embeds[i][0].unsqueeze(0) for i in range(len(idx))
+                ], dim=0)
 
-            actions = torch.tensor([
-                trh[i].value - len(PREPARE_TOKENS) for i in range(len(trh))
-            ], dtype=torch.int64).to(self._device)
-            lefts = torch.tensor([
-                arg[i].index(trh[i].left) for i in range(len(trh))
-            ], dtype=torch.int64).to(self._device)
-            rights = torch.tensor([
-                arg[i].index(trh[i].right) for i in range(len(trh))
-            ], dtype=torch.int64).to(self._device)
-            # values = torch.tensor(val).unsqueeze(1).to(self._device)
+                actions = torch.tensor([
+                    trh[i].value - len(PREPARE_TOKENS) for i in range(len(trh))
+                ], dtype=torch.int64).to(self._device)
+                lefts = torch.tensor([
+                    arg[i].index(trh[i].left) for i in range(len(trh))
+                ], dtype=torch.int64).to(self._device)
+                rights = torch.tensor([
+                    arg[i].index(trh[i].right) for i in range(len(trh))
+                ], dtype=torch.int64).to(self._device)
+                # values = torch.tensor(val).unsqueeze(1).to(self._device)
 
-            prd_actions, prd_lefts, prd_rights = \
-                self._model_PH(heads, hiddens, targets)
-            # prd_values = self._model_VH(heads, targets)
+                prd_actions, prd_lefts, prd_rights = \
+                    self._model_PH(heads, hiddens, targets)
+                # prd_values = self._model_VH(heads, targets)
 
-            act_loss = self._nll_loss(prd_actions, actions)
-            lft_loss = self._nll_loss(prd_lefts, lefts)
-            rgt_loss = self._nll_loss(prd_rights, rights)
-            # val_loss = self._mse_loss(prd_values, values)
+                act_loss = self._nll_loss(prd_actions, actions)
+                lft_loss = self._nll_loss(prd_lefts, lefts)
+                rgt_loss = self._nll_loss(prd_rights, rights)
+                # val_loss = self._mse_loss(prd_values, values)
 
-            act_loss_meter.update(act_loss.item())
-            lft_loss_meter.update(lft_loss.item())
-            rgt_loss_meter.update(rgt_loss.item())
-            # val_loss_meter.update(val_loss.item())
+                act_loss_meter.update(act_loss.item())
+                lft_loss_meter.update(lft_loss.item())
+                rgt_loss_meter.update(rgt_loss.item())
+                # val_loss_meter.update(val_loss.item())
 
-            Log.out("TEST BATCH", {
+                Log.out("TEST BATCH", {
+                    'train_batch': self._train_batch,
+                    'act_loss_avg': "{:.4f}".format(act_loss.item()),
+                    'lft_loss_avg': "{:.4f}".format(lft_loss.item()),
+                    'rgt_loss_avg': "{:.4f}".format(rgt_loss.item()),
+                    # 'val_loss_avg': "{:.4f}".format(val_loss.item()),
+                })
+
+            Log.out("PROOFTRACE TEST", {
                 'train_batch': self._train_batch,
-                'act_loss_avg': "{:.4f}".format(act_loss.item()),
-                'lft_loss_avg': "{:.4f}".format(lft_loss.item()),
-                'rgt_loss_avg': "{:.4f}".format(rgt_loss.item()),
-                # 'val_loss_avg': "{:.4f}".format(val_loss.item()),
+                'act_loss_avg': "{:.4f}".format(act_loss_meter.avg),
+                'lft_loss_avg': "{:.4f}".format(lft_loss_meter.avg),
+                'rgt_loss_avg': "{:.4f}".format(rgt_loss_meter.avg),
+                # 'val_loss_avg': "{:.4f}".format(val_loss_meter.avg),
             })
 
-        Log.out("PROOFTRACE TEST", {
-            'train_batch': self._train_batch,
-            'act_loss_avg': "{:.4f}".format(act_loss_meter.avg),
-            'lft_loss_avg': "{:.4f}".format(lft_loss_meter.avg),
-            'rgt_loss_avg': "{:.4f}".format(rgt_loss_meter.avg),
-            # 'val_loss_avg': "{:.4f}".format(val_loss_meter.avg),
-        })
-
-        if self._tb_writer is not None:
-            self._tb_writer.add_scalar(
-                "prooftrace_lm_test/act_loss",
-                act_loss_meter.avg, self._train_batch,
-            )
-            self._tb_writer.add_scalar(
-                "prooftrace_lm_test/lft_loss",
-                lft_loss_meter.avg, self._train_batch,
-            )
-            self._tb_writer.add_scalar(
-                "prooftrace_lm_test/rgt_loss",
-                rgt_loss_meter.avg, self._train_batch,
-            )
-            # self._tb_writer.add_scalar(
-            #     "prooftrace_lm_test/val_loss",
-            #     val_loss_meter.avg, self._train_batch,
-            # )
+            if self._tb_writer is not None:
+                self._tb_writer.add_scalar(
+                    "prooftrace_lm_test/act_loss",
+                    act_loss_meter.avg, self._train_batch,
+                )
+                self._tb_writer.add_scalar(
+                    "prooftrace_lm_test/lft_loss",
+                    lft_loss_meter.avg, self._train_batch,
+                )
+                self._tb_writer.add_scalar(
+                    "prooftrace_lm_test/rgt_loss",
+                    rgt_loss_meter.avg, self._train_batch,
+                )
+                # self._tb_writer.add_scalar(
+                #     "prooftrace_lm_test/val_loss",
+                #     val_loss_meter.avg, self._train_batch,
+                # )
 
 
 def train():
