@@ -381,7 +381,7 @@ class LanguageModel:
                 rgt_loss_meter = Meter()
                 # val_loss_meter = Meter()
 
-            if self._train_batch % 100 == 0:
+            if self._train_batch % 500 == 0:
                 self.save()
 
                 self.test()
