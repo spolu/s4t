@@ -291,6 +291,9 @@ class LanguageModel:
         for it, (idx, act, arg, trh, val) in enumerate(self._train_loader):
             action_embeds = self._model_E(act)
             argument_embeds = self._model_E(arg)
+            
+            # action_embeds = torch.zeros(action_embeds.size()).to(self._device)
+            # argument_embeds = torch.zeros(argument_embeds.size()).to(self._device)
 
             hiddens = self._model_H(action_embeds, argument_embeds)
 
@@ -314,15 +317,16 @@ class LanguageModel:
 
             prd_actions, prd_lefts, prd_rights = \
                 self._model_PH(heads, hiddens, targets)
-            prd_values = self._model_VH(heads, targets)
+            # prd_values = self._model_VH(heads, targets)
 
             act_loss = self._nll_loss(prd_actions, actions)
             lft_loss = self._nll_loss(prd_lefts, lefts)
             rgt_loss = self._nll_loss(prd_rights, rights)
-            val_loss = self._mse_loss(prd_values, values)
+            # val_loss = self._mse_loss(prd_values, values)
 
-            (act_loss + lft_loss + rgt_loss +
-             self._value_coeff * val_loss).backward()
+            # (act_loss + lft_loss + rgt_loss +
+            #  self._value_coeff * val_loss).backward()
+            (act_loss + lft_loss + rgt_loss).backward()
 
             if it % self._accumulation_step_count == 0:
                 self._optimizer.step()
@@ -331,7 +335,7 @@ class LanguageModel:
             act_loss_meter.update(act_loss.item())
             lft_loss_meter.update(lft_loss.item())
             rgt_loss_meter.update(rgt_loss.item())
-            val_loss_meter.update(val_loss.item())
+            # val_loss_meter.update(val_loss.item())
 
             if self._train_batch % 10 == 0 and self._train_batch != 0:
                 Log.out("PROOFTRACE TRAIN", {
@@ -339,7 +343,7 @@ class LanguageModel:
                     'act_loss_avg': "{:.4f}".format(act_loss_meter.avg),
                     'lft_loss_avg': "{:.4f}".format(lft_loss_meter.avg),
                     'rgt_loss_avg': "{:.4f}".format(rgt_loss_meter.avg),
-                    'val_loss_avg': "{:.4f}".format(val_loss_meter.avg),
+                    # 'val_loss_avg': "{:.4f}".format(val_loss_meter.avg),
                 })
 
                 if self._tb_writer is not None:
@@ -355,10 +359,10 @@ class LanguageModel:
                         "prooftrace_lm_train/rgt_loss",
                         rgt_loss_meter.avg, self._train_batch,
                     )
-                    self._tb_writer.add_scalar(
-                        "prooftrace_lm_train/val_loss",
-                        val_loss_meter.avg, self._train_batch,
-                    )
+                    # self._tb_writer.add_scalar(
+                    #     "prooftrace_lm_train/val_loss",
+                    #     val_loss_meter.avg, self._train_batch,
+                    # )
 
                 act_loss_meter = Meter()
                 lft_loss_meter = Meter()
@@ -463,6 +467,8 @@ def train():
 
     if config.get('device') != 'cpu':
         torch.cuda.set_device(torch.device(config.get('device')))
+
+    torch.manual_seed(0) 
 
     train_dataset = ProofTraceLMDataset(
         os.path.expanduser(config.get('prooftrace_dataset_dir')),
