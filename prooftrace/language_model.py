@@ -136,7 +136,8 @@ class LanguageModel:
             self,
             test_dataset,
     ):
-        batch_size = self._config.get('prooftrace_batch_size') // \
+        batch_size = \
+            self._config.get('prooftrace_lm_batch_size') // \
             self._accumulation_step_count
 
         self._test_loader = torch.utils.data.DataLoader(
@@ -373,6 +374,13 @@ class LanguageModel:
 
             if self._train_batch % 50 == 0 and self._train_batch != 0:
                 self.save()
+
+                self.test()
+                self._model_E.train()
+                self._model_H.train()
+                self._model_PH.train()
+                self._model_VH.train()
+
                 self.update()
 
             self._train_batch += 1
@@ -380,6 +388,85 @@ class LanguageModel:
         Log.out("EPOCH DONE", {
             'epoch': epoch,
         })
+
+    def test(
+            self,
+    ):
+        assert self._test_loader is not None
+
+        self._model_E.test()
+        self._model_H.test()
+        self._model_PH.test()
+        self._model_VH.test()
+
+        act_loss_meter = Meter()
+        lft_loss_meter = Meter()
+        rgt_loss_meter = Meter()
+        # val_loss_meter = Meter()
+
+        for it, (idx, act, arg, trh, val) in enumerate(self._test_loader):
+            action_embeds = self._model_E(act)
+            argument_embeds = self._model_E(arg)
+
+            hiddens = self._model_H(action_embeds, argument_embeds)
+
+            heads = torch.cat([
+                hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
+            ], dim=0)
+            targets = torch.cat([
+                action_embeds[i][0].unsqueeze(0) for i in range(len(idx))
+            ], dim=0)
+
+            actions = torch.tensor([
+                trh[i].value - len(PREPARE_TOKENS) for i in range(len(trh))
+            ], dtype=torch.int64).to(self._device)
+            lefts = torch.tensor([
+                arg[i].index(trh[i].left) for i in range(len(trh))
+            ], dtype=torch.int64).to(self._device)
+            rights = torch.tensor([
+                arg[i].index(trh[i].right) for i in range(len(trh))
+            ], dtype=torch.int64).to(self._device)
+            # values = torch.tensor(val).unsqueeze(1).to(self._device)
+
+            prd_actions, prd_lefts, prd_rights = \
+                self._model_PH(heads, hiddens, targets)
+            # prd_values = self._model_VH(heads, targets)
+
+            act_loss = self._nll_loss(prd_actions, actions)
+            lft_loss = self._nll_loss(prd_lefts, lefts)
+            rgt_loss = self._nll_loss(prd_rights, rights)
+            # val_loss = self._mse_loss(prd_values, values)
+
+            act_loss_meter.update(act_loss.item())
+            lft_loss_meter.update(lft_loss.item())
+            rgt_loss_meter.update(rgt_loss.item())
+            # val_loss_meter.update(val_loss.item())
+
+        Log.out("PROOFTRACE TEST", {
+            'train_batch': self._train_batch,
+            'act_loss_avg': "{:.4f}".format(act_loss_meter.avg),
+            'lft_loss_avg': "{:.4f}".format(lft_loss_meter.avg),
+            'rgt_loss_avg': "{:.4f}".format(rgt_loss_meter.avg),
+            # 'val_loss_avg': "{:.4f}".format(val_loss_meter.avg),
+        })
+
+        if self._tb_writer is not None:
+            self._tb_writer.add_scalar(
+                "prooftrace_lm_test/act_loss",
+                act_loss_meter.avg, self._train_batch,
+            )
+            self._tb_writer.add_scalar(
+                "prooftrace_lm_test/lft_loss",
+                lft_loss_meter.avg, self._train_batch,
+            )
+            self._tb_writer.add_scalar(
+                "prooftrace_lm_test/rgt_loss",
+                rgt_loss_meter.avg, self._train_batch,
+            )
+            # self._tb_writer.add_scalar(
+            #     "prooftrace_lm_test/val_loss",
+            #     val_loss_meter.avg, self._train_batch,
+            # )
 
 
 def train():
@@ -478,10 +565,17 @@ def train():
         False,
         config.get('prooftrace_sequence_length'),
     )
+    test_dataset = ProofTraceLMDataset(
+        os.path.expanduser(config.get('prooftrace_dataset_dir')),
+        config.get('prooftrace_dataset_size'),
+        True,
+        config.get('prooftrace_sequence_length'),
+    )
 
     lm = LanguageModel(config)
 
     lm.init_training(train_dataset)
+    lm.init_testing(test_dataset)
     lm.load(True)
 
     epoch = 0
