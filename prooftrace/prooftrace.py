@@ -333,6 +333,8 @@ class Action(BVT):
             yield 'hyp', hypothesis(self.left)
             yield 'ccl', term(self.right)
 
+        yield 'index', self._index
+
     @staticmethod
     def from_action(
             action: str,
@@ -1444,93 +1446,6 @@ def lm_collate(
         values.append(val)
 
     return (indices, actions, arguments, truths, values)
-
-
-def dump_shared():
-    parser = argparse.ArgumentParser(description="")
-    parser.add_argument(
-        'config_path',
-        type=str, help="path to the config file",
-    )
-    parser.add_argument(
-        '--dataset_size',
-        type=str, help="congif override",
-    )
-
-    args = parser.parse_args()
-
-    config = Config.from_file(args.config_path)
-
-    if args.dataset_size is not None:
-        config.override(
-            'prooftrace_dataset_size',
-            args.dataset_size,
-        )
-
-    sys.setrecursionlimit(4096)
-    kernel = ProofTraceKernel(
-        os.path.expanduser(config.get('prooftrace_dataset_dir')),
-        config.get('prooftrace_dataset_size'),
-    )
-
-    Log.out("Starting cross steps detection")
-
-    traces = [ProofTrace(kernel, k) for k in kernel._names.keys()]
-
-    Log.out("Prooftraces computed", {
-        "traces_count": len(traces),
-    })
-
-    cross_steps = {}
-    for tr in traces:
-        for th in tr._steps.keys():
-            if th not in cross_steps:
-                cross_steps[th] = []
-            if tr._index not in cross_steps[th]:
-                cross_steps[th].append(tr._index)
-
-    cross_step_count = 0
-    for th in cross_steps:
-        if len(cross_steps[th]) > 1:
-            cross_step_count += 1
-            kernel.add_shared(th, cross_steps[th])
-
-    Log.out("Cross steps detection", {
-        "cross_step_count": cross_step_count,
-    })
-
-    Log.out("Starting shared premises detection")
-
-    traces = [ProofTrace(kernel, k) for k in kernel._names.keys()]
-
-    Log.out("Prooftraces computed", {
-        "traces_count": len(traces),
-    })
-
-    shared = {}
-
-    for tr in traces:
-        for th in tr._premises.keys():
-            if kernel.name_shared_premise(th):
-                shared[th] = 1
-            elif th in shared:
-                shared[th] += 1
-
-    keys = sorted(shared.keys(), key=lambda k: shared[k], reverse=True)
-
-    for idx in keys:
-        dump = "=========\n"
-        dump += str(shared[idx]) + " [" + str(idx) + "]\n"
-
-        th = kernel._theorems[idx]
-
-        for h in th['hy']:
-            dump += kernel.term(h).term_string() + '\n'
-        dump += '|-\n'
-        dump += kernel.term(th['cc']).term_string() + '\n'
-        # dump += kernel._proofs[idx][0] + '\n'
-        dump += "---------"
-        print(dump)
 
 
 def dump_trace(args):

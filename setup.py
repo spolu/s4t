@@ -14,7 +14,8 @@ setup(
     entry_points={
         'console_scripts': [
             'prooftrace_extract=prooftrace.prooftrace:extract',
-            'prooftrace_dump_shared=prooftrace.prooftrace:dump_shared',
+            'prooftrace_dump=prooftrace.tools:dump',
+            'prooftrace_generate_testset=prooftrace.tools:generate_testset',
 
             'generic_test_tree_lstm=generic.tree_lstm:test',
 
