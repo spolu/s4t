@@ -18,9 +18,9 @@
 
   "prooftrace_transformer_hidden_size": 128,
   "prooftrace_transformer_attention_head_count": 2,
-  "prooftrace_transformer_layer_count": 2,
+  "prooftrace_transformer_layer_count": 0,
 
-  "prooftrace_lstm_layer_count": 0,
+  "prooftrace_lstm_layer_count": 2,
   "prooftrace_lstm_hidden_size": 128,
 
   "prooftrace_lm_batch_size": 32,
