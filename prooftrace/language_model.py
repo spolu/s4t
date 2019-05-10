@@ -340,6 +340,14 @@ class LanguageModel:
             rgt_loss_meter.update(rgt_loss.item())
             # val_loss_meter.update(val_loss.item())
 
+            Log.out("TRAIN BATCH", {
+                'train_batch': self._train_batch,
+                'act_loss_avg': "{:.4f}".format(act_loss.item()),
+                'lft_loss_avg': "{:.4f}".format(lft_loss.item()),
+                'rgt_loss_avg': "{:.4f}".format(rgt_loss.item()),
+                # 'val_loss_avg': "{:.4f}".format(val_loss.item()),
+            })
+
             if self._train_batch % 10 == 0 and self._train_batch != 0:
                 Log.out("PROOFTRACE TRAIN", {
                     'epoch': epoch,
@@ -373,7 +381,7 @@ class LanguageModel:
                 rgt_loss_meter = Meter()
                 # val_loss_meter = Meter()
 
-            if self._train_batch % 50 == 0 and self._train_batch != 0:
+            if self._train_batch % 100 == 0 and self._train_batch != 0:
                 self.save()
 
                 self.test()
@@ -442,6 +450,14 @@ class LanguageModel:
             lft_loss_meter.update(lft_loss.item())
             rgt_loss_meter.update(rgt_loss.item())
             # val_loss_meter.update(val_loss.item())
+
+            Log.out("TEST BATCH", {
+                'train_batch': self._train_batch,
+                'act_loss_avg': "{:.4f}".format(act_loss.item()),
+                'lft_loss_avg': "{:.4f}".format(lft_loss.item()),
+                'rgt_loss_avg': "{:.4f}".format(rgt_loss.item()),
+                # 'val_loss_avg': "{:.4f}".format(val_loss.item()),
+            })
 
         Log.out("PROOFTRACE TEST", {
             'train_batch': self._train_batch,
