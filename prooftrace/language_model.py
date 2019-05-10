@@ -342,6 +342,7 @@ class LanguageModel:
 
             if self._train_batch % 10 == 0 and self._train_batch != 0:
                 Log.out("PROOFTRACE TRAIN", {
+                    'epoch': epoch,
                     'train_batch': self._train_batch,
                     'act_loss_avg': "{:.4f}".format(act_loss_meter.avg),
                     'lft_loss_avg': "{:.4f}".format(lft_loss_meter.avg),
