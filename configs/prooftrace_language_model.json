@@ -13,15 +13,15 @@
 
   "prooftrace_type_token_count": 70,
   "prooftrace_term_token_count": 1125,
-  "prooftrace_hidden_size": 128,
-  "prooftrace_sequence_length": 256,
+  "prooftrace_hidden_size": 64,
+  "prooftrace_sequence_length": 128,
 
   "prooftrace_transformer_hidden_size": 256,
   "prooftrace_transformer_attention_head_count": 4,
-  "prooftrace_transformer_layer_count": 2,
+  "prooftrace_transformer_layer_count": 0,
 
-  "prooftrace_lstm_hidden_size": 256,
-  "prooftrace_lstm_layer_count": 0,
+  "prooftrace_lstm_hidden_size": 512,
+  "prooftrace_lstm_layer_count": 2,
 
   "prooftrace_lm_batch_size": 16,
   "prooftrace_lm_accumulation_step_count": 1,
