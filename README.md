@@ -1,11 +1,11 @@
 ## PROOFTRACE PPO/IOTA Distributed Training
 
 ```
-mkdir -p ~/tmp/prooftrace/`git rev-parse HEAD` && prooftrace_ppo_syn_run configs/prooftrace_ppo.json --tensorboard_log_dir=~/tmp/tensorboard/`git rev-parse HEAD`_`now` --save_dir=~/tmp/prooftrace/`git rev-parse HEAD` --device=cuda:0 --sync_dir=/mnt/iota/ppo
+mkdir -p ~/tmp/prooftrace/`git rev-parse HEAD` && prooftrace_ppo_syn_run configs/prooftrace_ppo.json --tensorboard_log_dir=~/tmp/tensorboard/`git rev-parse HEAD`_`now` --save_dir=~/tmp/prooftrace/`git rev-parse HEAD` --device=cuda:0 --sync_dir=~/tmp/iota/ppo
 ```
 
 ```
-prooftrace_ppo_ack_run configs/prooftrace_ppo.json --sync_dir=~/tmp/iota/ --device=cuda:0
+prooftrace_ppo_ack_run configs/prooftrace_ppo.json --sync_dir=~/tmp/iota/ppo --device=cuda:0
 ```
 
 ```
