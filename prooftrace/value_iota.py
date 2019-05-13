@@ -159,8 +159,7 @@ class SYN:
             [
                 {'params': self._modules['E'].parameters()},
                 {'params': self._modules['H'].parameters()},
-                {'params': self._modules['PH'].parameters()},
-                # {'params': self._modules['VH'].parameters()},
+                {'params': self._modules['VH'].parameters()},
             ],
             lr=self._learning_rate,
         )
@@ -188,20 +187,13 @@ class SYN:
                         map_location=self._device,
                     ),
                 )
-            if os.path.isfile(self._load_dir + "/model_PH.pt"):
-                self._modules['PH'].load_state_dict(
+            if os.path.isfile(self._load_dir + "/model_VH.pt"):
+                self._modules['VH'].load_state_dict(
                     torch.load(
-                        self._load_dir + "/model_PH.pt",
+                        self._load_dir + "/model_VH.pt",
                         map_location=self._device,
                     ),
                 )
-            # if os.path.isfile(self._load_dir + "/model_VH.pt"):
-            #     self._modules['VH'].load_state_dict(
-            #         torch.load(
-            #             self._load_dir + "/model_VH.pt",
-            #             map_location=self._device,
-            #         ),
-            #     )
 
             if training and os.path.isfile(self._load_dir + "/optimizer.pt"):
                 self._optimizer.load_state_dict(
@@ -231,13 +223,9 @@ class SYN:
                 self._save_dir + "/model_H.pt",
             )
             torch.save(
-                self._modules['PH'].state_dict(),
-                self._save_dir + "/model_PH.pt",
+                self._modules['VH'].state_dict(),
+                self._save_dir + "/model_VH.pt",
             )
-            # torch.save(
-            #     self._modules['VH'].state_dict(),
-            #     self._save_dir + "/model_VH.pt",
-            # )
             torch.save(
                 self._optimizer.state_dict(),
                 self._save_dir + "/optimizer.pt",
