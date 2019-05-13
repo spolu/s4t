@@ -160,6 +160,8 @@ class SYN:
         self._config = config
 
         self._learning_rate = config.get('prooftrace_lm_learning_rate')
+        self._min_update_count = \
+            config.get('prooftrace_lm_iota_min_update_count')
         self._device = torch.device(config.get('device'))
 
         self._save_dir = config.get('prooftrace_save_dir')
@@ -297,11 +299,19 @@ class SYN:
                     Log.out("Updated", {
                         "prooftrace_lm_learning_rate": lr,
                     })
+            if 'prooftrace_lm_iota_min_update_count' in update:
+                cnt = self._config.get('prooftrace_lm_iota_min_update_count')
+                if cnt != self._min_update_count:
+                    self._min_update_count = cnt
+                    Log.out("Updated", {
+                        "prooftrace_lm_iota_min_update_count": cnt,
+                    })
 
             if self._tb_writer is not None:
                 for k in update:
                     if k in [
                             'prooftrace_lm_learning_rate',
+                            'prooftrace_lm_iota_min_update_count',
                             'prooftrace_lm_value_coeff',
                     ]:
                         self._tb_writer.add_scalar(
@@ -321,7 +331,7 @@ class SYN:
             self._syn.broadcast({'config': self._config})
 
         self._optimizer.zero_grad()
-        infos = self._syn.aggregate(self._device, 4)
+        infos = self._syn.aggregate(self._device, self._min_update_count)
 
         if len(infos) == 0:
             time.sleep(1)
