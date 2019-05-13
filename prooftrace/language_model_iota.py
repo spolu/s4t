@@ -511,4 +511,5 @@ def syn_run():
     syn = SYN(config).load(True)
 
     while True:
+        syn.update()
         syn.run_once()
