@@ -109,32 +109,33 @@ class ACK:
             rights = torch.tensor([
                 arg[i].index(trh[i].right) for i in range(len(trh))
             ], dtype=torch.int64).to(self._device)
-            # values = torch.tensor(val).unsqueeze(1).to(self._device)
+            values = torch.tensor(val).unsqueeze(1).to(self._device)
 
             prd_actions, prd_lefts, prd_rights = \
                 self._modules['PH'](heads, hiddens, targets)
-            # prd_values = self._modules['VH'](head, targets)
+            prd_values = self._modules['VH'](heads, targets)
 
             act_loss = self._nll_loss(prd_actions, actions)
             lft_loss = self._nll_loss(prd_lefts, lefts)
             rgt_loss = self._nll_loss(prd_rights, rights)
-            # val_loss = self._mse_loss(prd_values, values)
+            val_loss = self._mse_loss(prd_values, values)
 
             # Backward pass.
             for m in self._modules:
                 self._modules[m].zero_grad()
 
-            # (act_loss + lft_loss + rgt_loss +
-            #  self._value_coeff * val_loss).backward()
-            (act_loss + lft_loss + rgt_loss).backward()
+            (act_loss + lft_loss + rgt_loss +
+             self._value_coeff * val_loss).backward()
 
             self._ack.push({
                 'act_loss': act_loss.item(),
                 'lft_loss': lft_loss.item(),
                 'rgt_loss': rgt_loss.item(),
-                # 'val_loss': val_loss.item(),
-            })
-            self._ack.fetch(self._device)
+                'val_loss': val_loss.item(),
+            }, None)
+            info = self._ack.fetch(self._device)
+            if info is not None:
+                self.update(info['config'])
 
             Log.out("PROOFTRACE LM ACK RUN", {
                 'epoch': epoch,
@@ -142,7 +143,7 @@ class ACK:
                 'act_loss_avg': "{:.4f}".format(act_loss.item()),
                 'lft_loss_avg': "{:.4f}".format(lft_loss.item()),
                 'rgt_loss_avg': "{:.4f}".format(rgt_loss.item()),
-                # 'val_loss_avg': "{:.4f}".format(val_loss.item()),
+                'val_loss_avg': "{:.4f}".format(val_loss.item()),
             })
 
             self._train_batch += 1
@@ -343,13 +344,13 @@ class SYN:
         act_loss_meter = Meter()
         lft_loss_meter = Meter()
         rgt_loss_meter = Meter()
-        # val_loss_meter = Meter()
+        val_loss_meter = Meter()
 
         for info in infos:
             act_loss_meter.update(info['act_loss'])
             lft_loss_meter.update(info['lft_loss'])
             rgt_loss_meter.update(info['rgt_loss'])
-            # val_loss_meter.update(info['val_loss'])
+            val_loss_meter.update(info['val_loss'])
 
         Log.out("PROOFTRACE LM SYN RUN", {
             'epoch': self._epoch,
@@ -358,7 +359,7 @@ class SYN:
             'act_loss': "{:.4f}".format(act_loss_meter.avg or 0.0),
             'lft_loss': "{:.4f}".format(lft_loss_meter.avg or 0.0),
             'rgt_loss': "{:.4f}".format(rgt_loss_meter.avg or 0.0),
-            # 'val_loss': "{:.4f}".format(val_loss_meter.avg or 0.0),
+            'val_loss': "{:.4f}".format(val_loss_meter.avg or 0.0),
         })
 
         if self._tb_writer is not None:
@@ -377,11 +378,11 @@ class SYN:
                     "prooftrace_lm_train/rgt_loss",
                     rgt_loss_meter.avg, self._epoch,
                 )
-            # if val_loss_meter.avg is not None:
-            #     self._tb_writer.add_scalar(
-            #         "prooftrace_lm_train/val_loss",
-            #         val_loss_meter.avg, self._epoch,
-            #     )
+            if val_loss_meter.avg is not None:
+                self._tb_writer.add_scalar(
+                    "prooftrace_lm_train/val_loss",
+                    val_loss_meter.avg, self._epoch,
+                )
             self._tb_writer.add_scalar(
                 "prooftrace_lm_train/update_count",
                 len(infos), self._epoch,

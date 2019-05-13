@@ -1410,8 +1410,8 @@ class ProofTraceLMDataset(Dataset):
         # value = 0.0
         # for i in range(ptra.len() - len(trace)):
         #     value = 1.0 + 0.99 * value
-        # value = ptra.action_len() * 0.99 ** (ptra.len() - len(trace))
-        value = float(ptra.len() - len(actions))
+        # value = float(ptra.len() - len(actions))
+        value = ptra.action_len() * 0.99 ** (ptra.len() - len(actions))
 
         actions.append(Action.from_action('EXTRACT', None, None))
 
