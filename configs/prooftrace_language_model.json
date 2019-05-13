@@ -31,7 +31,7 @@
   "prooftrace_lm_search_beta_width": 8,
 
   "prooftrace_dataset_dir": "./data/prooftrace",
-  "prooftrace_dataset_size": "medium",
+  "prooftrace_dataset_size": "small",
 
   "prooftrace_lm_iota_sync_dir": null,
 
