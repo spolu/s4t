@@ -27,6 +27,8 @@ setup(
             'prooftrace_train_lm=prooftrace.language_model:train',
             'prooftrace_lm_syn_run=prooftrace.language_model_iota:syn_run',
             'prooftrace_lm_ack_run=prooftrace.language_model_iota:ack_run',
+            'prooftrace_val_syn_run=prooftrace.value_iota:syn_run',
+            'prooftrace_val_ack_run=prooftrace.value_iota:ack_run',
 
             'prooftrace_ppo_syn_run=prooftrace.ppo_iota:syn_run',
             'prooftrace_ppo_ack_run=prooftrace.ppo_iota:ack_run',
