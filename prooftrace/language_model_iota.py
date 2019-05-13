@@ -133,9 +133,6 @@ class ACK:
                 'rgt_loss': rgt_loss.item(),
                 'val_loss': val_loss.item(),
             }, None)
-            info = self._ack.fetch(self._device)
-            if info is not None:
-                self.update(info['config'])
 
             Log.out("PROOFTRACE LM ACK RUN", {
                 'epoch': epoch,
