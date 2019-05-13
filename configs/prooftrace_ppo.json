@@ -36,7 +36,7 @@
   "prooftrace_ppo_step_reward_prob": 0.0,
   "prooftrace_ppo_match_reward_prob": 0.0,
 
-  "prooftrace_ppo_learning_rate": 0.000005,
+  "prooftrace_ppo_learning_rate": 0.00001,
   "prooftrace_ppo_gamma": 0.99,
   "prooftrace_ppo_tau": 0.95,
   "prooftrace_ppo_epoch_count": 4,
