@@ -148,6 +148,8 @@ class SYN:
 
         Log.out(
             "SYN Initializing", {
+                'parameter_count_E': self._modules['E'].parameters_count(),
+                'parameter_count_H': self._modules['H'].parameters_count(),
                 'parameter_count_VH': self._modules['VH'].parameters_count(),
             },
         )
