@@ -1,0 +1,6 @@
+#!/bin/bash
+
+tmux -S ~/ack new-window -n "ack$1-$2"
+tmux -S ~/ack send-keys "z3ta" C-m
+tmux -S ~/ack send-keys "prooftrace_ppo_ack_run configs/prooftrace_ppo.json --sync_dir=~/tmp/iota/ppo --device=cuda:$1" C-m
+
