@@ -141,6 +141,8 @@ class SYN:
             )
 
         self._modules = {
+            'E': E(self._config).to(self._device),
+            'H': H(self._config).to(self._device),
             'VH': VH(self._config).to(self._device),
         }
 
