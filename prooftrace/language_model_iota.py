@@ -284,7 +284,6 @@ class SYN:
 
     def update(
             self,
-            epoch: int,
     ) -> None:
         update = self._config.update()
         if update:
@@ -314,7 +313,7 @@ class SYN:
                     ]:
                         self._tb_writer.add_scalar(
                             "prooftrace_lm_train_run/{}".format(k),
-                            update[k], epoch,
+                            update[k], self._epoch,
                         )
 
     def run_once(
