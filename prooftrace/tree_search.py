@@ -204,6 +204,10 @@ class Node:
             sequence_length: int,
             model: Model,
     ) -> float:
+        Log.out("EXPAND", {
+            'summary': self._ptra.summary(),
+        })
+
         actions = self._ptra.actions().copy()
         arguments = self._ptra.arguments().copy()
         idx = len(actions)
@@ -231,8 +235,8 @@ class Node:
         candidates = []
 
         for ia in range(a_count):
-            for il in range(self._beta_width):
-                for ir in range(self._beta_width):
+            for il in range(beta_width):
+                for ir in range(beta_width):
 
                     action = top_actions[1][ia].item()
                     left = top_lefts[1][il].item()
