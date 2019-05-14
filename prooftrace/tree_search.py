@@ -153,7 +153,7 @@ class Model:
                 action_embeds[i][0].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
 
-            prd_values = self._modules['VH'](heads, targets)
+            prd_values = self._val_modules['VH'](heads, targets)
 
             return (
                 prd_actions, prd_lefts, prd_rights,
