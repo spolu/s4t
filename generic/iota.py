@@ -85,7 +85,7 @@ class IOTASyn(IOTABase):
         now = datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f")
         rnd = random.randint(0, 10e9)
         p = self.atomic_save(data, "broadcast_{}_{}".format(now, rnd))
-        # Log.out("{IOTA} BROADCAST[NEW]", {'path': p})
+        Log.out("{IOTA} BROADCAST[NEW]", {'path': p})
 
         files = self.list_files()
         gc = sorted([

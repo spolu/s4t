@@ -9,6 +9,8 @@
   "distributed_init_method": "env://",
 
   "prooftrace_load_dir": null,
+  "prooftrace_lm_load_dir": null,
+  "prooftrace_val_load_dir": null,
   "prooftrace_save_dir": null,
 
   "prooftrace_type_token_count": 70,
@@ -18,7 +20,7 @@
 
   "prooftrace_transformer_hidden_size": 256,
   "prooftrace_transformer_attention_head_count": 4,
-  "prooftrace_transformer_layer_count": 2,
+  "prooftrace_transformer_layer_count": 4,
 
   "prooftrace_lstm_hidden_size": 256,
   "prooftrace_lstm_layer_count": 0,
@@ -26,7 +28,7 @@
   "prooftrace_lm_batch_size": 8,
   "prooftrace_lm_accumulation_step_count": 1,
   "prooftrace_lm_learning_rate": 0.0003,
-  "prooftrace_lm_value_coeff": 0.0001,
+  "prooftrace_lm_value_coeff": 1.0,
 
   "prooftrace_lm_search_beta_width": 8,
 
@@ -34,7 +36,7 @@
   "prooftrace_dataset_size": "small",
 
   "prooftrace_lm_iota_sync_dir": null,
-  "prooftrace_lm_iota_min_update_count": 6,
+  "prooftrace_lm_iota_min_update_count": 12,
 
   "tensorboard_log_dir": null
 }
