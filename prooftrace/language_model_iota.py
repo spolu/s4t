@@ -204,6 +204,8 @@ class SYN:
             lr=self._learning_rate,
         )
 
+        self._syn.broadcast({'config': self._config})
+
     def load(
             self,
             training=True,
@@ -323,9 +325,6 @@ class SYN:
             self._modules[m].train()
 
         run_start = time.time()
-
-        if self._epoch == 0:
-            self._syn.broadcast({'config': self._config})
 
         self._optimizer.zero_grad()
         infos = self._syn.aggregate(self._device, self._min_update_count)
