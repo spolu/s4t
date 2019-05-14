@@ -476,7 +476,7 @@ class ACK:
 
                 if (
                         abs(action_loss.item()) > 10e2 or
-                        abs(value_loss.item()) > 10e2 or
+                        abs(value_loss.item()) > 10e5 or
                         math.isnan(value_loss.item()) or
                         math.isnan(entropy.item())
                 ):
