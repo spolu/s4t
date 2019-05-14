@@ -429,12 +429,20 @@ def mcts():
             'summary': ground.summary(),
         })
 
+        actions = []
+        arguments = []
+        for i in range(len(ground.actions())):
+            if ground.actions()[i].value in INV_PREPARE_TOKENS:
+                actions.append(ground.actions()[i])
+                arguments.append(ground.arguments()[i])
+
         ptra = ProofTraceActions(
             'TREE-{}-{}'.format(
                 datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f"),
                 random.randint(0, 9999),
             ),
-            [a for a in ground.actions() if a.value in INV_PREPARE_TOKENS],
+            actions,
+            arguments,
         )
         repl = REPL(tokenizer)
         repl.prepare(ptra)
