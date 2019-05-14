@@ -147,6 +147,7 @@ class IOTAAck(IOTABase):
     def fetch(
             self,
             device: torch.device,
+            blocking: bool = True,
     ) -> typing.Dict[str, typing.Any]:
         info = None
         done = False
@@ -173,7 +174,10 @@ class IOTAAck(IOTABase):
 
                 Log.out("{IOTA} FETCH", {'path': self._last_broadcast})
             else:
-                time.sleep(1)
+                if not blocking:
+                    done = True
+                else:
+                    time.sleep(1)
 
         return info
 

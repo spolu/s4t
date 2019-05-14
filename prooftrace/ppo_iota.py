@@ -277,7 +277,7 @@ class ACK:
         for m in self._modules:
             self._modules[m].train()
 
-        info = self._ack.fetch(self._device)
+        info = self._ack.fetch(self._device, epoch == 0)
         if info is not None:
             self.update(info['config'])
 
