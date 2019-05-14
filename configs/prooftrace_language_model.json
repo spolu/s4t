@@ -36,7 +36,7 @@
   "prooftrace_dataset_size": "small",
 
   "prooftrace_lm_iota_sync_dir": null,
-  "prooftrace_lm_iota_min_update_count": 6,
+  "prooftrace_lm_iota_min_update_count": 12,
 
   "tensorboard_log_dir": null
 }
