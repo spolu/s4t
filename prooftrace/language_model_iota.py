@@ -144,9 +144,8 @@ class ACK:
             for m in self._modules:
                 self._modules[m].zero_grad()
 
-            (self._action_coeff * act_loss + lft_loss + rgt_loss +
-             self._value_coeff * val_loss).backward()
-            # (act_loss + lft_loss + rgt_loss).backward()
+            (self._action_coeff * act_loss + lft_loss + rgt_loss).backward()
+            (self._value_coeff * val_loss).backward()
 
             self._ack.push({
                 'act_loss': act_loss.item(),
