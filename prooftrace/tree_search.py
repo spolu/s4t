@@ -225,11 +225,13 @@ class Node:
             repl = self._repl.copy()
             thm = repl.apply(a)
 
-            action._index = thm.index()
             ptra = self._ptra.copy()
+
+            action._index = thm.index()
             argument = ptra.build_argument(
                 thm.concl(), thm.hyp(), thm.index(),
             )
+
             ptra.append(action, argument)
 
             self._children.append(Node(
@@ -383,20 +385,19 @@ def mcts():
             'summary': ground.summary(),
         })
 
-        actions = []
-        arguments = []
-        for i in range(len(ground.actions())):
-            if ground.actions()[i].value in INV_PREPARE_TOKENS:
-                actions.append(ground.actions()[i])
-                arguments.append(ground.arguments()[i])
-
         ptra = ProofTraceActions(
-            'TREE-{}-{}'.format(
+            'MCTS-{}-{}'.format(
                 datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f"),
                 random.randint(0, 9999),
             ),
-            actions,
-            arguments,
+            [
+                ground.actions()[i] for i in range(ground.len())
+                if ground.actions()[i].value in INV_PREPARE_TOKENS
+            ],
+            [
+                ground.arguments()[i] for i in range(ground.len())
+                if ground.actions()[i].value in INV_PREPARE_TOKENS
+            ],
         )
         repl = REPL(tokenizer)
         repl.prepare(ptra)
