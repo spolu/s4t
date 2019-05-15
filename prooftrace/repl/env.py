@@ -115,7 +115,9 @@ class Env:
         if gamma > 0.0 and random.random() < gamma:
             if fixed_gamma > 0:
                 self._gamma_len = self._ground.action_len() - \
-                    random.randrange(1, fixed_gamma + 1)
+                    random.randrange(
+                        1, min(fixed_gamma, self._ground.action_len()) + 1
+                    )
             else:
                 self._gamma_len = random.randrange(
                     0, self._ground.action_len()
