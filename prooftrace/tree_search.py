@@ -223,7 +223,7 @@ class Node:
 
         for action, p in candidates:
             repl = self._repl.copy()
-            thm = repl.apply(a)
+            thm = repl.apply(action)
 
             ptra = self._ptra.copy()
 
