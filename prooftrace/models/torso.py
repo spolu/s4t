@@ -4,12 +4,12 @@ import torch.nn as nn
 from generic.transformer import TransformerBlock
 
 
-class H(nn.Module):
+class T(nn.Module):
     def __init__(
             self,
             config,
     ):
-        super(H, self).__init__()
+        super(T, self).__init__()
 
         self.device = torch.device(config.get('device'))
 

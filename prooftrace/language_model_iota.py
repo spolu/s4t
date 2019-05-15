@@ -12,7 +12,7 @@ from generic.iota import IOTAAck, IOTASyn
 
 from prooftrace.models.embedder import E
 from prooftrace.models.heads import PH, VH
-from prooftrace.models.torso import H
+from prooftrace.models.torso import T
 
 from tensorboardX import SummaryWriter
 
@@ -35,7 +35,8 @@ class ACK:
 
         self._modules = {
             'E': E(self._config).to(self._device),
-            'H': H(self._config).to(self._device),
+            'PT': T(self._config).to(self._device),
+            'VT': T(self._config).to(self._device),
             'PH': PH(self._config).to(self._device),
             'VH': VH(self._config).to(self._device),
         }
@@ -90,14 +91,26 @@ class ACK:
             action_embeds = self._modules['E'](act)
             argument_embeds = self._modules['E'](arg)
 
-            hiddens = self._modules['H'](action_embeds, argument_embeds)
-
-            heads = torch.cat([
-                hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
+            p_hiddens = self._modules['PT'](action_embeds, argument_embeds)
+            p_heads = torch.cat([
+                p_hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
-            targets = torch.cat([
+            p_targets = torch.cat([
                 action_embeds[i][0].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
+
+            prd_actions, prd_lefts, prd_rights = \
+                self._modules['PH'](p_heads, p_hiddens, p_targets)
+
+            v_hiddens = self._modules['VT'](action_embeds, argument_embeds)
+            v_heads = torch.cat([
+                v_hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
+            ], dim=0)
+            v_targets = torch.cat([
+                action_embeds[i][0].unsqueeze(0) for i in range(len(idx))
+            ], dim=0)
+
+            prd_values = self._modules['VH'](v_heads, v_targets)
 
             actions = torch.tensor([
                 trh[i].value - len(PREPARE_TOKENS) for i in range(len(trh))
@@ -109,10 +122,6 @@ class ACK:
                 arg[i].index(trh[i].right) for i in range(len(trh))
             ], dtype=torch.int64).to(self._device)
             values = torch.tensor(val).unsqueeze(1).to(self._device)
-
-            prd_actions, prd_lefts, prd_rights = \
-                self._modules['PH'](heads, hiddens, targets)
-            prd_values = self._modules['VH'](heads, targets)
 
             act_loss = self._nll_loss(prd_actions, actions)
             lft_loss = self._nll_loss(prd_lefts, lefts)
@@ -175,7 +184,8 @@ class SYN:
 
         self._modules = {
             'E': E(self._config).to(self._device),
-            'H': H(self._config).to(self._device),
+            'PT': T(self._config).to(self._device),
+            'VT': T(self._config).to(self._device),
             'PH': PH(self._config).to(self._device),
             'VH': VH(self._config).to(self._device),
         }
@@ -183,7 +193,8 @@ class SYN:
         Log.out(
             "SYN Initializing", {
                 'parameter_count_E': self._modules['E'].parameters_count(),
-                'parameter_count_H': self._modules['H'].parameters_count(),
+                'parameter_count_PT': self._modules['PT'].parameters_count(),
+                'parameter_count_VT': self._modules['VT'].parameters_count(),
                 'parameter_count_PH': self._modules['PH'].parameters_count(),
                 'parameter_count_VH': self._modules['VH'].parameters_count(),
             },
@@ -197,7 +208,8 @@ class SYN:
         self._optimizer = optim.Adam(
             [
                 {'params': self._modules['E'].parameters()},
-                {'params': self._modules['H'].parameters()},
+                {'params': self._modules['PT'].parameters()},
+                {'params': self._modules['VT'].parameters()},
                 {'params': self._modules['PH'].parameters()},
                 {'params': self._modules['VH'].parameters()},
             ],
@@ -222,10 +234,17 @@ class SYN:
                         map_location=self._device,
                     ),
                 )
-            if os.path.isfile(self._load_dir + "/model_H.pt"):
-                self._modules['H'].load_state_dict(
+            if os.path.isfile(self._load_dir + "/model_PT.pt"):
+                self._modules['PT'].load_state_dict(
                     torch.load(
-                        self._load_dir + "/model_H.pt",
+                        self._load_dir + "/model_PT.pt",
+                        map_location=self._device,
+                    ),
+                )
+            if os.path.isfile(self._load_dir + "/model_VT.pt"):
+                self._modules['VT'].load_state_dict(
+                    torch.load(
+                        self._load_dir + "/model_VT.pt",
                         map_location=self._device,
                     ),
                 )
@@ -268,8 +287,12 @@ class SYN:
                 self._save_dir + "/model_E.pt",
             )
             torch.save(
-                self._modules['H'].state_dict(),
-                self._save_dir + "/model_H.pt",
+                self._modules['PT'].state_dict(),
+                self._save_dir + "/model_PT.pt",
+            )
+            torch.save(
+                self._modules['VT'].state_dict(),
+                self._save_dir + "/model_VT.pt",
             )
             torch.save(
                 self._modules['PH'].state_dict(),
