@@ -414,7 +414,7 @@ def mcts():
 
         tree = Node(None, 1.0, repl, ptra, target)
 
-        for i in range(100):
+        for i in range(32):
             Node.run(
                 config.get('prooftrace_lm_search_beta_width'),
                 config.get('prooftrace_sequence_length'),
