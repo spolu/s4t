@@ -30,11 +30,13 @@ class ACK:
         self._config = config
 
         self._value_coeff = config.get('prooftrace_lm_value_coeff')
+        self._action_coeff = config.get('prooftrace_lm_action_coeff')
 
         self._device = torch.device(config.get('device'))
 
         self._modules = {
-            'E': E(self._config).to(self._device),
+            'PE': E(self._config).to(self._device),
+            'VE': E(self._config).to(self._device),
             'PT': T(self._config).to(self._device),
             'VT': T(self._config).to(self._device),
             'PH': PH(self._config).to(self._device),
@@ -76,6 +78,13 @@ class ACK:
                 "prooftrace_lm_value_coeff": coeff,
             })
 
+        coeff = self._config.get('prooftrace_lm_action_coeff')
+        if coeff != self._action_coeff:
+            self._action_coeff = coeff
+            Log.out("Updated", {
+                "prooftrace_lm_action_coeff": coeff,
+            })
+
     def run_once(
             self,
             epoch,
@@ -88,26 +97,29 @@ class ACK:
             if info is not None:
                 self.update(info['config'])
 
-            action_embeds = self._modules['E'](act)
-            argument_embeds = self._modules['E'](arg)
+            p_action_embeds = self._modules['PE'](act)
+            p_argument_embeds = self._modules['PE'](arg)
 
-            p_hiddens = self._modules['PT'](action_embeds, argument_embeds)
+            p_hiddens = self._modules['PT'](p_action_embeds, p_argument_embeds)
             p_heads = torch.cat([
                 p_hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
             p_targets = torch.cat([
-                action_embeds[i][0].unsqueeze(0) for i in range(len(idx))
+                p_action_embeds[i][0].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
 
             prd_actions, prd_lefts, prd_rights = \
                 self._modules['PH'](p_heads, p_hiddens, p_targets)
 
-            v_hiddens = self._modules['VT'](action_embeds, argument_embeds)
+            v_action_embeds = self._modules['VE'](act)
+            v_argument_embeds = self._modules['VE'](arg)
+
+            v_hiddens = self._modules['VT'](v_action_embeds, v_argument_embeds)
             v_heads = torch.cat([
                 v_hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
             v_targets = torch.cat([
-                action_embeds[i][0].unsqueeze(0) for i in range(len(idx))
+                v_action_embeds[i][0].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
 
             prd_values = self._modules['VH'](v_heads, v_targets)
@@ -132,7 +144,7 @@ class ACK:
             for m in self._modules:
                 self._modules[m].zero_grad()
 
-            (act_loss + lft_loss + rgt_loss +
+            (self._action_coeff * act_loss + lft_loss + rgt_loss +
              self._value_coeff * val_loss).backward()
             # (act_loss + lft_loss + rgt_loss).backward()
 
@@ -183,7 +195,8 @@ class SYN:
             )
 
         self._modules = {
-            'E': E(self._config).to(self._device),
+            'PE': E(self._config).to(self._device),
+            'VE': E(self._config).to(self._device),
             'PT': T(self._config).to(self._device),
             'VT': T(self._config).to(self._device),
             'PH': PH(self._config).to(self._device),
@@ -192,7 +205,8 @@ class SYN:
 
         Log.out(
             "SYN Initializing", {
-                'parameter_count_E': self._modules['E'].parameters_count(),
+                'parameter_count_PE': self._modules['PE'].parameters_count(),
+                'parameter_count_VE': self._modules['VE'].parameters_count(),
                 'parameter_count_PT': self._modules['PT'].parameters_count(),
                 'parameter_count_VT': self._modules['VT'].parameters_count(),
                 'parameter_count_PH': self._modules['PH'].parameters_count(),
@@ -207,7 +221,8 @@ class SYN:
 
         self._optimizer = optim.Adam(
             [
-                {'params': self._modules['E'].parameters()},
+                {'params': self._modules['PE'].parameters()},
+                {'params': self._modules['VE'].parameters()},
                 {'params': self._modules['PT'].parameters()},
                 {'params': self._modules['VT'].parameters()},
                 {'params': self._modules['PH'].parameters()},
@@ -227,10 +242,17 @@ class SYN:
                 "Loading prooftrace", {
                     'load_dir': self._load_dir,
                 })
-            if os.path.isfile(self._load_dir + "/model_E.pt"):
-                self._modules['E'].load_state_dict(
+            if os.path.isfile(self._load_dir + "/model_PE.pt"):
+                self._modules['PE'].load_state_dict(
                     torch.load(
-                        self._load_dir + "/model_E.pt",
+                        self._load_dir + "/model_PE.pt",
+                        map_location=self._device,
+                    ),
+                )
+            if os.path.isfile(self._load_dir + "/model_VE.pt"):
+                self._modules['VE'].load_state_dict(
+                    torch.load(
+                        self._load_dir + "/model_VE.pt",
                         map_location=self._device,
                     ),
                 )
@@ -283,8 +305,12 @@ class SYN:
                 })
 
             torch.save(
-                self._modules['E'].state_dict(),
-                self._save_dir + "/model_E.pt",
+                self._modules['PE'].state_dict(),
+                self._save_dir + "/model_PE.pt",
+            )
+            torch.save(
+                self._modules['VE'].state_dict(),
+                self._save_dir + "/model_VE.pt",
             )
             torch.save(
                 self._modules['PT'].state_dict(),
@@ -335,6 +361,7 @@ class SYN:
                             'prooftrace_lm_learning_rate',
                             'prooftrace_lm_iota_min_update_count',
                             'prooftrace_lm_value_coeff',
+                            'prooftrace_lm_action_coeff',
                     ]:
                         self._tb_writer.add_scalar(
                             "prooftrace_lm_train_run/{}".format(k),
