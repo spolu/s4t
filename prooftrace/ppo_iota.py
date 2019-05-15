@@ -13,7 +13,7 @@ from generic.iota import IOTAAck, IOTASyn
 
 from prooftrace.models.embedder import E
 from prooftrace.models.heads import PH, VH
-from prooftrace.models.torso import H
+from prooftrace.models.torso import T
 from prooftrace.repl.env import Pool
 
 from tensorboardX import SummaryWriter
@@ -183,7 +183,7 @@ class ACK:
 
         self._modules = {
             'E': E(self._config).to(self._device),
-            'H': H(self._config).to(self._device),
+            'T': T(self._config).to(self._device),
             'PH': PH(self._config).to(self._device),
             'VH': VH(self._config).to(self._device),
         }
@@ -299,7 +299,7 @@ class ACK:
                 action_embeds = self._modules['E'](act).detach()
                 argument_embeds = self._modules['E'](arg).detach()
 
-                hiddens = self._modules['H'](action_embeds, argument_embeds)
+                hiddens = self._modules['T'](action_embeds, argument_embeds)
 
                 heads = torch.cat([
                     hiddens[i][idx[i]].unsqueeze(0)
@@ -379,7 +379,7 @@ class ACK:
             action_embeds = self._modules['E'](act)
             argument_embeds = self._modules['E'](arg)
 
-            hiddens = self._modules['H'](action_embeds, argument_embeds)
+            hiddens = self._modules['T'](action_embeds, argument_embeds)
 
             heads = torch.cat([
                 hiddens[i][idx[i]].unsqueeze(0)
@@ -424,7 +424,7 @@ class ACK:
                 action_embeds = self._modules['E'](act)
                 argument_embeds = self._modules['E'](arg)
 
-                hiddens = self._modules['H'](action_embeds, argument_embeds)
+                hiddens = self._modules['T'](action_embeds, argument_embeds)
 
                 heads = torch.cat([
                     hiddens[i][idx[i]].unsqueeze(0)
@@ -500,19 +500,19 @@ class ACK:
 
                     if self._grad_norm_max > 0.0:
                         torch.nn.utils.clip_grad_norm_(
+                            self._modules['E'].parameters(),
+                            self._grad_norm_max,
+                        )
+                        torch.nn.utils.clip_grad_norm_(
+                            self._modules['T'].parameters(),
+                            self._grad_norm_max,
+                        )
+                        torch.nn.utils.clip_grad_norm_(
                             self._modules['VH'].parameters(),
                             self._grad_norm_max,
                         )
                         torch.nn.utils.clip_grad_norm_(
                             self._modules['PH'].parameters(),
-                            self._grad_norm_max,
-                        )
-                        torch.nn.utils.clip_grad_norm_(
-                            self._modules['H'].parameters(),
-                            self._grad_norm_max,
-                        )
-                        torch.nn.utils.clip_grad_norm_(
-                            self._modules['E'].parameters(),
                             self._grad_norm_max,
                         )
 
@@ -584,7 +584,7 @@ class SYN:
 
         self._modules = {
             'E': E(self._config).to(self._device),
-            'H': H(self._config).to(self._device),
+            'T': T(self._config).to(self._device),
             'PH': PH(self._config).to(self._device),
             'VH': VH(self._config).to(self._device),
         }
@@ -592,7 +592,7 @@ class SYN:
         Log.out(
             "SYN Initializing", {
                 'parameter_count_E': self._modules['E'].parameters_count(),
-                'parameter_count_H': self._modules['H'].parameters_count(),
+                'parameter_count_T': self._modules['T'].parameters_count(),
                 'parameter_count_PH': self._modules['PH'].parameters_count(),
                 'parameter_count_VH': self._modules['VH'].parameters_count(),
             },
@@ -606,7 +606,7 @@ class SYN:
         self._optimizer = optim.Adam(
             [
                 {'params': self._modules['E'].parameters()},
-                {'params': self._modules['H'].parameters()},
+                {'params': self._modules['T'].parameters()},
                 {'params': self._modules['PH'].parameters()},
                 {'params': self._modules['VH'].parameters()},
             ],
@@ -630,11 +630,11 @@ class SYN:
                         map_location=self._device,
                     ),
                 )
-            if os.path.isfile(self._load_dir + "/model_H.pt"):
-                Log.out('Loading H')
-                self._modules['H'].load_state_dict(
+            if os.path.isfile(self._load_dir + "/model_T.pt"):
+                Log.out('Loading T')
+                self._modules['T'].load_state_dict(
                     torch.load(
-                        self._load_dir + "/model_H.pt",
+                        self._load_dir + "/model_T.pt",
                         map_location=self._device,
                     ),
                 )
@@ -680,8 +680,8 @@ class SYN:
                 self._save_dir + "/model_E.pt",
             )
             torch.save(
-                self._modules['H'].state_dict(),
-                self._save_dir + "/model_H.pt",
+                self._modules['T'].state_dict(),
+                self._save_dir + "/model_T.pt",
             )
             torch.save(
                 self._modules['PH'].state_dict(),
