@@ -69,6 +69,7 @@ class Env:
     def reset(
             self,
             gamma: float,
+            fixed_gamma: int,
     ) -> typing.Tuple[int, typing.List[Action]]:
         self._ground = None
         self._run = None
@@ -112,7 +113,12 @@ class Env:
 
         # GAMMA Initialization.
         if gamma > 0.0 and random.random() < gamma:
-            self._gamma_len = random.randrange(0, self._ground.action_len())
+            if fixed_gamma > 0:
+                self._gamma_len = self._ground.action_len() - fixed_gamma
+            else:
+                self._gamma_len = random.randrange(
+                    0, self._ground.action_len()
+                )
 
             for i in range(self._gamma_len):
                 assert self._ground.prepare_len() + i < self._ground.len() - 1
@@ -277,6 +283,7 @@ class Env:
             step_reward_prob: float,
             match_reward_prob: float,
             gamma: float,
+            fixed_gamma: int,
     ) -> typing.Tuple[
         typing.Tuple[int, typing.List[Action]],
         typing.Tuple[float, float, float],
@@ -288,7 +295,7 @@ class Env:
 
         def finish(rewards, done, info):
             if done:
-                observation = self.reset(gamma)
+                observation = self.reset(gamma, fixed_gamma)
             else:
                 observation = self.observation()
             return observation, rewards, done, info
@@ -363,7 +370,7 @@ class Env:
                 self._run.action_len(),
                 self._ground.action_len(),
             )
-            final_reward = float(action_len)
+            final_reward = 1.0
             done = True
             info['demo_length'] = action_len - self._gamma_len
             Log.out("DEMONSTRATED", {
@@ -428,13 +435,14 @@ class Pool:
     def reset(
             self,
             gamma: float,
+            fixed_gamma: int,
     ) -> typing.Tuple[
             typing.List[int],
             typing.List[typing.List[Action]],
             typing.List[typing.List[Action]],
     ]:
         def reset(env):
-            return env.reset(gamma)
+            return env.reset(gamma, fixed_gamma)
 
         observations = []
         for o in self._executor.map(reset, self._pool):
@@ -478,6 +486,7 @@ class Pool:
             step_reward_prob: float,
             match_reward_prob: float,
             gamma: float,
+            fixed_gamma: int,
     ) -> typing.Tuple[
         typing.Tuple[
             typing.List[int],
@@ -490,7 +499,7 @@ class Pool:
     ]:
         def step(a):
             return a[0].step(
-                a[1], step_reward_prob, match_reward_prob, gamma,
+                a[1], step_reward_prob, match_reward_prob, gamma, fixed_gamma,
             )
 
         args = []

@@ -168,6 +168,8 @@ class ACK:
 
         self._reset_gamma = \
             config.get('prooftrace_ppo_reset_gamma')
+        self._fixed_gamma = \
+            config.get('prooftrace_ppo_fixed_gamma')
         self._explore_alpha = \
             config.get('prooftrace_ppo_explore_alpha')
         self._explore_beta = \
@@ -196,7 +198,9 @@ class ACK:
         self._rollouts = Rollouts(self._config)
 
         self._pool = Pool(self._config, False)
-        self._rollouts.observations[0] = self._pool.reset(self._reset_gamma)
+        self._rollouts.observations[0] = self._pool.reset(
+            self._reset_gamma, self._fixed_gamma,
+        )
 
         self._episode_stp_reward = [0.0] * self._pool_size
         self._episode_mtc_reward = [0.0] * self._pool_size
@@ -228,11 +232,18 @@ class ACK:
                 "prooftrace_ppo_value_coeff": coeff,
             })
 
-        gamma = self._config.get('prooftrace_ppo_reset_gamma')
-        if gamma != self._reset_gamma:
-            self._reset_gamma = gamma
+        reset_gamma = self._config.get('prooftrace_ppo_reset_gamma')
+        if reset_gamma != self._reset_gamma:
+            self._reset_gamma = reset_gamma
             Log.out("Updated", {
-                "prooftrace_ppo_reset_gamma": gamma,
+                "prooftrace_ppo_reset_gamma": reset_gamma,
+            })
+
+        fixed_gamma = self._config.get('prooftrace_ppo_fixed_gamma')
+        if fixed_gamma != self._fixed_gamma:
+            self._fixed_gamma = fixed_gamma
+            Log.out("Updated", {
+                "prooftrace_ppo_fixed_gamma": fixed_gamma,
             })
 
         alpha = self._config.get('prooftrace_ppo_explore_alpha')
@@ -331,6 +342,7 @@ class ACK:
                     self._step_reward_prob,
                     self._match_reward_prob,
                     self._reset_gamma,
+                    self._fixed_gamma,
                 )
                 frame_count += actions.size(0)
                 for i, info in enumerate(infos):
@@ -725,6 +737,8 @@ class SYN:
                             'prooftrace_ppo_iota_min_update_count',
                             'prooftrace_ppo_entropy_coeff',
                             'prooftrace_ppo_value_coeff',
+                            'prooftrace_ppo_reset_gamma',
+                            'prooftrace_ppo_fixed_gamma',
                             'prooftrace_ppo_explore_alpha',
                             'prooftrace_ppo_explore_beta',
                             'prooftrace_ppo_explore_beta_width',
