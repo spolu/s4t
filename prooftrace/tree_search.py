@@ -152,7 +152,7 @@ class Node:
             self,
             value: float,
     ) -> None:
-        self._W += value
+        self._W += 0.0
         self._Q = self._W / self._N if self._N > 0 else 0.0
 
     def update_visit(
