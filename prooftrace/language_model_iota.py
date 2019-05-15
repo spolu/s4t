@@ -218,13 +218,18 @@ class SYN:
             self._modules,
         )
 
-        self._optimizer = optim.Adam(
+        self._optimizer_P = optim.Adam(
             [
                 {'params': self._modules['PE'].parameters()},
-                {'params': self._modules['VE'].parameters()},
                 {'params': self._modules['PT'].parameters()},
-                {'params': self._modules['VT'].parameters()},
                 {'params': self._modules['PH'].parameters()},
+            ],
+            lr=self._learning_rate,
+        )
+        self._optimizer_V = optim.Adam(
+            [
+                {'params': self._modules['VE'].parameters()},
+                {'params': self._modules['VT'].parameters()},
                 {'params': self._modules['VH'].parameters()},
             ],
             lr=self._learning_rate,
@@ -284,10 +289,17 @@ class SYN:
                     ),
                 )
 
-            if training and os.path.isfile(self._load_dir + "/optimizer.pt"):
-                self._optimizer.load_state_dict(
+            if training and os.path.isfile(self._load_dir + "/optimizer_P.pt"):
+                self._optimizer_P.load_state_dict(
                     torch.load(
-                        self._load_dir + "/optimizer.pt",
+                        self._load_dir + "/optimizer_P.pt",
+                        map_location=self._device,
+                    ),
+                )
+            if training and os.path.isfile(self._load_dir + "/optimizer_V.pt"):
+                self._optimizer_V.load_state_dict(
+                    torch.load(
+                        self._load_dir + "/optimizer_V.pt",
                         map_location=self._device,
                     ),
                 )
@@ -328,8 +340,12 @@ class SYN:
                 self._save_dir + "/model_VH.pt",
             )
             torch.save(
-                self._optimizer.state_dict(),
-                self._save_dir + "/optimizer.pt",
+                self._optimizer_P.state_dict(),
+                self._save_dir + "/optimizer_P.pt",
+            )
+            torch.save(
+                self._optimizer_V.state_dict(),
+                self._save_dir + "/optimizer_V.pt",
             )
 
     def update(
@@ -341,7 +357,9 @@ class SYN:
                 lr = self._config.get('prooftrace_lm_learning_rate')
                 if lr != self._learning_rate:
                     self._learning_rate = lr
-                    for group in self._optimizer.param_groups:
+                    for group in self._optimizer_P.param_groups:
+                        group['lr'] = lr
+                    for group in self._optimizer_V.param_groups:
                         group['lr'] = lr
                     Log.out("Updated", {
                         "prooftrace_lm_learning_rate": lr,
@@ -375,14 +393,16 @@ class SYN:
 
         run_start = time.time()
 
-        self._optimizer.zero_grad()
+        self._optimizer_P.zero_grad()
+        self._optimizer_V.zero_grad()
         infos = self._syn.aggregate(self._device, self._min_update_count)
 
         if len(infos) == 0:
             time.sleep(1)
             return
 
-        self._optimizer.step()
+        self._optimizer_P.step()
+        self._optimizer_V.step()
         self._syn.broadcast({'config': self._config})
 
         act_loss_meter = Meter()
