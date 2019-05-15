@@ -167,11 +167,6 @@ class Node:
             model: Model,
             target: Thm,
     ) -> float:
-        Log.out("EXPAND", {
-            'summary': self._ptra.summary(),
-            'theorem': self._theorem.thm_string(True),
-        })
-
         actions = self._ptra.actions().copy()
         arguments = self._ptra.arguments().copy()
         idx = len(actions)
@@ -251,6 +246,12 @@ class Node:
             ))
 
         self._expanded = True
+
+        Log.out("EXPAND", {
+            'value': value,
+            'summary': self._ptra.summary(),
+            'theorem': self._theorem.thm_string(True),
+        })
 
         return value
 
