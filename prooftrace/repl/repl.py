@@ -64,6 +64,8 @@ class REPL():
         elif action_token == 'REFL':
             if action.left.value != ACTION_TOKENS['TERM']:
                 raise REPLException
+            if action.right.value != ACTION_TOKENS['EMPTY']:
+                raise REPLException
             thm = self._fusion.REFL(
                 action.left.left.value,
                 fake,
@@ -91,12 +93,16 @@ class REPL():
         elif action_token == 'BETA':
             if action.left.value != ACTION_TOKENS['TERM']:
                 raise REPLException
+            if action.right.value != ACTION_TOKENS['EMPTY']:
+                raise REPLException
             thm = self._fusion.BETA(
                 action.left.left.value,
                 fake,
             )
         elif action_token == 'ASSUME':
             if action.left.value != ACTION_TOKENS['TERM']:
+                raise REPLException
+            if action.right.value != ACTION_TOKENS['EMPTY']:
                 raise REPLException
             thm = self._fusion.ASSUME(
                 action.left.left.value,
