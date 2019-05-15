@@ -35,84 +35,56 @@ class Model:
 
         self._device = torch.device(config.get('device'))
 
-        self._val_load_dir = config.get('prooftrace_val_load_dir')
-        self._lm_load_dir = config.get('prooftrace_lm_load_dir')
+        self._load_dir = config.get('prooftrace_load_dir')
 
-        self._lm_modules = {
+        self._modules = {
             'E': E(self._config).to(self._device),
             'H': H(self._config).to(self._device),
             'PH': PH(self._config).to(self._device),
-        }
-        self._val_modules = {
-            'E': E(self._config).to(self._device),
-            'H': H(self._config).to(self._device),
             'VH': VH(self._config).to(self._device),
         }
 
     def load(
             self,
     ):
-        if self._lm_load_dir:
+        if self._load_dir:
             Log.out(
-                "Loading prooftrace language model", {
-                    'lm_load_dir': self._lm_load_dir,
+                "Loading prooftrace LM", {
+                    'load_dir': self._load_dir,
                 })
-            if os.path.isfile(self._lm_load_dir + "/model_E.pt"):
-                self._lm_modules['E'].load_state_dict(
+            if os.path.isfile(self._load_dir + "/model_E.pt"):
+                self._modules['E'].load_state_dict(
                     torch.load(
-                        self._lm_load_dir + "/model_E.pt",
+                        self._load_dir + "/model_E.pt",
                         map_location=self._device,
                     ),
                 )
-            if os.path.isfile(self._lm_load_dir + "/model_H.pt"):
-                self._lm_modules['H'].load_state_dict(
+            if os.path.isfile(self._load_dir + "/model_H.pt"):
+                self._modules['H'].load_state_dict(
                     torch.load(
-                        self._lm_load_dir + "/model_H.pt",
+                        self._load_dir + "/model_H.pt",
                         map_location=self._device,
                     ),
                 )
-            if os.path.isfile(self._lm_load_dir + "/model_PH.pt"):
-                self._lm_modules['PH'].load_state_dict(
+            if os.path.isfile(self._load_dir + "/model_PH.pt"):
+                self._modules['PH'].load_state_dict(
                     torch.load(
-                        self._lm_load_dir + "/model_PH.pt",
+                        self._load_dir + "/model_PH.pt",
                         map_location=self._device,
                     ),
                 )
-
-        if self._val_load_dir:
-            Log.out(
-                "Loading prooftrace value", {
-                    'val_load_dir': self._val_load_dir,
-                })
-            if os.path.isfile(self._val_load_dir + "/model_E.pt"):
-                self._val_modules['E'].load_state_dict(
+            if os.path.isfile(self._load_dir + "/model_VH.pt"):
+                self._modules['VH'].load_state_dict(
                     torch.load(
-                        self._val_load_dir + "/model_E.pt",
-                        map_location=self._device,
-                    ),
-                )
-            if os.path.isfile(self._val_load_dir + "/model_H.pt"):
-                self._val_modules['H'].load_state_dict(
-                    torch.load(
-                        self._val_load_dir + "/model_H.pt",
-                        map_location=self._device,
-                    ),
-                )
-            if os.path.isfile(self._val_load_dir + "/model_VH.pt"):
-                self._val_modules['VH'].load_state_dict(
-                    torch.load(
-                        self._val_load_dir + "/model_VH.pt",
+                        self._load_dir + "/model_VH.pt",
                         map_location=self._device,
                     ),
                 )
 
-        self._lm_modules['E'].eval()
-        self._lm_modules['H'].eval()
-        self._lm_modules['PH'].eval()
-
-        self._val_modules['E'].eval()
-        self._val_modules['H'].eval()
-        self._val_modules['VH'].eval()
+        self._modules['E'].eval()
+        self._modules['H'].eval()
+        self._modules['PH'].eval()
+        self._modules['VH'].eval()
 
         return self
 
@@ -126,10 +98,10 @@ class Model:
         torch.Tensor,
     ]:
         with torch.no_grad():
-            action_embeds = self._lm_modules['E'](act)
-            argument_embeds = self._lm_modules['E'](arg)
+            action_embeds = self._modules['E'](act)
+            argument_embeds = self._modules['E'](arg)
 
-            hiddens = self._lm_modules['H'](action_embeds, argument_embeds)
+            hiddens = self._modules['H'](action_embeds, argument_embeds)
 
             heads = torch.cat([
                 hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
@@ -139,21 +111,8 @@ class Model:
             ], dim=0)
 
             prd_actions, prd_lefts, prd_rights = \
-                self._lm_modules['PH'](heads, hiddens, targets)
-
-            action_embeds = self._val_modules['E'](act)
-            argument_embeds = self._val_modules['E'](arg)
-
-            hiddens = self._val_modules['H'](action_embeds, argument_embeds)
-
-            heads = torch.cat([
-                hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
-            ], dim=0)
-            targets = torch.cat([
-                action_embeds[i][0].unsqueeze(0) for i in range(len(idx))
-            ], dim=0)
-
-            prd_values = self._val_modules['VH'](heads, targets)
+                self._modules['PH'](heads, hiddens, targets)
+            prd_values = self._modules['VH'](heads, targets)
 
             return (
                 prd_actions, prd_lefts, prd_rights,
@@ -340,11 +299,7 @@ def mcts():
         type=str, help="config override",
     )
     parser.add_argument(
-        '--val_load_dir',
-        type=str, help="config override",
-    )
-    parser.add_argument(
-        '--lm_load_dir',
+        '--load_dir',
         type=str, help="config override",
     )
 
@@ -365,15 +320,10 @@ def mcts():
             'prooftrace_dataset_size',
             args.dataset_size,
         )
-    if args.lm_load_dir is not None:
+    if args.load_dir is not None:
         config.override(
-            'prooftrace_lm_load_dir',
-            os.path.expanduser(args.lm_load_dir),
-        )
-    if args.val_load_dir is not None:
-        config.override(
-            'prooftrace_val_load_dir',
-            os.path.expanduser(args.val_load_dir),
+            'prooftrace_load_dir',
+            os.path.expanduser(args.load_dir),
         )
 
     dataset_dir = os.path.join(
