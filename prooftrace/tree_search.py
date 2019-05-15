@@ -18,12 +18,13 @@ from prooftrace.models.heads import PH, VH
 from prooftrace.models.torso import H
 
 from prooftrace.repl.repl import REPL
+from prooftrace.repl.fusion import Thm
 
 from utils.config import Config
 from utils.log import Log
 
 
-C_PUCT = 0.2
+C_PUCT = 100
 
 
 class Model:
@@ -127,10 +128,12 @@ class Node:
             p: float,
             repl: REPL,
             ptra: ProofTraceActions,
+            theorem: Thm,
     ) -> None:
         self._parent = parent
         self._children = []
         self._expanded = False
+        self._theorem = theorem
 
         self._P = p
         self._N = 0
@@ -162,9 +165,11 @@ class Node:
             beta_width: int,
             sequence_length: int,
             model: Model,
+            target: Thm,
     ) -> float:
         Log.out("EXPAND", {
             'summary': self._ptra.summary(),
+            'theorem': self._theorem.thm_string(True),
         })
 
         actions = self._ptra.actions().copy()
@@ -217,9 +222,9 @@ class Node:
                         continue
 
                     candidates.append((a,
-                                       top_actions[0][ia] *
-                                       top_lefts[0][il] *
-                                       top_rights[0][ir]))
+                                       top_actions[0][ia].item() *
+                                       top_lefts[0][il].item() *
+                                       top_rights[0][ir].item()))
 
         for action, p in candidates:
             repl = self._repl.copy()
@@ -232,6 +237,9 @@ class Node:
                 thm.concl(), thm.hyp(), thm.index(),
             )
 
+            if target.thm_string(True) == thm.thm_string(True):
+                Log.out("DEMONSTRATED")
+
             ptra.append(action, argument)
 
             self._children.append(Node(
@@ -239,6 +247,7 @@ class Node:
                 p,
                 repl,
                 ptra,
+                thm,
             ))
 
         self._expanded = True
@@ -269,6 +278,7 @@ class Node:
             beta_width: int,
             sequence_length: int,
             model: Model,
+            target: Thm,
             tree,
     ) -> None:
         node = tree
@@ -279,7 +289,7 @@ class Node:
             node = child
 
         if node is not None:
-            value = node.expand(beta_width, sequence_length, model)
+            value = node.expand(beta_width, sequence_length, model, target)
 
             n = node
             while n is not None:
@@ -400,14 +410,15 @@ def mcts():
             ],
         )
         repl = REPL(tokenizer)
-        repl.prepare(ptra)
+        target = repl.prepare(ptra)
 
-        tree = Node(None, 1.0, repl, ptra)
+        tree = Node(None, 1.0, repl, ptra, target)
 
         for i in range(100):
             Node.run(
                 config.get('prooftrace_lm_search_beta_width'),
                 config.get('prooftrace_sequence_length'),
                 model,
+                target,
                 tree,
             )
