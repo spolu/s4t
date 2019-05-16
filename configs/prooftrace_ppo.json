@@ -43,7 +43,7 @@
   "prooftrace_ppo_epoch_count": 4,
   "prooftrace_ppo_clip": 0.2,
   "prooftrace_ppo_grad_norm_max": 0.0,
-  "prooftrace_ppo_entropy_coeff": 0.005,
+  "prooftrace_ppo_entropy_coeff": 0.0,
   "prooftrace_ppo_value_coeff": 0.5,
 
   "prooftrace_tree_search_beta_width": 8,

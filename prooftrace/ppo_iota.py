@@ -458,7 +458,12 @@ class ACK:
                     prd_lefts.gather(1, rollout_actions[:, 1].unsqueeze(1)),
                     prd_rights.gather(1, rollout_actions[:, 2].unsqueeze(1)),
                 ), dim=1)
-                entropy = -(log_probs * torch.exp(log_probs)).mean()
+
+                entropy = -(
+                    (prd_actions * torch.exp(prd_actions)).mean() +
+                    (prd_lefts * torch.exp(prd_lefts)).mean() +
+                    (prd_rights * torch.exp(prd_rights)).mean()
+                )
 
                 # Clipped action loss.
                 ratio = torch.exp(log_probs - rollout_log_probs)
