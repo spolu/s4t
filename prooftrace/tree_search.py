@@ -25,7 +25,7 @@ from utils.config import Config
 from utils.log import Log
 
 
-C_PUCT = 100
+C_PUCT = 0.2
 
 
 class Model:
