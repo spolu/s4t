@@ -65,6 +65,7 @@ class Env:
         self._run = None
         self._repl = None
         self._target = None
+        self._alpha = 0
 
     def reset(
             self,
@@ -75,6 +76,7 @@ class Env:
         self._run = None
         self._repl = None
         self._target = None
+        self._alpha = 0
         self._gamma_len = 0
 
         self._match_count = 0
@@ -166,6 +168,7 @@ class Env:
     def alpha_oracle(
             self,
     ) -> typing.Tuple[torch.Tensor, int]:
+        self._alpha += 1
         for i in range(self._ground.prepare_len(), self._ground.len()):
             a = self._ground.actions()[i]
             if (not self._run.seen(a)) and \
@@ -253,7 +256,7 @@ class Env:
     ) -> typing.Tuple[torch.Tensor, int]:
 
         # ALPHA Oracle.
-        if alpha > 0.0 and random.random() < alpha:
+        if alpha > 0.0 and random.random() < alpha and self._alpha == 0:
             actions, frame_count = self.alpha_oracle()
             if actions is not None:
                 return actions, frame_count
