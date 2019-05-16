@@ -25,7 +25,7 @@ from utils.config import Config
 from utils.log import Log
 
 
-C_PUCT = 0.2
+C_PUCT = 0.1
 
 
 class Model:
@@ -431,7 +431,7 @@ def mcts():
 
         tree = Node(None, 1.0, repl, ptra, target)
 
-        for i in range(32):
+        for i in range(64):
             Node.run(
                 config.get('prooftrace_tree_search_beta_width'),
                 config.get('prooftrace_sequence_length'),
