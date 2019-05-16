@@ -6,6 +6,7 @@ import os
 import pickle
 import random
 import re
+import sys
 import torch
 import typing
 
@@ -234,6 +235,7 @@ class Node:
 
             if target.thm_string(True) == thm.thm_string(True):
                 Log.out("DEMONSTRATED")
+                sys.exit(0)
 
             ptra.append(action, argument)
 
@@ -250,7 +252,7 @@ class Node:
         Log.out("EXPAND", {
             'value': value,
             'summary': self._ptra.summary(),
-            'theorem': self._theorem.thm_string(True),
+            # 'theorem': self._theorem.thm_string(True),
         })
 
         return value
@@ -378,7 +380,7 @@ def mcts():
 
     model = Model(config).load()
 
-    cases = sorted(cases, key=lambda c: c[1])
+    # cases = sorted(cases, key=lambda c: c[1])
 
     for i in range(len(cases)):
         c = cases[i][0]
