@@ -385,10 +385,6 @@ def mcts():
         with gzip.open(c, 'rb') as f:
             ground = pickle.load(f)
 
-        # repl = REPL(tokenizer)
-        # repl.prepare(ground)
-        # target = repl.replay(ground)
-
         Log.out("TARGET", {
             'name': ground.name(),
             'prepare_length': ground.prepare_len(),
@@ -412,6 +408,24 @@ def mcts():
         )
         repl = REPL(tokenizer)
         target = repl.prepare(ptra)
+
+        fixed_gamma = 8
+        if fixed_gamma > 0:
+            gamma_len = ground.action_len() - fixed_gamma
+
+            for i in range(gamma_len):
+                assert ground.prepare_len() + i < ground.len() - 1
+                pos = ground.prepare_len() + i
+
+                action = ground.actions()[pos]
+                argument = ground.arguments()[pos]
+
+                thm = repl.apply(action)
+
+                action._index = thm.index()
+                argument._index = thm.index()
+
+                ptra.append(action, argument)
 
         tree = Node(None, 1.0, repl, ptra, target)
 
