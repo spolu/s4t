@@ -29,7 +29,7 @@
   "prooftrace_lm_value_coeff": 1.0,
   "prooftrace_lm_action_coeff": 2.0,
 
-  "prooftrace_lm_search_beta_width": 8,
+  "prooftrace_tree_search_beta_width": 8,
 
   "prooftrace_dataset_dir": "./data/prooftrace",
   "prooftrace_dataset_size": "small",

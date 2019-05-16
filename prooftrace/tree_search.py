@@ -431,7 +431,7 @@ def mcts():
 
         for i in range(32):
             Node.run(
-                config.get('prooftrace_lm_search_beta_width'),
+                config.get('prooftrace_tree_search_beta_width'),
                 config.get('prooftrace_sequence_length'),
                 model,
                 target,
