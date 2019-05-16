@@ -15,7 +15,7 @@ from prooftrace.prooftrace import \
 
 from prooftrace.models.embedder import E
 from prooftrace.models.heads import PH, VH
-from prooftrace.models.torso import H
+from prooftrace.models.torso import T
 
 from prooftrace.repl.repl import REPL
 from prooftrace.repl.fusion import Thm
@@ -40,7 +40,7 @@ class Model:
 
         self._modules = {
             'E': E(self._config).to(self._device),
-            'H': H(self._config).to(self._device),
+            'T': T(self._config).to(self._device),
             'PH': PH(self._config).to(self._device),
             'VH': VH(self._config).to(self._device),
         }
@@ -60,10 +60,10 @@ class Model:
                         map_location=self._device,
                     ),
                 )
-            if os.path.isfile(self._load_dir + "/model_H.pt"):
-                self._modules['H'].load_state_dict(
+            if os.path.isfile(self._load_dir + "/model_T.pt"):
+                self._modules['T'].load_state_dict(
                     torch.load(
-                        self._load_dir + "/model_H.pt",
+                        self._load_dir + "/model_T.pt",
                         map_location=self._device,
                     ),
                 )
@@ -83,7 +83,7 @@ class Model:
                 )
 
         self._modules['E'].eval()
-        self._modules['H'].eval()
+        self._modules['T'].eval()
         self._modules['PH'].eval()
         self._modules['VH'].eval()
 
@@ -102,7 +102,7 @@ class Model:
             action_embeds = self._modules['E'](act)
             argument_embeds = self._modules['E'](arg)
 
-            hiddens = self._modules['H'](action_embeds, argument_embeds)
+            hiddens = self._modules['T'](action_embeds, argument_embeds)
 
             heads = torch.cat([
                 hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
