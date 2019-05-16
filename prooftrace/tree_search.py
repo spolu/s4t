@@ -24,7 +24,7 @@ from utils.config import Config
 from utils.log import Log
 
 
-C_PUCT = 0.1
+C_PUCT = 12.0
 
 
 class Model:
@@ -136,7 +136,7 @@ class Node:
         self._theorem = theorem
 
         self._P = p
-        self._N = 0
+        self._N = 1
         self._W = 0.0
         self._Q = 0.0
 
@@ -247,11 +247,12 @@ class Node:
 
         self._expanded = True
 
-        # Log.out("EXPAND", {
-        #     'value': value,
-        #     'summary': self._ptra.summary(),
-        #     # 'theorem': self._theorem.thm_string(True),
-        # })
+        Log.out("EXPAND", {
+            'value': value,
+            'length': self._ptra.len(),
+            # 'summary': self._ptra.summary(),
+            # 'theorem': self._theorem.thm_string(True),
+        })
 
         return value
 
@@ -269,6 +270,8 @@ class Node:
             score = n._Q + C_PUCT * n._P * math.sqrt(total) / (1 + n._N)
             scores.append(score)
 
+        # if self._parent is None:
+        #   import pdb; pdb.set_trace()
         m = max(scores)
         for i in range(len(scores)):
             if scores[i] == m:
@@ -389,7 +392,7 @@ def mcts():
             'name': ground.name(),
             'prepare_length': ground.prepare_len(),
             'length': ground.action_len(),
-            'summary': ground.summary(),
+            # 'summary': ground.summary(),
         })
 
         ptra = ProofTraceActions(
@@ -429,7 +432,7 @@ def mcts():
 
         tree = Node(None, 1.0, repl, ptra, target)
 
-        for i in range(64):
+        for i in range(256):
             Node.run(
                 config.get('prooftrace_tree_search_beta_width'),
                 config.get('prooftrace_sequence_length'),
