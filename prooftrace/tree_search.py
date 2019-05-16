@@ -6,7 +6,6 @@ import os
 import pickle
 import random
 import re
-import sys
 import torch
 import typing
 
@@ -235,7 +234,6 @@ class Node:
 
             if target.thm_string(True) == thm.thm_string(True):
                 Log.out("DEMONSTRATED")
-                sys.exit(0)
 
             ptra.append(action, argument)
 
@@ -249,11 +247,11 @@ class Node:
 
         self._expanded = True
 
-        Log.out("EXPAND", {
-            'value': value,
-            'summary': self._ptra.summary(),
-            # 'theorem': self._theorem.thm_string(True),
-        })
+        # Log.out("EXPAND", {
+        #     'value': value,
+        #     'summary': self._ptra.summary(),
+        #     # 'theorem': self._theorem.thm_string(True),
+        # })
 
         return value
 
