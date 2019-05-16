@@ -367,8 +367,8 @@ def mcts():
             continue
         ptra_len = int(match.group(1))
 
-        if ptra_len <= 64:
-            cases.append((p, ptra_len))
+        # if ptra_len <= 64:
+        cases.append((p, ptra_len))
 
     Log.out(
         "Loaded ProofTraceActions", {
@@ -411,7 +411,7 @@ def mcts():
 
         fixed_gamma = 8
         if fixed_gamma > 0:
-            gamma_len = ground.action_len() - fixed_gamma
+            gamma_len = max(ground.action_len() - fixed_gamma, 0)
 
             for i in range(gamma_len):
                 assert ground.prepare_len() + i < ground.len() - 1
