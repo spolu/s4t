@@ -315,7 +315,6 @@ class Env:
             })
             return finish((-1.0, 0.0, 0.0), True, {
                 'match_count': self._match_count,
-                'demo_length': 0,
             })
 
         action = Action.from_action(
@@ -333,7 +332,6 @@ class Env:
             })
             return finish((-1.0, 0.0, 0.0), True, {
                 'match_count': self._match_count,
-                'demo_length': 0,
             })
 
         try:
@@ -347,7 +345,6 @@ class Env:
             })
             return finish((-1.0, 0.0, 0.0), True, {
                 'match_count': self._match_count,
-                'demo_length': 0,
             })
 
         action._index = thm.index()
@@ -379,6 +376,8 @@ class Env:
             final_reward = 1.0
             done = True
             info['demo_length'] = action_len - self._gamma_len
+            info['demo_delta'] = \
+                self._run.action_len() - self._ground.action_len()
             Log.out("DEMONSTRATED", {
                 'ground_length': self._ground.action_len(),
                 'run_length': self._run.action_len(),

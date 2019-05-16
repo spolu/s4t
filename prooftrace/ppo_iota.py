@@ -300,6 +300,7 @@ class ACK:
         entropy_meter = Meter()
         match_count_meter = Meter()
         demo_length_meter = Meter()
+        demo_delta_meter = Meter()
 
         frame_count = 0
 
@@ -352,6 +353,9 @@ class ACK:
                     if 'demo_length' in info:
                         assert dones[i]
                         demo_length_meter.update(info['demo_length'])
+                    if 'demo_delta' in info:
+                        assert dones[i]
+                        demo_delta_meter.update(info['demo_delta'])
 
                 log_probs = torch.cat((
                     prd_actions.gather(1, actions[:, 0].unsqueeze(1)),
@@ -542,6 +546,7 @@ class ACK:
                         'match_count': (match_count_meter.avg or 0.0),
                         'demo_length_avg': (demo_length_meter.avg or 0.0),
                         'demo_length_max': (demo_length_meter.max or 0.0),
+                        'demo_delta': (demo_delta_meter.avg or 0.0),
                         'stp_reward': (stp_reward_meter.avg or 0.0),
                         'mtc_reward': (mtc_reward_meter.avg or 0.0),
                         'fnl_reward': (fnl_reward_meter.avg or 0.0),
@@ -566,6 +571,7 @@ class ACK:
                 demo_length_meter.avg or 0.0,
                 demo_length_meter.max or 0.0,
             ),
+            'demo_delta': "{:.4f}".format(demo_delta_meter.avg or 0.0),
             'stp_reward': "{:.4f}".format(stp_reward_meter.avg or 0.0),
             'mtc_reward': "{:.4f}".format(mtc_reward_meter.avg or 0.0),
             'fnl_reward': "{:.4f}".format(fnl_reward_meter.avg or 0.0),
@@ -788,6 +794,7 @@ class SYN:
         match_count_meter = Meter()
         demo_length_avg_meter = Meter()
         demo_length_max_meter = Meter()
+        demo_delta_meter = Meter()
         stp_reward_meter = Meter()
         mtc_reward_meter = Meter()
         fnl_reward_meter = Meter()
@@ -801,6 +808,7 @@ class SYN:
             match_count_meter.update(info['match_count'])
             demo_length_avg_meter.update(info['demo_length_avg'])
             demo_length_max_meter.update(info['demo_length_max'])
+            demo_delta_meter.update(info['demo_delta'])
             stp_reward_meter.update(info['stp_reward'])
             mtc_reward_meter.update(info['mtc_reward'])
             fnl_reward_meter.update(info['fnl_reward'])
@@ -824,6 +832,7 @@ class SYN:
                 demo_length_avg_meter.avg or 0.0,
                 demo_length_max_meter.max or 0.0,
             ),
+            'demo_delta': "{:.4f}".format(demo_delta_meter.avg or 0.0),
             'stp_reward': "{:.4f}".format(stp_reward_meter.avg or 0.0),
             'mtc_reward': "{:.4f}".format(mtc_reward_meter.avg or 0.0),
             'fnl_reward': "{:.4f}".format(fnl_reward_meter.avg or 0.0),
@@ -850,6 +859,10 @@ class SYN:
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/demo_length_max",
                     demo_length_max_meter.max, self._epoch,
+                )
+                self._tb_writer.add_scalar(
+                    "prooftrace_ppo_train/demo_delta",
+                    demo_delta_meter.avg, self._epoch,
                 )
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/act_loss",
