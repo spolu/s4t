@@ -309,12 +309,13 @@ class Env:
         if action[1] >= self._run.len() or action[2] >= self._run.len():
             Log.out("DONE ILLEGAL[overflow]", {
                 'ground_length': self._ground.action_len(),
-                'run_length': self._run.action_len(),
                 'gamma_length': self._gamma_len,
+                'run_length': self._run.action_len() - self._gamma_len,
                 'name': self._ground.name(),
             })
             return finish((-1.0, 0.0, 0.0), True, {
                 'match_count': self._match_count,
+                'run_length': self._run.action_len() - self._gamma_len,
             })
 
         action = Action.from_action(
@@ -326,12 +327,13 @@ class Env:
         if self._run.seen(action):
             Log.out("DONE ILLEGAL[seen]", {
                 'ground_length': self._ground.action_len(),
-                'run_length': self._run.action_len(),
                 'gamma_length': self._gamma_len,
+                'run_length': self._run.action_len() - self._gamma_len,
                 'name': self._ground.name(),
             })
             return finish((-1.0, 0.0, 0.0), True, {
                 'match_count': self._match_count,
+                'run_length': self._run.action_len() - self._gamma_len,
             })
 
         try:
@@ -339,12 +341,13 @@ class Env:
         except (FusionException, REPLException, TypeException):
             Log.out("DONE ILLEGAL[fusion]", {
                 'ground_length': self._ground.action_len(),
-                'run_length': self._run.action_len(),
                 'gamma_length': self._gamma_len,
+                'run_length': self._run.action_len() - self._gamma_len,
                 'name': self._ground.name(),
             })
             return finish((-1.0, 0.0, 0.0), True, {
                 'match_count': self._match_count,
+                'run_length': self._run.action_len() - self._gamma_len,
             })
 
         action._index = thm.index()
@@ -369,32 +372,31 @@ class Env:
                 step_reward = 0.0
 
         if self._target.thm_string(True) == thm.thm_string(True):
-            action_len = min(
-                self._run.action_len(),
-                self._ground.action_len(),
-            )
             final_reward = 1.0
             done = True
-            info['demo_length'] = action_len - self._gamma_len
+            info['demo_length'] = min(
+                self._run.action_len(), self._ground.action_len(),
+            ) - self._gamma_len
             info['demo_delta'] = \
                 self._run.action_len() - self._ground.action_len()
             Log.out("DEMONSTRATED", {
                 'ground_length': self._ground.action_len(),
-                'run_length': self._run.action_len(),
                 'gamma_length': self._gamma_len,
+                'run_length': self._run.action_len() - self._gamma_len,
                 'name': self._ground.name(),
             })
         if self._run.len() >= self._sequence_length:
             done = True
             Log.out("DONE LENGTH ", {
                 'ground_length': self._ground.action_len(),
-                'run_length': self._run.action_len(),
                 'gamma_length': self._gamma_len,
+                'run_length': self._run.action_len() - self._gamma_len,
                 'name': self._ground.name(),
             })
 
         if done:
             info['match_count'] = self._match_count
+            info['run_length'] = self._run.action_len() - self._gamma_len
 
         return finish((step_reward, match_reward, final_reward), done, info)
 

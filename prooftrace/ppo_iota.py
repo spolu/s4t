@@ -299,6 +299,7 @@ class ACK:
         val_loss_meter = Meter()
         entropy_meter = Meter()
         match_count_meter = Meter()
+        run_length_meter = Meter()
         demo_length_meter = Meter()
         demo_delta_meter = Meter()
 
@@ -350,6 +351,9 @@ class ACK:
                     if 'match_count' in info:
                         assert dones[i]
                         match_count_meter.update(info['match_count'])
+                    if 'run_length' in info:
+                        assert dones[i]
+                        run_length_meter.update(info['run_length'])
                     if 'demo_length' in info:
                         assert dones[i]
                         demo_length_meter.update(info['demo_length'])
@@ -544,6 +548,7 @@ class ACK:
                     self._ack.push({
                         'frame_count': frame_count,
                         'match_count': (match_count_meter.avg or 0.0),
+                        'run_length': (run_length_meter.avg or 0.0),
                         'demo_length_avg': (demo_length_meter.avg or 0.0),
                         'demo_length_max': (demo_length_meter.max or 0.0),
                         'demo_delta': (demo_delta_meter.avg or 0.0),
@@ -567,6 +572,7 @@ class ACK:
             'epoch': epoch,
             'ignored': ignored,
             'match_count': "{:.2f}".format(match_count_meter.avg or 0.0),
+            'run_length': "{:.2f}".format(run_length_meter.avg or 0.0),
             'demo_length': "{:.2f}/{:.0f}".format(
                 demo_length_meter.avg or 0.0,
                 demo_length_meter.max or 0.0,
@@ -792,6 +798,7 @@ class SYN:
 
         frame_count_meter = Meter()
         match_count_meter = Meter()
+        run_length_meter = Meter()
         demo_length_avg_meter = Meter()
         demo_length_max_meter = Meter()
         demo_delta_meter = Meter()
@@ -806,6 +813,7 @@ class SYN:
         for info in infos:
             frame_count_meter.update(info['frame_count'])
             match_count_meter.update(info['match_count'])
+            run_length_meter.update(info['run_length'])
             demo_length_avg_meter.update(info['demo_length_avg'])
             demo_length_max_meter.update(info['demo_length_max'])
             demo_delta_meter.update(info['demo_delta'])
@@ -828,6 +836,7 @@ class SYN:
             'frame_count': frame_count_meter.sum,
             'update_delta': "{:.2f}".format(update_delta),
             'match_count': "{:.2f}".format(match_count_meter.avg or 0.0),
+            'run_length': "{:.2f}".format(run_length_meter.avg or 0.0),
             'demo_length': "{:.2f}/{:.0f}".format(
                 demo_length_avg_meter.avg or 0.0,
                 demo_length_max_meter.max or 0.0,
@@ -851,6 +860,10 @@ class SYN:
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/match_count",
                     match_count_meter.avg, self._epoch,
+                )
+                self._tb_writer.add_scalar(
+                    "prooftrace_ppo_train/run_length",
+                    run_length_meter.avg, self._epoch,
                 )
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/demo_length_avg",
