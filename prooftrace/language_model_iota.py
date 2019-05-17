@@ -34,11 +34,9 @@ class ACK:
         self._device = torch.device(config.get('device'))
 
         self._modules = {
-            # 'PE': E(self._config).to(self._device),
-            'VE': E(self._config).to(self._device),
-            # 'PT': T(self._config).to(self._device),
-            'VT': T(self._config).to(self._device),
-            # 'PH': PH(self._config).to(self._device),
+            'E': E(self._config).to(self._device),
+            'T': T(self._config).to(self._device),
+            'PH': PH(self._config).to(self._device),
             'VH': VH(self._config).to(self._device),
         }
 
@@ -89,47 +87,35 @@ class ACK:
             if info is not None:
                 self.update(info['config'])
 
-            # p_action_embeds = self._modules['PE'](act)
-            # p_argument_embeds = self._modules['PE'](arg)
+            action_embeds = self._modules['E'](act)
+            argument_embeds = self._modules['E'](arg)
 
-            # p_hiddens = self._modules['PT'](p_action_embeds, p_argument_embeds)
-            # p_heads = torch.cat([
-            #     p_hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
-            # ], dim=0)
-            # p_targets = torch.cat([
-            #     p_action_embeds[i][0].unsqueeze(0) for i in range(len(idx))
-            # ], dim=0)
-
-            # prd_actions, prd_lefts, prd_rights = \
-            #     self._modules['PH'](p_heads, p_hiddens, p_targets)
-
-            v_action_embeds = self._modules['VE'](act)
-            v_argument_embeds = self._modules['VE'](arg)
-
-            v_hiddens = self._modules['VT'](v_action_embeds, v_argument_embeds)
-            v_heads = torch.cat([
-                v_hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
+            hiddens = self._modules['T'](action_embeds, argument_embeds)
+            heads = torch.cat([
+                hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
-            v_targets = torch.cat([
-                v_action_embeds[i][0].unsqueeze(0) for i in range(len(idx))
+            targets = torch.cat([
+                action_embeds[i][0].unsqueeze(0) for i in range(len(idx))
             ], dim=0)
 
-            prd_values = self._modules['VH'](v_heads, v_targets)
+            prd_actions, prd_lefts, prd_rights = \
+                self._modules['PH'](heads, hiddens, targets)
+            prd_values = self._modules['VH'](heads, targets)
 
-            # actions = torch.tensor([
-            #     trh[i].value - len(PREPARE_TOKENS) for i in range(len(trh))
-            # ], dtype=torch.int64).to(self._device)
-            # lefts = torch.tensor([
-            #     arg[i].index(trh[i].left) for i in range(len(trh))
-            # ], dtype=torch.int64).to(self._device)
-            # rights = torch.tensor([
-            #     arg[i].index(trh[i].right) for i in range(len(trh))
-            # ], dtype=torch.int64).to(self._device)
+            actions = torch.tensor([
+                trh[i].value - len(PREPARE_TOKENS) for i in range(len(trh))
+            ], dtype=torch.int64).to(self._device)
+            lefts = torch.tensor([
+                arg[i].index(trh[i].left) for i in range(len(trh))
+            ], dtype=torch.int64).to(self._device)
+            rights = torch.tensor([
+                arg[i].index(trh[i].right) for i in range(len(trh))
+            ], dtype=torch.int64).to(self._device)
             values = torch.tensor(val).unsqueeze(1).to(self._device)
 
-            # act_loss = self._nll_loss(prd_actions, actions)
-            # lft_loss = self._nll_loss(prd_lefts, lefts)
-            # rgt_loss = self._nll_loss(prd_rights, rights)
+            act_loss = self._nll_loss(prd_actions, actions)
+            lft_loss = self._nll_loss(prd_lefts, lefts)
+            rgt_loss = self._nll_loss(prd_rights, rights)
             val_loss = self._mse_loss(prd_values, values)
 
             # Backward pass.
@@ -140,18 +126,18 @@ class ACK:
             (val_loss).backward()
 
             self._ack.push({
-                # 'act_loss': act_loss.item(),
-                # 'lft_loss': lft_loss.item(),
-                # 'rgt_loss': rgt_loss.item(),
+                'act_loss': act_loss.item(),
+                'lft_loss': lft_loss.item(),
+                'rgt_loss': rgt_loss.item(),
                 'val_loss': val_loss.item(),
             }, None)
 
             Log.out("PROOFTRACE LM ACK RUN", {
                 'epoch': epoch,
                 'train_batch': self._train_batch,
-                # 'act_loss_avg': "{:.4f}".format(act_loss.item()),
-                # 'lft_loss_avg': "{:.4f}".format(lft_loss.item()),
-                # 'rgt_loss_avg': "{:.4f}".format(rgt_loss.item()),
+                'act_loss_avg': "{:.4f}".format(act_loss.item()),
+                'lft_loss_avg': "{:.4f}".format(lft_loss.item()),
+                'rgt_loss_avg': "{:.4f}".format(rgt_loss.item()),
                 'val_loss_avg': "{:.4f}".format(val_loss.item()),
             })
 
@@ -186,21 +172,17 @@ class SYN:
             )
 
         self._modules = {
-            # 'PE': E(self._config).to(self._device),
-            'VE': E(self._config).to(self._device),
-            # 'PT': T(self._config).to(self._device),
-            'VT': T(self._config).to(self._device),
-            # 'PH': PH(self._config).to(self._device),
+            'E': E(self._config).to(self._device),
+            'T': T(self._config).to(self._device),
+            'PH': PH(self._config).to(self._device),
             'VH': VH(self._config).to(self._device),
         }
 
         Log.out(
             "SYN Initializing", {
-                # 'parameter_count_PE': self._modules['PE'].parameters_count(),
-                'parameter_count_VE': self._modules['VE'].parameters_count(),
-                # 'parameter_count_PT': self._modules['PT'].parameters_count(),
-                'parameter_count_VT': self._modules['VT'].parameters_count(),
-                # 'parameter_count_PH': self._modules['PH'].parameters_count(),
+                'parameter_count_E': self._modules['E'].parameters_count(),
+                'parameter_count_T': self._modules['T'].parameters_count(),
+                'parameter_count_PH': self._modules['PH'].parameters_count(),
                 'parameter_count_VH': self._modules['VH'].parameters_count(),
             },
         )
@@ -210,18 +192,11 @@ class SYN:
             self._modules,
         )
 
-        # self._optimizer_P = optim.Adam(
-        #     [
-        #         {'params': self._modules['PE'].parameters()},
-        #         {'params': self._modules['PT'].parameters()},
-        #         {'params': self._modules['PH'].parameters()},
-        #     ],
-        #     lr=self._learning_rate,
-        # )
-        self._optimizer_V = optim.Adam(
+        self._optimizer = optim.Adam(
             [
-                {'params': self._modules['VE'].parameters()},
-                {'params': self._modules['VT'].parameters()},
+                {'params': self._modules['E'].parameters()},
+                {'params': self._modules['T'].parameters()},
+                {'params': self._modules['PH'].parameters()},
                 {'params': self._modules['VH'].parameters()},
             ],
             lr=self._learning_rate,
@@ -238,41 +213,27 @@ class SYN:
                 "Loading prooftrace", {
                     'load_dir': self._load_dir,
                 })
-            # if os.path.isfile(self._load_dir + "/model_PE.pt"):
-            #     self._modules['PE'].load_state_dict(
-            #         torch.load(
-            #             self._load_dir + "/model_PE.pt",
-            #             map_location=self._device,
-            #         ),
-            #     )
-            if os.path.isfile(self._load_dir + "/model_VE.pt"):
-                self._modules['VE'].load_state_dict(
+            if os.path.isfile(self._load_dir + "/model_E.pt"):
+                self._modules['E'].load_state_dict(
                     torch.load(
-                        self._load_dir + "/model_VE.pt",
+                        self._load_dir + "/model_E.pt",
                         map_location=self._device,
                     ),
                 )
-             # if os.path.isfile(self._load_dir + "/model_PT.pt"):
-             #     self._modules['PT'].load_state_dict(
-             #         torch.load(
-             #             self._load_dir + "/model_PT.pt",
-             #             map_location=self._device,
-             #         ),
-             #     )
-            if os.path.isfile(self._load_dir + "/model_VT.pt"):
-                self._modules['VT'].load_state_dict(
+            if os.path.isfile(self._load_dir + "/model_T.pt"):
+                self._modules['T'].load_state_dict(
                     torch.load(
-                        self._load_dir + "/model_VT.pt",
+                        self._load_dir + "/model_T.pt",
                         map_location=self._device,
                     ),
                 )
-            # if os.path.isfile(self._load_dir + "/model_PH.pt"):
-            #     self._modules['PH'].load_state_dict(
-            #         torch.load(
-            #             self._load_dir + "/model_PH.pt",
-            #             map_location=self._device,
-            #         ),
-            #     )
+            if os.path.isfile(self._load_dir + "/model_PH.pt"):
+                self._modules['PH'].load_state_dict(
+                    torch.load(
+                        self._load_dir + "/model_PH.pt",
+                        map_location=self._device,
+                    ),
+                )
             if os.path.isfile(self._load_dir + "/model_VH.pt"):
                 self._modules['VH'].load_state_dict(
                     torch.load(
@@ -281,17 +242,10 @@ class SYN:
                     ),
                 )
 
-            # if training and os.path.isfile(self._load_dir + "/optimizer_P.pt"):
-            #     self._optimizer_P.load_state_dict(
-            #         torch.load(
-            #             self._load_dir + "/optimizer_P.pt",
-            #             map_location=self._device,
-            #         ),
-            #     )
-            if training and os.path.isfile(self._load_dir + "/optimizer_V.pt"):
-                self._optimizer_V.load_state_dict(
+            if training and os.path.isfile(self._load_dir + "/optimizer.pt"):
+                self._optimizer.load_state_dict(
                     torch.load(
-                        self._load_dir + "/optimizer_V.pt",
+                        self._load_dir + "/optimizer.pt",
                         map_location=self._device,
                     ),
                 )
@@ -307,37 +261,25 @@ class SYN:
                     'save_dir': self._save_dir,
                 })
 
-            # torch.save(
-            #     self._modules['PE'].state_dict(),
-            #     self._save_dir + "/model_PE.pt",
-            # )
             torch.save(
                 self._modules['VE'].state_dict(),
-                self._save_dir + "/model_VE.pt",
+                self._save_dir + "/model_E.pt",
             )
-            # torch.save(
-            #     self._modules['PT'].state_dict(),
-            #     self._save_dir + "/model_PT.pt",
-            # )
             torch.save(
-                self._modules['VT'].state_dict(),
-                self._save_dir + "/model_VT.pt",
+                self._modules['T'].state_dict(),
+                self._save_dir + "/model_T.pt",
             )
-            # torch.save(
-            #     self._modules['PH'].state_dict(),
-            #     self._save_dir + "/model_PH.pt",
-            # )
+            torch.save(
+                self._modules['PH'].state_dict(),
+                self._save_dir + "/model_PH.pt",
+            )
             torch.save(
                 self._modules['VH'].state_dict(),
                 self._save_dir + "/model_VH.pt",
             )
-            # torch.save(
-            #     self._optimizer_P.state_dict(),
-            #     self._save_dir + "/optimizer_P.pt",
-            # )
             torch.save(
-                self._optimizer_V.state_dict(),
-                self._save_dir + "/optimizer_V.pt",
+                self._optimizer.state_dict(),
+                self._save_dir + "/optimizer.pt",
             )
 
     def update(
@@ -349,9 +291,7 @@ class SYN:
                 lr = self._config.get('prooftrace_lm_learning_rate')
                 if lr != self._learning_rate:
                     self._learning_rate = lr
-                    # for group in self._optimizer_P.param_groups:
-                    #     group['lr'] = lr
-                    for group in self._optimizer_V.param_groups:
+                    for group in self._optimizer.param_groups:
                         group['lr'] = lr
                     Log.out("Updated", {
                         "prooftrace_lm_learning_rate": lr,
@@ -385,55 +325,53 @@ class SYN:
 
         run_start = time.time()
 
-        # self._optimizer_P.zero_grad()
-        self._optimizer_V.zero_grad()
+        self._optimizer.zero_grad()
         infos = self._syn.aggregate(self._device, self._min_update_count)
 
         if len(infos) == 0:
             time.sleep(1)
             return
 
-        # self._optimizer_P.step()
-        self._optimizer_V.step()
+        self._optimizer.step()
         self._syn.broadcast({'config': self._config})
 
-        # act_loss_meter = Meter()
-        # lft_loss_meter = Meter()
-        # rgt_loss_meter = Meter()
+        act_loss_meter = Meter()
+        lft_loss_meter = Meter()
+        rgt_loss_meter = Meter()
         val_loss_meter = Meter()
 
         for info in infos:
-            # act_loss_meter.update(info['act_loss'])
-            # lft_loss_meter.update(info['lft_loss'])
-            # rgt_loss_meter.update(info['rgt_loss'])
+            act_loss_meter.update(info['act_loss'])
+            lft_loss_meter.update(info['lft_loss'])
+            rgt_loss_meter.update(info['rgt_loss'])
             val_loss_meter.update(info['val_loss'])
 
         Log.out("PROOFTRACE LM SYN RUN", {
             'epoch': self._epoch,
             'run_time': "{:.2f}".format(time.time() - run_start),
             'update_count': len(infos),
-            # 'act_loss': "{:.4f}".format(act_loss_meter.avg or 0.0),
-            # 'lft_loss': "{:.4f}".format(lft_loss_meter.avg or 0.0),
-            # 'rgt_loss': "{:.4f}".format(rgt_loss_meter.avg or 0.0),
+            'act_loss': "{:.4f}".format(act_loss_meter.avg or 0.0),
+            'lft_loss': "{:.4f}".format(lft_loss_meter.avg or 0.0),
+            'rgt_loss': "{:.4f}".format(rgt_loss_meter.avg or 0.0),
             'val_loss': "{:.4f}".format(val_loss_meter.avg or 0.0),
         })
 
         if self._tb_writer is not None:
-            # if act_loss_meter.avg is not None:
-            #     self._tb_writer.add_scalar(
-            #         "prooftrace_lm_train/act_loss",
-            #         act_loss_meter.avg, self._epoch,
-            #     )
-            # if lft_loss_meter.avg is not None:
-            #     self._tb_writer.add_scalar(
-            #         "prooftrace_lm_train/lft_loss",
-            #         lft_loss_meter.avg, self._epoch,
-            #     )
-            # if rgt_loss_meter.avg is not None:
-            #     self._tb_writer.add_scalar(
-            #         "prooftrace_lm_train/rgt_loss",
-            #         rgt_loss_meter.avg, self._epoch,
-            #     )
+            if act_loss_meter.avg is not None:
+                self._tb_writer.add_scalar(
+                    "prooftrace_lm_train/act_loss",
+                    act_loss_meter.avg, self._epoch,
+                )
+            if lft_loss_meter.avg is not None:
+                self._tb_writer.add_scalar(
+                    "prooftrace_lm_train/lft_loss",
+                    lft_loss_meter.avg, self._epoch,
+                )
+            if rgt_loss_meter.avg is not None:
+                self._tb_writer.add_scalar(
+                    "prooftrace_lm_train/rgt_loss",
+                    rgt_loss_meter.avg, self._epoch,
+                )
             if val_loss_meter.avg is not None:
                 self._tb_writer.add_scalar(
                     "prooftrace_lm_train/val_loss",
