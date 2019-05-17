@@ -269,7 +269,7 @@ class SYN:
                 })
 
             torch.save(
-                self._modules['VE'].state_dict(),
+                self._modules['E'].state_dict(),
                 self._save_dir + "/model_E.pt",
             )
             torch.save(
