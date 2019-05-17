@@ -30,6 +30,7 @@ class ACK:
         self._config = config
 
         self._action_coeff = config.get('prooftrace_lm_action_coeff')
+        self._value_coeff = config.get('prooftrace_lm_value_coeff')
 
         self._device = torch.device(config.get('device'))
 
@@ -73,6 +74,12 @@ class ACK:
             self._action_coeff = coeff
             Log.out("Updated", {
                 "prooftrace_lm_action_coeff": coeff,
+            })
+        coeff = self._config.get('prooftrace_lm_value_coeff')
+        if coeff != self._value_coeff:
+            self._value_coeff = coeff
+            Log.out("Updated", {
+                "prooftrace_lm_value_coeff": coeff,
             })
 
     def run_once(
@@ -122,8 +129,8 @@ class ACK:
             for m in self._modules:
                 self._modules[m].zero_grad()
 
-            # (self._action_coeff * act_loss + lft_loss + rgt_loss).backward()
-            (val_loss).backward()
+            (self._action_coeff * act_loss + lft_loss + rgt_loss +
+             self._value_coeff * val_loss).backward()
 
             self._ack.push({
                 'act_loss': act_loss.item(),
@@ -309,8 +316,8 @@ class SYN:
                     if k in [
                             'prooftrace_lm_learning_rate',
                             'prooftrace_lm_iota_min_update_count',
-                            'prooftrace_lm_value_coeff',
                             'prooftrace_lm_action_coeff',
+                            'prooftrace_lm_value_coeff',
                     ]:
                         self._tb_writer.add_scalar(
                             "prooftrace_lm_train_run/{}".format(k),
