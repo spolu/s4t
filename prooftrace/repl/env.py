@@ -313,7 +313,7 @@ class Env:
                 'run_length': self._run.action_len() - self._gamma_len,
                 'name': self._ground.name(),
             })
-            return finish((-1.0, 0.0, 0.0), True, {
+            return finish((0.0, 0.0, 0.0), True, {
                 'match_count': self._match_count,
                 'run_length': self._run.action_len() - self._gamma_len,
             })
@@ -331,7 +331,7 @@ class Env:
                 'run_length': self._run.action_len() - self._gamma_len,
                 'name': self._ground.name(),
             })
-            return finish((-1.0, 0.0, 0.0), True, {
+            return finish((0.0, 0.0, 0.0), True, {
                 'match_count': self._match_count,
                 'run_length': self._run.action_len() - self._gamma_len,
             })
@@ -345,7 +345,7 @@ class Env:
                 'run_length': self._run.action_len() - self._gamma_len,
                 'name': self._ground.name(),
             })
-            return finish((-1.0, 0.0, 0.0), True, {
+            return finish((0.0, 0.0, 0.0), True, {
                 'match_count': self._match_count,
                 'run_length': self._run.action_len() - self._gamma_len,
             })
