@@ -31,8 +31,8 @@
 
   "prooftrace_ppo_reset_gamma": 1.0,
   "prooftrace_ppo_fixed_gamma": 0,
-  "prooftrace_ppo_explore_alpha": 0.2,
-  "prooftrace_ppo_explore_beta": 0.5,
+  "prooftrace_ppo_explore_alpha": 0.0,
+  "prooftrace_ppo_explore_beta": 0.0,
   "prooftrace_ppo_explore_beta_width": 3,
   "prooftrace_ppo_step_reward_prob": 0.0,
   "prooftrace_ppo_match_reward_prob": 0.0,
