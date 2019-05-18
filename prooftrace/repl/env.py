@@ -368,7 +368,7 @@ class Env:
         if self._ground.seen(action):
             self._match_count += 1
             if match_reward_prob > 0.0 and random.random() < match_reward_prob:
-                match_reward = 0.1
+                match_reward = 1.0
                 step_reward = 0.0
 
         if self._target.thm_string(True) == thm.thm_string(True):
