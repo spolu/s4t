@@ -545,20 +545,30 @@ class ACK:
                     val_loss_meter.update(value_loss.item())
                     entropy_meter.update(entropy.item())
 
-                    self._ack.push({
+                    info = {
                         'frame_count': frame_count,
-                        'match_count': (match_count_meter.avg or 0.0),
-                        'run_length': (run_length_meter.avg or 0.0),
-                        'demo_length_avg': (demo_length_meter.avg or 0.0),
-                        'demo_length_max': (demo_length_meter.max or 0.0),
-                        'demo_delta': (demo_delta_meter.avg or 0.0),
-                        'stp_reward': (stp_reward_meter.avg or 0.0),
-                        'mtc_reward': (mtc_reward_meter.avg or 0.0),
-                        'fnl_reward': (fnl_reward_meter.avg or 0.0),
                         'act_loss': act_loss_meter.avg,
                         'val_loss': val_loss_meter.avg,
                         'entropy': entropy_meter.avg,
-                    }, None)
+                    }
+                    if match_count_meter.avg:
+                        info['match_count'] = match_count_meter.avg
+                    if run_length_meter.avg:
+                        info['run_length'] = run_length_meter.avg
+                    if demo_length_meter.avg:
+                        info['demo_length_avg'] = demo_length_meter.avg
+                    if demo_length_meter.max:
+                        info['demo_length_max'] = demo_length_meter.max
+                    if demo_delta_meter.avg:
+                        info['demo_delta'] = demo_delta_meter.avg
+                    if stp_reward_meter.avg:
+                        info['stp_reward'] = stp_reward_meter.avg
+                    if mtc_reward_meter.avg:
+                        info['mtc_reward'] = mtc_reward_meter.avg
+                    if fnl_reward_meter.avg:
+                        info['fnl_reward'] = fnl_reward_meter.avg
+
+                    self._ack.push(info, None)
                     if frame_count > 0:
                         frame_count = 0
 
@@ -812,18 +822,26 @@ class SYN:
 
         for info in infos:
             frame_count_meter.update(info['frame_count'])
-            match_count_meter.update(info['match_count'])
-            run_length_meter.update(info['run_length'])
-            demo_length_avg_meter.update(info['demo_length_avg'])
-            demo_length_max_meter.update(info['demo_length_max'])
-            demo_delta_meter.update(info['demo_delta'])
-            stp_reward_meter.update(info['stp_reward'])
-            mtc_reward_meter.update(info['mtc_reward'])
-            fnl_reward_meter.update(info['fnl_reward'])
+            if 'match_count' in info:
+                match_count_meter.update(info['match_count'])
+            if 'run_length' in info:
+                run_length_meter.update(info['run_length'])
+            if 'demo_length_avg' in info:
+                demo_length_avg_meter.update(info['demo_length_avg'])
+            if 'demo_length_max' in info:
+                demo_length_max_meter.update(info['demo_length_max'])
+            if 'demo_delta' in info:
+                demo_delta_meter.update(info['demo_delta'])
+            if 'stp_reward' in info:
+                stp_reward_meter.update(info['stp_reward'])
+            if 'mtc_reward' in info:
+                mtc_reward_meter.update(info['mtc_reward'])
+            if 'fnl_reward' in info:
+                fnl_reward_meter.update(info['fnl_reward'])
             tot_reward_meter.update(
-                info['stp_reward'] +
-                info['mtc_reward'] +
-                info['fnl_reward']
+                (info['stp_reward'] or 0.0) +
+                (info['mtc_reward'] or 0.0) +
+                (info['fnl_reward'] or 0.0)
             )
             act_loss_meter.update(info['act_loss'])
             val_loss_meter.update(info['val_loss'])
