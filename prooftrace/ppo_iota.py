@@ -832,17 +832,22 @@ class SYN:
                 demo_length_max_meter.update(info['demo_length_max'])
             if 'demo_delta' in info:
                 demo_delta_meter.update(info['demo_delta'])
+            tot_reward = 0.0
+            has_reward = False
             if 'stp_reward' in info:
                 stp_reward_meter.update(info['stp_reward'])
+                tot_reward += info['stp_reward']
+                has_reward = True
             if 'mtc_reward' in info:
                 mtc_reward_meter.update(info['mtc_reward'])
+                tot_reward += info['mtc_reward']
+                has_reward = True
             if 'fnl_reward' in info:
                 fnl_reward_meter.update(info['fnl_reward'])
-            tot_reward_meter.update(
-                (info['stp_reward'] or 0.0) +
-                (info['mtc_reward'] or 0.0) +
-                (info['fnl_reward'] or 0.0)
-            )
+                tot_reward += info['fnl_reward']
+                has_reward = True
+            if has_reward:
+                tot_reward_meter.update(tot_reward)
             act_loss_meter.update(info['act_loss'])
             val_loss_meter.update(info['val_loss'])
             entropy_meter.update(info['entropy'])
