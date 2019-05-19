@@ -880,26 +880,31 @@ class SYN:
                     "prooftrace_ppo_train/update_delta",
                     update_delta, self._epoch,
                 )
-                self._tb_writer.add_scalar(
-                    "prooftrace_ppo_train/match_count",
-                    match_count_meter.avg, self._epoch,
-                )
-                self._tb_writer.add_scalar(
-                    "prooftrace_ppo_train/run_length",
-                    run_length_meter.avg, self._epoch,
-                )
-                self._tb_writer.add_scalar(
-                    "prooftrace_ppo_train/demo_length_avg",
-                    demo_length_avg_meter.avg, self._epoch,
-                )
-                self._tb_writer.add_scalar(
-                    "prooftrace_ppo_train/demo_length_max",
-                    demo_length_max_meter.max, self._epoch,
-                )
-                self._tb_writer.add_scalar(
-                    "prooftrace_ppo_train/demo_delta",
-                    demo_delta_meter.avg, self._epoch,
-                )
+                if match_count_meter.avg:
+                    self._tb_writer.add_scalar(
+                        "prooftrace_ppo_train/match_count",
+                        match_count_meter.avg, self._epoch,
+                    )
+                if run_length_meter.avg:
+                    self._tb_writer.add_scalar(
+                        "prooftrace_ppo_train/run_length",
+                        run_length_meter.avg, self._epoch,
+                    )
+                if demo_length_avg_meter.avg:
+                    self._tb_writer.add_scalar(
+                        "prooftrace_ppo_train/demo_length_avg",
+                        demo_length_avg_meter.avg, self._epoch,
+                    )
+                if demo_length_max_meter.avg:
+                    self._tb_writer.add_scalar(
+                        "prooftrace_ppo_train/demo_length_max",
+                        demo_length_max_meter.max, self._epoch,
+                    )
+                if demo_delta_meter.avg:
+                    self._tb_writer.add_scalar(
+                        "prooftrace_ppo_train/demo_delta",
+                        demo_delta_meter.avg, self._epoch,
+                    )
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/act_loss",
                     act_loss_meter.avg, self._epoch,
@@ -912,22 +917,26 @@ class SYN:
                     "prooftrace_ppo_train/entropy",
                     entropy_meter.avg, self._epoch,
                 )
-                self._tb_writer.add_scalar(
-                    "prooftrace_ppo_train/stp_reward",
-                    stp_reward_meter.avg, self._epoch,
-                )
-                self._tb_writer.add_scalar(
-                    "prooftrace_ppo_train/mtc_reward",
-                    mtc_reward_meter.avg, self._epoch,
-                )
-                self._tb_writer.add_scalar(
-                    "prooftrace_ppo_train/fnl_reward",
-                    fnl_reward_meter.avg, self._epoch,
-                )
-                self._tb_writer.add_scalar(
-                    "prooftrace_ppo_train/tot_reward",
-                    tot_reward_meter.avg, self._epoch,
-                )
+                if stp_reward_meter.avg:
+                    self._tb_writer.add_scalar(
+                        "prooftrace_ppo_train/stp_reward",
+                        stp_reward_meter.avg, self._epoch,
+                    )
+                if mtc_reward_meter.avg:
+                    self._tb_writer.add_scalar(
+                        "prooftrace_ppo_train/mtc_reward",
+                        mtc_reward_meter.avg, self._epoch,
+                    )
+                if fnl_reward_meter.avg:
+                    self._tb_writer.add_scalar(
+                        "prooftrace_ppo_train/fnl_reward",
+                        fnl_reward_meter.avg, self._epoch,
+                    )
+                if tot_reward_meter.avg:
+                    self._tb_writer.add_scalar(
+                        "prooftrace_ppo_train/tot_reward",
+                        tot_reward_meter.avg, self._epoch,
+                    )
                 self._tb_writer.add_scalar(
                     "prooftrace_ppo_train/frame_count",
                     frame_count_meter.sum, self._epoch,
