@@ -1,7 +1,6 @@
 import argparse
 import datetime
 import gzip
-import math
 import os
 import pickle
 import random
@@ -242,7 +241,7 @@ class Beam:
 
         candidates = []
 
-        for i in self._width:
+        for i in range(self._width):
             for p, action in self._heads[i].apply(
                 self._ptras[i],
                 self._repls[i],
