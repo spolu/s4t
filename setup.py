@@ -29,6 +29,8 @@ setup(
             'prooftrace_ppo_syn_run=prooftrace.ppo_iota:syn_run',
             'prooftrace_ppo_ack_run=prooftrace.ppo_iota:ack_run',
 
+            'prooftrace_beam_search=prooftrace.beam:search',
+
             'prooftrace_embeds_tsne_extract=prooftrace.embeds.tsne:extract',
             'prooftrace_embeds_viewer=prooftrace.embeds.viewer.viewer:run',
         ],
