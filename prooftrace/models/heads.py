@@ -163,14 +163,14 @@ class VH(nn.Module):
         self.adapter = nn.Linear(self.hidden_size, self.lstm_hidden_size)
 
         self.value_head = nn.Sequential(
+            nn.LayerNorm(self.lstm_hidden_size),
             nn.Linear(
                 self.lstm_hidden_size,
-                self.lstm_hidden_size,
+                4*self.lstm_hidden_size,
             ),
             GeLU(),
-            nn.LayerNorm(self.lstm_hidden_size),
-            nn.Linear(self.lstm_hidden_size, 1),
-            nn.Softplus(),
+            nn.Linear(4*self.lstm_hidden_size, 1),
+            nn.ReLU(),
         )
 
     def parameters_count(
