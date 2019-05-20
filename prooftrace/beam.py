@@ -304,11 +304,11 @@ class Beam:
                     prd_actions[i].cpu(),
                     prd_lefts[i].cpu(),
                     prd_rights[i].cpu(),
-                    # candidates[i][3],  # VALUE
-                    prd_values[i].cpu().item(),  # PROB
+                    # candidates[i][3],  # PROB
+                    prd_values[i].cpu().item(),  # VALUE
                 ),
-                # candidates[i][3],  # VALUE
-                prd_values[i].cpu().item(),  # PROB
+                # candidates[i][3],  # PROB
+                prd_values[i].cpu().item(),  # VALUE
             ))
 
         next_heads = sorted(
