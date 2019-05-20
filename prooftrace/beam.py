@@ -248,8 +248,8 @@ class Beam:
                 self._config.get('prooftrace_beam_beta_width'),
                 self._config.get('prooftrace_beam_head_width'),
             ):
-                repl = self._repl[i].copy()
-                ptra = self._ptra[i].copy()
+                repl = self._repls[i].copy()
+                ptra = self._ptras[i].copy()
 
                 thm = repl.apply(action)
                 action._index = thm.index()
