@@ -48,7 +48,7 @@
 
   "prooftrace_beam_beta_width": 8,
   "prooftrace_beam_head_width": 8,
-  "prooftrace_beam_width": 8,
+  "prooftrace_beam_width": 16,
 
   "prooftrace_dataset_dir": "./data/prooftrace",
   "prooftrace_dataset_size": "small",

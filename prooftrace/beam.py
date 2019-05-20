@@ -194,8 +194,6 @@ class Beam:
     ) -> None:
         self._config = config
 
-        self._width = config.get('prooftrace_beam_width')
-
         self._model = model
         self._target = target
 
@@ -203,8 +201,8 @@ class Beam:
         prd_actions, prd_lefts, prd_rights, prd_values = \
             self._model.infer([index], [actions], [arguments])
 
-        self._ptras = [ptra.copy() for _ in range(self._width)]
-        self._repls = [repl.copy() for _ in range(self._width)]
+        self._ptras = [ptra.copy()]
+        self._repls = [repl.copy()]
         self._heads = [
             Head(
                 prd_actions[0].cpu(),
@@ -212,7 +210,7 @@ class Beam:
                 prd_rights[0].cpu(),
                 1.0,
             )
-        ] * self._width
+        ]
 
     def process_ptra(
             self,
@@ -243,7 +241,7 @@ class Beam:
 
         candidates = []
 
-        for i in range(self._width):
+        for i in range(self._heads):
             for p, action in self._heads[i].apply(
                 self._ptras[i],
                 self._repls[i],
@@ -305,9 +303,7 @@ class Beam:
 
         next_heads = sorted(
             next_heads, key=lambda v: v[3], reverse=True
-        )[0:self._width]
-
-        assert len(next_heads) == self._width
+        )[0:self._config.get('prooftrace_beam_width')]
 
         self._ptras = [v[0] for v in next_heads]
         self._repls = [v[1] for v in next_heads]
