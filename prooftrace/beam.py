@@ -280,9 +280,9 @@ class Beam:
 
         candidates = uniques
 
-        Log.out("PRE-BEAM", {
-            'candidates': len(candidates),
-        })
+        # Log.out("PRE-BEAM", {
+        #     'candidates': len(candidates),
+        # })
         if len(candidates) == 0:
             self._ptras = []
             self._repls = []
@@ -316,11 +316,11 @@ class Beam:
         self._repls = [v[1] for v in next_heads]
         self._heads = [v[2] for v in next_heads]
 
-        for v in next_heads:
-            Log.out("BEAM", {
-                'value': v[3],
-                'summary': v[0].summary(offset),
-            })
+        # for v in next_heads:
+        #     Log.out("BEAM", {
+        #         'value': v[3],
+        #         'summary': v[0].summary(offset),
+        #     })
 
         return None
 
