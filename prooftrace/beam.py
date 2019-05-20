@@ -274,7 +274,7 @@ class Beam:
         uniques = []
         for c in candidates:
             if c[2].hash() not in h:
-                h[c[2].hash] = True
+                h[c[2].hash()] = True
                 uniques.append(c)
 
         candidates = uniques
