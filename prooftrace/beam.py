@@ -241,7 +241,7 @@ class Beam:
 
         candidates = []
 
-        for i in range(self._heads):
+        for i in range(len(self._heads)):
             for p, action in self._heads[i].apply(
                 self._ptras[i],
                 self._repls[i],
