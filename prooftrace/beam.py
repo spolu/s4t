@@ -246,7 +246,7 @@ class Beam:
                 self._ptras[i],
                 self._repls[i],
                 self._config.get('prooftrace_beam_beta_width'),
-                self._config.get('prooftrace_beam_apply_width'),
+                self._config.get('prooftrace_beam_head_width'),
             ):
                 repl = self._repl[i].copy()
                 ptra = self._ptra[i].copy()
