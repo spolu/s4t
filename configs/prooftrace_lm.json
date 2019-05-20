@@ -25,12 +25,12 @@
 
   "prooftrace_lm_batch_size": 8,
   "prooftrace_lm_accumulation_step_count": 1,
-  "prooftrace_lm_learning_rate": 0.0003,
+  "prooftrace_lm_learning_rate": 0.0001,
   "prooftrace_lm_value_coeff": 1.0,
   "prooftrace_lm_action_coeff": 2.0,
 
   "prooftrace_dataset_dir": "./data/prooftrace",
-  "prooftrace_dataset_size": "small",
+  "prooftrace_dataset_size": "medium",
 
   "prooftrace_lm_iota_sync_dir": null,
   "prooftrace_lm_iota_min_update_count": 8,
