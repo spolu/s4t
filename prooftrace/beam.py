@@ -392,13 +392,6 @@ def search():
         with gzip.open(c, 'rb') as f:
             ground = pickle.load(f)
 
-        Log.out("TARGET", {
-            'name': ground.name(),
-            'prepare_length': ground.prepare_len(),
-            'length': ground.action_len(),
-            'summary': ground.summary(),
-        })
-
         ptra = ProofTraceActions(
             'BEAM-{}-{}'.format(
                 datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f"),
@@ -417,7 +410,7 @@ def search():
         target = repl.prepare(ptra)
 
         offset = 0
-        fixed_gamma = 8
+        fixed_gamma = 4
         if fixed_gamma > 0:
             gamma_len = max(ground.action_len() - fixed_gamma, 0)
             offset = ground.prepare_len() + gamma_len
@@ -435,6 +428,13 @@ def search():
                 argument._index = thm.index()
 
                 ptra.append(action, argument)
+
+        Log.out("TARGET", {
+            'name': ground.name(),
+            'prepare_length': ground.prepare_len(),
+            'length': ground.action_len(),
+            'summary': ground.summary(offset),
+        })
 
         beam = Beam(config, model, ptra, repl, target)
 
