@@ -172,11 +172,13 @@ class Head:
                     if not repl.valid(a):
                         continue
 
-                    candidates.append((self._value *
-                                       top_actions[0][ia].item() *
-                                       top_lefts[0][il].item() *
-                                       top_rights[0][ir].item(),
-                                       a))
+                    candidates.append((
+                        # self._value *  # PROB
+                        top_actions[0][ia].item() *
+                        top_lefts[0][il].item() *
+                        top_rights[0][ir].item(),
+                        a
+                    ))
 
         return sorted(
             candidates, key=lambda c: c[0], reverse=True
@@ -208,7 +210,8 @@ class Beam:
                 prd_actions[0].cpu(),
                 prd_lefts[0].cpu(),
                 prd_rights[0].cpu(),
-                1.0,
+                prd_values[0].cpu().item(),  # VALUE
+                # 1.0,  # PROB
             )
         ]
 
@@ -301,11 +304,11 @@ class Beam:
                     prd_actions[i].cpu(),
                     prd_lefts[i].cpu(),
                     prd_rights[i].cpu(),
-                    candidates[i][3],
-                    # prd_values[i].cpu().item(),
+                    # candidates[i][3],  # VALUE
+                    prd_values[i].cpu().item(),  # PROB
                 ),
-                candidates[i][3],
-                # prd_values[i].cpu().item(),
+                # candidates[i][3],  # VALUE
+                prd_values[i].cpu().item(),  # PROB
             ))
 
         next_heads = sorted(
