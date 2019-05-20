@@ -738,10 +738,11 @@ class ProofTraceActions():
 
     def summary(
             self,
+            offset: int = 0,
     ):
         summary = "["
-        for a in self._actions:
-            if a.value not in INV_PREPARE_TOKENS:
+        for i, a in enumerate(self._actions):
+            if a.value not in INV_PREPARE_TOKENS and i >= offset:
                 left = self._arguments.index(a.left)
                 right = self._arguments.index(a.right)
                 summary += \

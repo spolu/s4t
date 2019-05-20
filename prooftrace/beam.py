@@ -234,6 +234,7 @@ class Beam:
 
     def step(
             self,
+            offset: int = 0,
     ) -> typing.Optional[ProofTraceActions]:
         idx = []
         act = []
@@ -303,7 +304,7 @@ class Beam:
         for v in next_heads:
             Log.out("BEAM", {
                 'value': v[3],
-                'summary': v[0].summary(),
+                'summary': v[0].summary(offset),
             })
 
         return None
@@ -384,7 +385,7 @@ def search():
 
     model = Model(config).load()
 
-    # cases = sorted(cases, key=lambda c: c[1])
+    cases = sorted(cases, key=lambda c: c[1])
 
     for i in range(len(cases)):
         c = cases[i][0]
@@ -415,9 +416,11 @@ def search():
         repl = REPL(tokenizer)
         target = repl.prepare(ptra)
 
+        offset = 0
         fixed_gamma = 8
         if fixed_gamma > 0:
             gamma_len = max(ground.action_len() - fixed_gamma, 0)
+            offset = ground.prepare_len() + gamma_len
 
             for i in range(gamma_len):
                 assert ground.prepare_len() + i < ground.len() - 1
@@ -437,4 +440,4 @@ def search():
 
         proof = None
         while proof is None:
-            proof = beam.step()
+            proof = beam.step(offset)
