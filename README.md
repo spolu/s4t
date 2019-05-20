@@ -1,4 +1,4 @@
-(Project Goals)[https://www.notion.so/spolu/1-Pager-4a01cafdf1d842849ea7817b944c19b1]
+[Project Goals](https://www.notion.so/spolu/1-Pager-4a01cafdf1d842849ea7817b944c19b1)
 
 ## PROOFTRACE PPO/IOTA Distributed Training
 
