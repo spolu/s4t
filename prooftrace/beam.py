@@ -172,7 +172,8 @@ class Head:
                     if not repl.valid(a):
                         continue
 
-                    candidates.append((top_actions[0][ia].item() *
+                    candidates.append((self._value *
+                                       top_actions[0][ia].item() *
                                        top_lefts[0][il].item() *
                                        top_rights[0][ir].item(),
                                        a))
@@ -209,7 +210,7 @@ class Beam:
                 prd_actions[0].cpu(),
                 prd_lefts[0].cpu(),
                 prd_rights[0].cpu(),
-                prd_values[0].cpu().item(),
+                1.0,
             )
         ] * self._width
 
@@ -263,7 +264,7 @@ class Beam:
                     Log.out("DEMONSTRATED")
                     return ptra
 
-                candidates.append((ptra, repl, action))
+                candidates.append((ptra, repl, action, p))
                 index, actions, arguments = self.process_ptra(ptra)
 
                 idx.append(index)
@@ -295,9 +296,11 @@ class Beam:
                     prd_actions[i].cpu(),
                     prd_lefts[i].cpu(),
                     prd_rights[i].cpu(),
-                    prd_values[i].cpu().item(),
+                    candidates[i][3],
+                    # prd_values[i].cpu().item(),
                 ),
-                prd_values[i].cpu().item(),
+                candidates[i][3],
+                # prd_values[i].cpu().item(),
             ))
 
         next_heads = sorted(
