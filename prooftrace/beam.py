@@ -270,7 +270,15 @@ class Beam:
                 act.append(actions)
                 arg.append(arguments)
 
-        import pdb; pdb.set_trace()
+        h = {}
+        uniques = []
+        for c in candidates:
+            if c[2].hash() not in h:
+                h[c[2].hash] = True
+                uniques.append(c)
+
+        candidates = uniques
+
         Log.out("PRE-BEAM", {
             'candidates': len(candidates),
         })
