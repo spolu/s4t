@@ -269,6 +269,10 @@ class Beam:
                 act.append(actions)
                 arg.append(arguments)
 
+        Log.out("PRE-BEAM", {
+            'candidates': len(candidates),
+        })
+
         prd_actions, prd_lefts, prd_rights, prd_values = \
             self._model.infer(idx, act, arg)
 
@@ -296,9 +300,11 @@ class Beam:
         self._repls = [v[1] for v in next_heads]
         self._heads = [v[2] for v in next_heads]
 
-        Log.out("BEAM", {
-            'values': [v[3] for v in next_heads]
-        })
+        for v in next_heads:
+            Log.out("BEAM", {
+                'value': v[3],
+                'summary': v[0].summary(),
+            })
 
         return None
 
@@ -389,7 +395,7 @@ def search():
             'name': ground.name(),
             'prepare_length': ground.prepare_len(),
             'length': ground.action_len(),
-            # 'summary': ground.summary(),
+            'summary': ground.summary(),
         })
 
         ptra = ProofTraceActions(
