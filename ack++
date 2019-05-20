@@ -2,4 +2,4 @@
 
 tmux -S ~/ack new-window -n "ack-$1-$2-$3"
 tmux -S ~/ack send-keys "z3ta" C-m
-tmux -S ~/ack send-keys "prooftrace_$1_ack_run configs/prooftrace_$1.json --sync_dir=~/tmp/iota/$1 --device=cuda:$3" C-m
+tmux -S ~/ack send-keys "prooftrace_$1_ack_run configs/prooftrace_$1.json --sync_dir=~/tmp/iota/$1-$2 --device=cuda:$3" C-m
