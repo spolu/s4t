@@ -263,13 +263,14 @@ class Beam:
                     Log.out("DEMONSTRATED")
                     return ptra
 
-                candidates.append((ptra, repl))
+                candidates.append((ptra, repl, action))
                 index, actions, arguments = self.process_ptra(ptra)
 
                 idx.append(index)
                 act.append(actions)
                 arg.append(arguments)
 
+        import pdb; pdb.set_trace()
         Log.out("PRE-BEAM", {
             'candidates': len(candidates),
         })
@@ -438,6 +439,7 @@ def search():
 
         beam = Beam(config, model, ptra, repl, target)
 
-        proof = None
-        while proof is None:
+        for i in range(fixed_gamma * 2):
             proof = beam.step(offset)
+            if proof is not None:
+                break
