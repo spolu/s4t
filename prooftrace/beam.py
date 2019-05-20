@@ -259,7 +259,9 @@ class Beam:
                 ptra.append(action, argument)
 
                 if self._target.thm_string(True) == thm.thm_string(True):
-                    Log.out("DEMONSTRATED")
+                    Log.out("DEMONSTRATED", {
+                        'theorem': thm.thm_string(True),
+                    })
                     return ptra
 
                 candidates.append((ptra, repl, action, p))
@@ -281,6 +283,11 @@ class Beam:
         Log.out("PRE-BEAM", {
             'candidates': len(candidates),
         })
+        if len(candidates) == 0:
+            self._ptras = []
+            self._repls = []
+            self._heads = []
+            return None
 
         prd_actions, prd_lefts, prd_rights, prd_values = \
             self._model.infer(idx, act, arg)
