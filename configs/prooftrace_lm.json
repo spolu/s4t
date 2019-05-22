@@ -18,7 +18,7 @@
 
   "prooftrace_transformer_hidden_size": 256,
   "prooftrace_transformer_attention_head_count": 4,
-  "prooftrace_transformer_layer_count": 4,
+  "prooftrace_transformer_layer_count": 2,
 
   "prooftrace_lstm_hidden_size": 256,
   "prooftrace_lstm_layer_count": 0,
@@ -30,7 +30,7 @@
   "prooftrace_lm_action_coeff": 2.0,
 
   "prooftrace_dataset_dir": "./data/prooftrace",
-  "prooftrace_dataset_size": "medium",
+  "prooftrace_dataset_size": "small",
 
   "prooftrace_lm_iota_sync_dir": null,
   "prooftrace_lm_iota_min_update_count": 12,
