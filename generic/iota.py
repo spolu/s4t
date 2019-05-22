@@ -1,4 +1,5 @@
 import datetime
+import gzip
 import os
 import random
 import re
@@ -39,7 +40,8 @@ class IOTABase():
 
         assert not os.path.exists(fnl_path)
 
-        torch.save(obj, tmp_path)
+        with gzip.open(tmp_path, 'wb') as f:
+            torch.save(obj, f)
         os.rename(tmp_path, fnl_path)
 
         return fnl_path
@@ -97,7 +99,7 @@ class IOTASyn(IOTABase):
                 os.remove(p)
                 # Log.out("{IOTA} BROADCAST[GC]", {'path': p})
 
-    def aggregate(
+    def reduce(
             self,
             device: torch.device,
             min_update_count: int = 1,
@@ -113,7 +115,9 @@ class IOTASyn(IOTABase):
             return infos
 
         for p in updates:
-            data = torch.load(p, map_location=device)
+
+            with gzip.open(p, 'rb') as f:
+                data = torch.load(f, map_location=device)
 
             for m in self._modules:
                 for name, param in self._modules[m].named_parameters():
@@ -148,7 +152,9 @@ class IOTAAck(IOTABase):
             self,
             device: torch.device,
             blocking: bool = True,
-    ) -> typing.Dict[str, typing.Any]:
+    ) -> typing.Optional[
+        typing.Dict[str, typing.Any],
+    ]:
         info = None
         done = False
 
@@ -162,9 +168,8 @@ class IOTAAck(IOTABase):
                 done = True
                 self._last_broadcast = broadcasts[0]
 
-                data = torch.load(
-                    self._last_broadcast, map_location=device,
-                )
+                with gzip.open(self._last_broadcast, 'rb') as f:
+                    data = torch.load(f, map_location=device)
 
                 for m in self._modules:
                     key = "state_dict_{}".format(m)
@@ -203,3 +208,88 @@ class IOTAAck(IOTABase):
         p = self.atomic_save(data, "update_{}_{}".format(now, rnd))
 
         Log.out("{IOTA} UPDATE[NEW]", {'path': p})
+
+
+class Rollout:
+    def __init__(
+            self,
+    ):
+        pass
+
+    def name(
+            self,
+    ) -> str:
+        raise Exception('Not implemented')
+
+    def merge(
+            self,
+            other,
+    ):
+        raise Exception('Not implemented')
+
+
+class IOTAAgg(IOTABase):
+    def __init__(
+            self,
+            sync_dir: str,
+            modules: typing.Dict[str, nn.Module],
+    ):
+        super(IOTAAgg, self).__init__(sync_dir, modules)
+
+        assert os.path.isdir(self._tmp_dir)
+
+    def aggregate(
+            self,
+    ) -> typing.Tuple[
+        typing.List[Rollout],
+        typing.List[
+            typing.Dict[str, typing.Any]
+        ],
+    ]:
+        files = self.list_files()
+        rollouts = [p for p in files if re.search(".*rollout_.*", p)]
+
+        infos = []
+        merged = {}
+
+        for p in rollouts:
+            with gzip.open(p, 'rb') as f:
+                data = torch.load(f)
+
+            r = data['rollout']
+
+            if r.name() in merged:
+                merged[r.name()].merge(r)
+            else:
+                merged[r.name()] = r
+
+            infos.append(data['info'])
+
+            os.remove(p)
+            Log.out("{IOTA} ROLLOUT[CONSUME]", {'path': p})
+
+        return merged.values(), infos
+
+
+class IOTARll(IOTAAck):
+    def __init__(
+            self,
+            sync_dir: str,
+            modules: typing.Dict[str, nn.Module],
+    ):
+        super(IOTARll, self).__init__(sync_dir, modules)
+
+    def publish(
+            self,
+            info: typing.Dict[str, typing.Any],
+            rollout: Rollout,
+    ) -> None:
+        data = {}
+        data['rollout'] = rollout
+        data['info'] = info
+
+        now = datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f")
+        rnd = random.randint(0, 10e9)
+        p = self.atomic_save(data, "rollout_{}_{}".format(now, rnd))
+
+        Log.out("{IOTA} ROLLOUT[NEW]", {'path': p})
