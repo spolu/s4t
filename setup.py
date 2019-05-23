@@ -14,6 +14,7 @@ setup(
     entry_points={
         'console_scripts': [
             'prooftrace_extract=prooftrace.prooftrace:extract',
+            'prooftrace_load_all=prooftrace.prooftrace:load_all',
             'prooftrace_dump=prooftrace.tools:dump',
             'prooftrace_generate_testset=prooftrace.tools:generate_testset',
 

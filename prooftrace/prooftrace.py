@@ -1745,3 +1745,65 @@ def extract():
 #     cProfile.runctx(
 #         'extract_profile()', globals(), locals(), 'extract.profile'
 #     )
+
+def load_all():
+    parser = argparse.ArgumentParser(description="")
+
+    parser.add_argument(
+        'config_path',
+        type=str, help="path to the config file",
+    )
+    parser.add_argument(
+        '--dataset_size',
+        type=str, help="config override",
+    )
+
+    args = parser.parse_args()
+
+    config = Config.from_file(args.config_path)
+
+    if args.dataset_size is not None:
+        config.override(
+            'prooftrace_dataset_size',
+            args.dataset_size,
+        )
+
+    dataset_dir = os.path.join(
+        os.path.expanduser(config.get('prooftrace_dataset_dir')),
+        config.get('prooftrace_dataset_size'),
+        'train_traces'
+    )
+
+    assert os.path.isdir(dataset_dir)
+    files = [
+        os.path.join(dataset_dir, f)
+        for f in os.listdir(dataset_dir)
+        if os.path.isfile(os.path.join(dataset_dir, f))
+    ]
+
+    ptras = []
+
+    processed = 0
+    for p in files:
+        match = re.search("_(\\d+)_(\\d+)\\.actions$", p)
+        if match is None:
+            continue
+        ptra_len = int(match.group(1))
+        prepare_len = int(match.group(2))
+
+        with gzip.open(p, 'rb') as f:
+            ptra = pickle.load(f)
+        ptras.append(ptra)
+        Log.out("Loaded ProofTrace", {
+            'name': ptra.name(),
+            'prepare_length': prepare_len,
+            'length': ptra_len,
+            'processed': processed,
+            'all': len(files),
+        })
+        processed += 1
+
+    Log.out(
+        "Loaded extracted ProofTraces LM Dataset", {
+            'processed': processed,
+        })
