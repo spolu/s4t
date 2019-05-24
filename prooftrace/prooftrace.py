@@ -1450,7 +1450,9 @@ def lm_collate(
     return (indices, actions, arguments, truths, values)
 
 
-def dump_trace(args):
+def dump_trace(
+        args
+):
     config, tokenizer, tr, idx, total = args
     ptra = tr.actions(tokenizer)
 

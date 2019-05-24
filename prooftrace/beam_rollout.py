@@ -1,3 +1,5 @@
+import argparse
+import concurrent.futures
 import datetime
 import gzip
 import os
@@ -299,3 +301,208 @@ class AGG():
                 return
             for p in rfiles[1:]:
                 os.remove(p)
+
+
+def rll_run():
+    parser = argparse.ArgumentParser(description="")
+
+    parser.add_argument(
+        'config_path',
+        type=str, help="path to the config file",
+    )
+    parser.add_argument(
+        '--dataset_size',
+        type=str, help="config override",
+    )
+
+    parser.add_argument(
+        '--device',
+        type=str, help="config override",
+    )
+    parser.add_argument(
+        '--sync_dir',
+        type=str, help="config override",
+    )
+    parser.add_argument(
+        '--rollout_dir',
+        type=str, help="config override",
+    )
+
+    args = parser.parse_args()
+
+    config = Config.from_file(args.config_path)
+
+    if args.device is not None:
+        config.override('device', args.device)
+    if args.sync_dir is not None:
+        config.override(
+            'prooftrace_beam_iota_sync_dir',
+            os.path.expanduser(args.sync_dir),
+        )
+    if args.rollout_dir is not None:
+        config.override(
+            'prooftrace_beam_rollout_dir',
+            os.path.expanduser(args.rollout_dir),
+        )
+
+    if args.dataset_size is not None:
+        config.override(
+            'prooftrace_dataset_size',
+            args.dataset_size,
+        )
+
+    if config.get('device') != 'cpu':
+        torch.cuda.set_device(torch.device(config.get('device')))
+
+    rll = RLL(config)
+
+    while True:
+        rll.run_once()
+
+
+def agg_run():
+    parser = argparse.ArgumentParser(description="")
+
+    parser.add_argument(
+        'config_path',
+        type=str, help="path to the config file",
+    )
+    parser.add_argument(
+        '--dataset_size',
+        type=str, help="config override",
+    )
+
+    parser.add_argument(
+        '--device',
+        type=str, help="config override",
+    )
+    parser.add_argument(
+        '--sync_dir',
+        type=str, help="config override",
+    )
+    parser.add_argument(
+        '--rollout_dir',
+        type=str, help="config override",
+    )
+
+    args = parser.parse_args()
+
+    config = Config.from_file(args.config_path)
+
+    if args.device is not None:
+        config.override('device', args.device)
+    if args.sync_dir is not None:
+        config.override(
+            'prooftrace_beam_iota_sync_dir',
+            os.path.expanduser(args.sync_dir),
+        )
+    if args.rollout_dir is not None:
+        config.override(
+            'prooftrace_beam_rollout_dir',
+            os.path.expanduser(args.rollout_dir),
+        )
+
+    if args.dataset_size is not None:
+        config.override(
+            'prooftrace_dataset_size',
+            args.dataset_size,
+        )
+
+    if config.get('device') != 'cpu':
+        torch.cuda.set_device(torch.device(config.get('device')))
+
+    agg = AGG(config)
+
+    while True:
+        agg.run_once()
+
+
+def translate(
+        args,
+):
+    config, path, idx = args
+
+    with gzip.open(path, 'rb') as f:
+        ptra = pickle.load(f)
+
+    rollout = Rollout(ptra.name(), [ptra], [])
+
+    with gzip.open(path, 'wb') as f:
+        ptra = pickle.load(f)
+
+    rollout_dir = os.path.join(
+        os.path.expanduser(config.get('prooftrace_beam_rollout_dir')),
+        config.get('prooftrace_dataset_size'),
+    )
+
+    rdir = os.path.join(rollout_dir, rollout.name())
+    os.mkdir(rdir)
+
+    now = datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f")
+    rnd = random.randint(0, 10e9)
+
+    tmp_path = os.path.join(rdir, "{}_{}.tmp".format(now, rnd))
+    fnl_path = os.path.join(rdir, "{}_{}.rollout".format(now, rnd))
+
+    with gzip.open(tmp_path, 'wb') as f:
+        torch.save(rollout, f)
+    os.rename(tmp_path, fnl_path)
+
+    Log.out("Writing Rollout", {
+        'path': fnl_path,
+        'index': idx,
+    })
+
+
+def bootstrap():
+    parser = argparse.ArgumentParser(description="")
+
+    parser.add_argument(
+        'config_path',
+        type=str, help="path to the config file",
+    )
+    parser.add_argument(
+        '--dataset_size',
+        type=str, help="config override",
+    )
+    parser.add_argument(
+        '--rollout_dir',
+        type=str, help="config override",
+    )
+
+    args = parser.parse_args()
+
+    config = Config.from_file(args.config_path)
+
+    if args.rollout_dir is not None:
+        config.override(
+            'prooftrace_beam_rollout_dir',
+            os.path.expanduser(args.rollout_dir),
+        )
+    if args.dataset_size is not None:
+        config.override(
+            'prooftrace_dataset_size',
+            args.dataset_size,
+        )
+
+    dataset_dir = os.path.join(
+        os.path.expanduser(config.get('prooftrace_dataset_dir')),
+        config.get('prooftrace_dataset_size'),
+        'train_traces'
+    )
+    assert os.path.isdir(dataset_dir)
+    files = [
+        os.path.join(dataset_dir, f)
+        for f in os.listdir(dataset_dir)
+        if os.path.isfile(os.path.join(dataset_dir, f))
+    ]
+
+    executor = concurrent.futures.ProcessPoolExecutor()
+
+    map_args = []
+    for i, path in enumerate(files):
+        map_args.append([config, path, i])
+
+    result = map(translate, map_args)
+
+    import pdb; pdb.set_trace()

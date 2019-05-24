@@ -152,9 +152,7 @@ class IOTAAck(IOTABase):
             self,
             device: torch.device,
             blocking: bool = True,
-    ) -> typing.Optional[
-        typing.Dict[str, typing.Any],
-    ]:
+    ) -> typing.Dict[str, typing.Any]:
         info = None
         done = False
 

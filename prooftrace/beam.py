@@ -27,9 +27,7 @@ class BeamModel:
     def __init__(
             self,
             config: Config,
-            modules: typing.Optional[
-                typing.Dict[str, torch.nn.Module],
-            ] = None,
+            modules: typing.Dict[str, torch.nn.Module] = None,
     ):
         self._config = config
 

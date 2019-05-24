@@ -1,0 +1,12 @@
+{
+  "device": "cuda:0",
+  "config_update_path": "configs/run.json",
+
+  "prooftrace_dataset_dir": "./data/prooftrace",
+  "prooftrace_dataset_size": "small",
+
+  "prooftrace_beam_iota_sync_dir": null,
+  "prooftrace_beam_rollout_dir": null,
+
+  "tensorboard_log_dir": null
+}
