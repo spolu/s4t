@@ -427,9 +427,6 @@ def translate(
 
     rollout = Rollout(ptra.name(), [ptra], [])
 
-    with gzip.open(path, 'wb') as f:
-        ptra = pickle.load(f)
-
     rollout_dir = os.path.join(
         os.path.expanduser(config.get('prooftrace_beam_rollout_dir')),
         config.get('prooftrace_dataset_size'),
@@ -503,6 +500,4 @@ def bootstrap():
     for i, path in enumerate(files):
         map_args.append([config, path, i])
 
-    result = map(translate, map_args)
-
-    import pdb; pdb.set_trace()
+    executor.map(translate, map_args)
