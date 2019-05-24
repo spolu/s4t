@@ -210,7 +210,7 @@ class IOTAAck(IOTABase):
         Log.out("{IOTA} UPDATE[NEW]", {'path': p})
 
 
-class Rollout:
+class IOTARollout:
     def __init__(
             self,
     ):
@@ -241,7 +241,7 @@ class IOTAAgg(IOTABase):
     def aggregate(
             self,
     ) -> typing.Tuple[
-        typing.List[Rollout],
+        typing.List[IOTARollout],
         typing.List[
             typing.Dict[str, typing.Any]
         ],
@@ -282,7 +282,7 @@ class IOTARll(IOTAAck):
     def publish(
             self,
             info: typing.Dict[str, typing.Any],
-            rollout: Rollout,
+            rollout: IOTARollout,
     ) -> None:
         data = {}
         data['rollout'] = rollout
