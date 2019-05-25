@@ -25,6 +25,7 @@ from prooftrace.repl.repl import REPL
 from tensorboardX import SummaryWriter
 
 from utils.config import Config
+from utils.meter import Meter
 from utils.log import Log
 
 
@@ -123,7 +124,7 @@ class RLL():
     def run_once(
             self,
     ):
-        info = self._rll.fetch(self._device)
+        info = self._rll.fetch(self._device, False)
         if info is not None:
             self.update(info['config'])
 
@@ -209,17 +210,14 @@ class RLL():
         proven = False
         ptra = None
 
-        for i in range(gamma_len):
-            final = (i == (gamma_len-1))
-            ptra, proven = beam.step(final, offset)
+        for i in range(gamma):
+            ptra, proven = beam.step(i == (gamma-1), offset)
             if ptra is not None:
                 if proven:
                     rollout = Rollout(name, [ptra], [])
                 else:
                     rollout = Rollout(name, [], [ptra])
                 break
-            if i == (gamma_len-1):
-                assert ptra is not None
 
         Log.out("ROLLOUT END", {
             'name': ground.name(),
@@ -231,7 +229,9 @@ class RLL():
         })
 
         self._rll.publish({
-            'rollout': 1,
+            'rll_cnt': 1,
+            'pos_cnt': 1 if proven else 0,
+            'neg_cnt': 0 if proven else 1,
         }, rollout)
 
 
@@ -246,6 +246,8 @@ class AGG():
             os.path.expanduser(config.get('prooftrace_beam_rollout_dir')),
             config.get('prooftrace_dataset_size'),
         )
+
+        self._epoch = 0
 
         self._tb_writer = None
         if self._config.get('tensorboard_log_dir'):
@@ -267,10 +269,12 @@ class AGG():
     def run_once(
             self,
     ):
+        run_start = time.time()
+
         rollouts, infos = self._agg.aggregate()
 
         if len(infos) == 0:
-            time.sleep(1)
+            time.sleep(60)
             return
 
         # merge rollouts and atomic_write to new name
@@ -302,10 +306,46 @@ class AGG():
                 )
             os.rename(tmp_path, fnl_path)
 
-            if len(rfiles) <= 1:
-                return
-            for p in rfiles[1:]:
-                os.remove(p)
+            if len(rfiles) > 1:
+                for p in rfiles[1:]:
+                    os.remove(p)
+
+        rll_cnt_meter = Meter()
+        pos_cnt_meter = Meter()
+        neg_cnt_meter = Meter()
+
+        for info in infos:
+            rll_cnt_meter.update(info['rll_cnt'])
+            pos_cnt_meter.update(info['pos_cnt'])
+            neg_cnt_meter.update(info['neg_cnt'])
+
+        Log.out("PROOFTRACE BEAM AGG RUN", {
+            'epoch': self._epoch,
+            'run_time': "{:.2f}".format(time.time() - run_start),
+            'update_count': len(infos),
+            'rll_cnt': "{:.4f}".format(rll_cnt_meter.sum or 0.0),
+            'pos_cnt': "{:.4f}".format(pos_cnt_meter.avg or 0.0),
+            'neg_cnt': "{:.4f}".format(neg_cnt_meter.avg or 0.0),
+        })
+
+        if self._tb_writer is not None:
+            if rll_cnt_meter.avg is not None:
+                self._tb_writer.add_scalar(
+                    "prooftrace_beam_agg/rll_cnt",
+                    rll_cnt_meter.sum, self._epoch,
+                )
+            if pos_cnt_meter.avg is not None:
+                self._tb_writer.add_scalar(
+                    "prooftrace_beam_agg/pos_cnt",
+                    pos_cnt_meter.avg, self._epoch,
+                )
+            if neg_cnt_meter.avg is not None:
+                self._tb_writer.add_scalar(
+                    "prooftrace_beam_agg/neg_cnt",
+                    neg_cnt_meter.avg, self._epoch,
+                )
+
+        self._epoch += 1
 
 
 def rll_run():
