@@ -434,6 +434,10 @@ def agg_run():
         type=str, help="config override",
     )
     parser.add_argument(
+        '--tensorboard_log_dir',
+        type=str, help="config override",
+    )
+    parser.add_argument(
         '--sync_dir',
         type=str, help="config override",
     )
@@ -448,6 +452,11 @@ def agg_run():
 
     if args.device is not None:
         config.override('device', args.device)
+    if args.tensorboard_log_dir is not None:
+        config.override(
+            'tensorboard_log_dir',
+            os.path.expanduser(args.tensorboard_log_dir),
+        )
     if args.sync_dir is not None:
         config.override(
             'prooftrace_beam_iota_sync_dir',
