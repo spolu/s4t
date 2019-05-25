@@ -256,6 +256,8 @@ class SYN:
                     ),
                 )
 
+        self._syn.broadcast({'config': self._config})
+
         return self
 
     def save(
