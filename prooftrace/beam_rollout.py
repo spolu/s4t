@@ -223,9 +223,7 @@ class RLL():
             'name': ground.name(),
             'proven': proven,
             'gamma': gamma,
-            'prepare_length': ptra.prepare_len(),
-            'action_length': ptra.action_len(),
-            'length': ptra.len(),
+            'demo_length': (ptra.len() - (ground.prepare_len() + gamma_len)),
         })
 
         self._rll.publish({
