@@ -123,7 +123,7 @@ class RLL():
     def run_once(
             self,
     ):
-        info = self._ack.fetch(self._device)
+        info = self._rll.fetch(self._device)
         if info is not None:
             self.update(info['config'])
 
@@ -143,7 +143,7 @@ class RLL():
         rdir = random.choice(rollout_dirs)
         rfiles = sorted([
             os.path.join(rdir, f)
-            for f in os.listdir(rdir) if re.search(".rollout$")
+            for f in os.listdir(rdir) if re.search(".rollout$", f)
         ], reverse=True)
 
         if len(rfiles) == 0:
@@ -210,13 +210,16 @@ class RLL():
         ptra = None
 
         for i in range(gamma_len):
-            ptra, proven = beam.step(offset)
+            final = (i == (gamma_len-1))
+            ptra, proven = beam.step(final, offset)
             if ptra is not None:
                 if proven:
                     rollout = Rollout(name, [ptra], [])
                 else:
-                    rollout = Rollout(name, [ptra], [])
+                    rollout = Rollout(name, [], [ptra])
                 break
+            if i == (gamma_len-1):
+                assert ptra is not None
 
         Log.out("ROLLOUT END", {
             'name': ground.name(),
@@ -276,7 +279,7 @@ class AGG():
 
             rfiles = sorted([
                 os.path.join(rdir, f)
-                for f in os.listdir(rdir) if re.search(".rollout$")
+                for f in os.listdir(rdir) if re.search(".rollout$", f)
             ], reverse=True)
 
             assert len(rfiles) > 0
@@ -295,7 +298,7 @@ class AGG():
 
             with gzip.open(tmp_path, 'wb') as f:
                 pickle.dump(
-                    r, f, protocol=pickle.HIGHEST_PROTOCOL
+                    rollout, f, protocol=pickle.HIGHEST_PROTOCOL
                 )
             os.rename(tmp_path, fnl_path)
 

@@ -230,9 +230,9 @@ class IOTAAgg(IOTABase):
     def __init__(
             self,
             sync_dir: str,
-            modules: typing.Dict[str, nn.Module],
+            # modules: typing.Dict[str, nn.Module],
     ):
-        super(IOTAAgg, self).__init__(sync_dir, modules)
+        super(IOTAAgg, self).__init__(sync_dir, {})
 
         assert os.path.isdir(self._tmp_dir)
 

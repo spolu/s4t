@@ -245,6 +245,7 @@ class Beam:
 
     def step(
             self,
+            final: bool = False,
             offset: int = 0,
     ) -> typing.Tuple[
         typing.Optional[ProofTraceActions], bool,
@@ -339,7 +340,10 @@ class Beam:
         #         'summary': v[0].summary(offset),
         #     })
 
-        return None, False
+        if final:
+            return self._ptras[0], False
+        else:
+            return None, False
 
 
 def search():
@@ -471,6 +475,6 @@ def search():
         beam = Beam(config, model, ptra, repl, target)
 
         for i in range(fixed_gamma * 2):
-            ptra, proved = beam.step(offset)
+            ptra, proved = beam.step(False, offset)
             if ptra is not None:
                 break

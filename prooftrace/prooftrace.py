@@ -732,7 +732,8 @@ class ProofTraceActions():
             self._actions.copy(),
             self._arguments.copy(),
         )
-        ptra._hashes = dict(self._hashes)
+        if ptra._hashes is not None:
+            ptra._hashes = dict(self._hashes)
 
         return ptra
 
