@@ -332,6 +332,7 @@ class AGG():
             'update_count': len(infos),
             'rll_cnt': "{:.4f}".format(rll_cnt_meter.sum or 0.0),
             'pos_cnt': "{:.4f}".format(pos_cnt_meter.avg or 0.0),
+            'neg_cnt': "{:.4f}".format(neg_cnt_meter.avg or 0.0),
             'demo_len': "{:.4f}".format(demo_len_meter.avg or 0.0),
         })
 
