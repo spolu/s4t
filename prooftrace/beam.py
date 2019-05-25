@@ -471,6 +471,6 @@ def search():
         beam = Beam(config, model, ptra, repl, target)
 
         for i in range(fixed_gamma * 2):
-            proof = beam.step(offset)
-            if proof is not None:
+            ptra, proved = beam.step(offset)
+            if ptra is not None:
                 break
