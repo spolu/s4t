@@ -732,7 +732,8 @@ class ProofTraceActions():
             self._actions.copy(),
             self._arguments.copy(),
         )
-        ptra._hashes = dict(self._hashes)
+        if ptra._hashes is not None:
+            ptra._hashes = dict(self._hashes)
 
         return ptra
 
@@ -1450,7 +1451,9 @@ def lm_collate(
     return (indices, actions, arguments, truths, values)
 
 
-def dump_trace(args):
+def dump_trace(
+        args
+):
     config, tokenizer, tr, idx, total = args
     ptra = tr.actions(tokenizer)
 

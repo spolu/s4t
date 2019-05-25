@@ -256,6 +256,8 @@ class SYN:
                     ),
                 )
 
+        self._syn.broadcast({'config': self._config})
+
         return self
 
     def save(
@@ -332,7 +334,7 @@ class SYN:
         run_start = time.time()
 
         self._optimizer.zero_grad()
-        infos = self._syn.aggregate(self._device, self._min_update_count)
+        infos = self._syn.reduce(self._device, self._min_update_count)
 
         if len(infos) == 0:
             time.sleep(1)

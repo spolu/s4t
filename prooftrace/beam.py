@@ -23,57 +23,66 @@ from utils.config import Config
 from utils.log import Log
 
 
-class Model:
+class BeamModel:
     def __init__(
             self,
             config: Config,
+            modules: typing.Dict[str, torch.nn.Module] = None,
     ):
         self._config = config
 
         self._device = torch.device(config.get('device'))
 
-        self._load_dir = config.get('prooftrace_load_dir')
+        if modules is not None:
+            assert 'E' in modules
+            assert 'T' in modules
+            assert 'PH' in modules
+            assert 'VH' in modules
 
-        self._modules = {
-            'E': E(self._config).to(self._device),
-            'T': T(self._config).to(self._device),
-            'PH': PH(self._config).to(self._device),
-            'VH': VH(self._config).to(self._device),
-        }
+            self._modules = modules
+        else:
+            self._modules = {
+                'E': E(self._config).to(self._device),
+                'T': T(self._config).to(self._device),
+                'PH': PH(self._config).to(self._device),
+                'VH': VH(self._config).to(self._device),
+            }
 
     def load(
             self,
     ):
-        if self._load_dir:
+        load_dir = self._config.get('prooftrace_load_dir')
+
+        if load_dir:
             Log.out(
                 "Loading prooftrace LM", {
-                    'load_dir': self._load_dir,
+                    'load_dir': load_dir,
                 })
-            if os.path.isfile(self._load_dir + "/model_E.pt"):
+            if os.path.isfile(load_dir + "/model_E.pt"):
                 self._modules['E'].load_state_dict(
                     torch.load(
-                        self._load_dir + "/model_E.pt",
+                        load_dir + "/model_E.pt",
                         map_location=self._device,
                     ),
                 )
-            if os.path.isfile(self._load_dir + "/model_T.pt"):
+            if os.path.isfile(load_dir + "/model_T.pt"):
                 self._modules['T'].load_state_dict(
                     torch.load(
-                        self._load_dir + "/model_T.pt",
+                        load_dir + "/model_T.pt",
                         map_location=self._device,
                     ),
                 )
-            if os.path.isfile(self._load_dir + "/model_PH.pt"):
+            if os.path.isfile(load_dir + "/model_PH.pt"):
                 self._modules['PH'].load_state_dict(
                     torch.load(
-                        self._load_dir + "/model_PH.pt",
+                        load_dir + "/model_PH.pt",
                         map_location=self._device,
                     ),
                 )
-            if os.path.isfile(self._load_dir + "/model_VH.pt"):
+            if os.path.isfile(load_dir + "/model_VH.pt"):
                 self._modules['VH'].load_state_dict(
                     torch.load(
-                        self._load_dir + "/model_VH.pt",
+                        load_dir + "/model_VH.pt",
                         map_location=self._device,
                     ),
                 )
@@ -173,7 +182,7 @@ class Head:
                         continue
 
                     candidates.append((
-                        # self._value *  # PROB
+                        self._value *  # PROB
                         top_actions[0][ia].item() *
                         top_lefts[0][il].item() *
                         top_rights[0][ir].item(),
@@ -189,7 +198,7 @@ class Beam:
     def __init__(
             self,
             config: Config,
-            model: Model,
+            model: BeamModel,
             ptra: ProofTraceActions,
             repl: REPL,
             target: Thm,
@@ -210,8 +219,8 @@ class Beam:
                 prd_actions[0].cpu(),
                 prd_lefts[0].cpu(),
                 prd_rights[0].cpu(),
-                prd_values[0].cpu().item(),  # VALUE
-                # 1.0,  # PROB
+                # prd_values[0].cpu().item(),  # VALUE
+                1.0,  # PROB
             )
         ]
 
@@ -236,8 +245,11 @@ class Beam:
 
     def step(
             self,
+            final: bool = False,
             offset: int = 0,
-    ) -> typing.Optional[ProofTraceActions]:
+    ) -> typing.Tuple[
+        typing.Optional[ProofTraceActions], bool,
+    ]:
         idx = []
         act = []
         arg = []
@@ -265,7 +277,7 @@ class Beam:
                     Log.out("DEMONSTRATED", {
                         'theorem': thm.thm_string(True),
                     })
-                    return ptra
+                    return ptra, True
 
                 candidates.append((ptra, repl, action, p))
                 index, actions, arguments = self.process_ptra(ptra)
@@ -287,10 +299,13 @@ class Beam:
         #     'candidates': len(candidates),
         # })
         if len(candidates) == 0:
+            last_ptra = self._ptras[0]
+
             self._ptras = []
             self._repls = []
             self._heads = []
-            return None
+
+            return last_ptra, False
 
         prd_actions, prd_lefts, prd_rights, prd_values = \
             self._model.infer(idx, act, arg)
@@ -304,11 +319,11 @@ class Beam:
                     prd_actions[i].cpu(),
                     prd_lefts[i].cpu(),
                     prd_rights[i].cpu(),
-                    # candidates[i][3],  # PROB
-                    prd_values[i].cpu().item(),  # VALUE
+                    candidates[i][3],  # PROB
+                    # prd_values[i].cpu().item(),  # VALUE
                 ),
-                # candidates[i][3],  # PROB
-                prd_values[i].cpu().item(),  # VALUE
+                candidates[i][3],  # PROB
+                # prd_values[i].cpu().item(),  # VALUE
             ))
 
         next_heads = sorted(
@@ -325,7 +340,10 @@ class Beam:
         #         'summary': v[0].summary(offset),
         #     })
 
-        return None
+        if final:
+            return self._ptras[0], False
+        else:
+            return None, False
 
 
 def search():
@@ -401,7 +419,7 @@ def search():
             'cases': len(cases),
         })
 
-    model = Model(config).load()
+    model = BeamModel(config).load()
 
     cases = sorted(cases, key=lambda c: c[1])
 
@@ -428,7 +446,7 @@ def search():
         target = repl.prepare(ptra)
 
         offset = 0
-        fixed_gamma = 4
+        fixed_gamma = 8
         if fixed_gamma > 0:
             gamma_len = max(ground.action_len() - fixed_gamma, 0)
             offset = ground.prepare_len() + gamma_len
@@ -457,6 +475,6 @@ def search():
         beam = Beam(config, model, ptra, repl, target)
 
         for i in range(fixed_gamma * 2):
-            proof = beam.step(offset)
-            if proof is not None:
+            ptra, proved = beam.step(False, offset)
+            if ptra is not None:
                 break

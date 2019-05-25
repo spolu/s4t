@@ -87,6 +87,7 @@ class IOTASyn(IOTABase):
         now = datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f")
         rnd = random.randint(0, 10e9)
         p = self.atomic_save(data, "broadcast_{}_{}".format(now, rnd))
+
         Log.out("{IOTA} BROADCAST[NEW]", {'path': p})
 
         files = self.list_files()
@@ -152,9 +153,7 @@ class IOTAAck(IOTABase):
             self,
             device: torch.device,
             blocking: bool = True,
-    ) -> typing.Optional[
-        typing.Dict[str, typing.Any],
-    ]:
+    ) -> typing.Dict[str, typing.Any]:
         info = None
         done = False
 
@@ -210,7 +209,7 @@ class IOTAAck(IOTABase):
         Log.out("{IOTA} UPDATE[NEW]", {'path': p})
 
 
-class Rollout:
+class IOTARollout:
     def __init__(
             self,
     ):
@@ -232,16 +231,16 @@ class IOTAAgg(IOTABase):
     def __init__(
             self,
             sync_dir: str,
-            modules: typing.Dict[str, nn.Module],
+            # modules: typing.Dict[str, nn.Module],
     ):
-        super(IOTAAgg, self).__init__(sync_dir, modules)
+        super(IOTAAgg, self).__init__(sync_dir, {})
 
         assert os.path.isdir(self._tmp_dir)
 
     def aggregate(
             self,
     ) -> typing.Tuple[
-        typing.List[Rollout],
+        typing.List[IOTARollout],
         typing.List[
             typing.Dict[str, typing.Any]
         ],
@@ -266,7 +265,7 @@ class IOTAAgg(IOTABase):
             infos.append(data['info'])
 
             os.remove(p)
-            Log.out("{IOTA} ROLLOUT[CONSUME]", {'path': p})
+            # Log.out("{IOTA} ROLLOUT[CONSUME]", {'path': p})
 
         return merged.values(), infos
 
@@ -282,7 +281,7 @@ class IOTARll(IOTAAck):
     def publish(
             self,
             info: typing.Dict[str, typing.Any],
-            rollout: Rollout,
+            rollout: IOTARollout,
     ) -> None:
         data = {}
         data['rollout'] = rollout
@@ -290,6 +289,6 @@ class IOTARll(IOTAAck):
 
         now = datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f")
         rnd = random.randint(0, 10e9)
-        p = self.atomic_save(data, "rollout_{}_{}".format(now, rnd))
+        self.atomic_save(data, "rollout_{}_{}".format(now, rnd))
 
-        Log.out("{IOTA} ROLLOUT[NEW]", {'path': p})
+        # Log.out("{IOTA} ROLLOUT[NEW]", {'path': p})

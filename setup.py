@@ -27,10 +27,14 @@ setup(
 
             'prooftrace_lm_syn_run=prooftrace.language_model_iota:syn_run',
             'prooftrace_lm_ack_run=prooftrace.language_model_iota:ack_run',
+
             'prooftrace_ppo_syn_run=prooftrace.ppo_iota:syn_run',
             'prooftrace_ppo_ack_run=prooftrace.ppo_iota:ack_run',
 
             'prooftrace_beam_search=prooftrace.beam:search',
+            'prooftrace_beam_rollout_bootstrap=prooftrace.beam_rollout:bootstrap',
+            'prooftrace_beam_agg_run=prooftrace.beam_rollout:agg_run',
+            'prooftrace_beam_rll_run=prooftrace.beam_rollout:rll_run',
 
             'prooftrace_embeds_tsne_extract=prooftrace.embeds.tsne:extract',
             'prooftrace_embeds_viewer=prooftrace.embeds.viewer.viewer:run',
