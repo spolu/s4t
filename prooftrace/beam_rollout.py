@@ -294,7 +294,9 @@ class AGG():
             fnl_path = os.path.join(rdir, "{}_{}.rollout".format(now, rnd))
 
             with gzip.open(tmp_path, 'wb') as f:
-                torch.save(r, f)
+                pickle.dump(
+                    r, f, protocol=pickle.HIGHEST_PROTOCOL
+                )
             os.rename(tmp_path, fnl_path)
 
             if len(rfiles) <= 1:
@@ -433,7 +435,8 @@ def translate(
     )
 
     rdir = os.path.join(rollout_dir, rollout.name())
-    os.mkdir(rdir)
+    if not os.path.exists(rdir):
+        os.mkdir(rdir)
 
     now = datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f")
     rnd = random.randint(0, 10e9)
@@ -442,7 +445,9 @@ def translate(
     fnl_path = os.path.join(rdir, "{}_{}.rollout".format(now, rnd))
 
     with gzip.open(tmp_path, 'wb') as f:
-        torch.save(rollout, f)
+        pickle.dump(
+            rollout, f, protocol=pickle.HIGHEST_PROTOCOL
+        )
     os.rename(tmp_path, fnl_path)
 
     Log.out("Writing Rollout", {
