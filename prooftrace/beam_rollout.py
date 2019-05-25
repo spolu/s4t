@@ -219,18 +219,24 @@ class RLL():
                     rollout = Rollout(name, [], [ptra])
                 break
 
+        demo_length = (ptra.len() - (ground.prepare_len() + gamma_len))
+
         Log.out("ROLLOUT END", {
             'name': ground.name(),
             'proven': proven,
             'gamma': gamma,
-            'demo_length': (ptra.len() - (ground.prepare_len() + gamma_len)),
+            'demo_length': demo_length,
         })
 
-        self._rll.publish({
+        info = {
             'rll_cnt': 1,
             'pos_cnt': 1 if proven else 0,
             'neg_cnt': 0 if proven else 1,
-        }, rollout)
+        }
+        if proven:
+            info['demo_len'] = demo_length
+
+        self._rll.publish(info, rollout)
 
 
 class AGG():
@@ -311,11 +317,14 @@ class AGG():
         rll_cnt_meter = Meter()
         pos_cnt_meter = Meter()
         neg_cnt_meter = Meter()
+        demo_len_meter = Meter()
 
         for info in infos:
             rll_cnt_meter.update(info['rll_cnt'])
             pos_cnt_meter.update(info['pos_cnt'])
             neg_cnt_meter.update(info['neg_cnt'])
+            if 'demo_len' in info:
+                demo_len_meter.update(info['demo_len'])
 
         Log.out("PROOFTRACE BEAM AGG RUN", {
             'epoch': self._epoch,
@@ -323,7 +332,7 @@ class AGG():
             'update_count': len(infos),
             'rll_cnt': "{:.4f}".format(rll_cnt_meter.sum or 0.0),
             'pos_cnt': "{:.4f}".format(pos_cnt_meter.avg or 0.0),
-            'neg_cnt': "{:.4f}".format(neg_cnt_meter.avg or 0.0),
+            'demo_len': "{:.4f}".format(demo_len_meter.avg or 0.0),
         })
 
         if self._tb_writer is not None:
@@ -341,6 +350,11 @@ class AGG():
                 self._tb_writer.add_scalar(
                     "prooftrace_beam_agg/neg_cnt",
                     neg_cnt_meter.avg, self._epoch,
+                )
+            if demo_len_meter.avg is not None:
+                self._tb_writer.add_scalar(
+                    "prooftrace_beam_agg/demo_len",
+                    demo_len_meter.avg, self._epoch,
                 )
 
         self._epoch += 1
