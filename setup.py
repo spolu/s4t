@@ -33,6 +33,7 @@ setup(
 
             'prooftrace_beam_search=prooftrace.beam:search',
             'prooftrace_beam_rollout_bootstrap=prooftrace.beam_rollout:bootstrap',
+            'prooftrace_beam_rollout_inspect=prooftrace.beam_rollout:inspect',
             'prooftrace_beam_agg_run=prooftrace.beam_rollout:agg_run',
             'prooftrace_beam_rll_run=prooftrace.beam_rollout:rll_run',
 

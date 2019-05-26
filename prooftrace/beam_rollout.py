@@ -484,6 +484,10 @@ def agg_run():
         agg.run_once()
 
 
+###############################################################################
+# Rollout bootstrapping.
+###############################################################################
+
 def translate(
         args,
 ):
@@ -571,3 +575,80 @@ def bootstrap():
         map_args.append([config, path, i])
 
     executor.map(translate, map_args)
+
+
+###############################################################################
+# Rollout inspection.
+###############################################################################
+
+def read(
+        args,
+):
+    config, rdir, idx = args
+
+    rfiles = sorted([
+        os.path.join(rdir, f)
+        for f in os.listdir(rdir) if re.search(".rollout$", f)
+    ], reverse=True)
+
+    with gzip.open(rfiles[0], 'rb') as f:
+        rollout = pickle.load(f)
+
+    Log.out("Rollout", {
+        'rdir': rdir,
+        'positives': len(rollout._positives),
+        'negatives': len(rollout._negatives),
+        'index': idx,
+    })
+
+
+def inspect():
+    parser = argparse.ArgumentParser(description="")
+
+    parser.add_argument(
+        'config_path',
+        type=str, help="path to the config file",
+    )
+    parser.add_argument(
+        '--dataset_size',
+        type=str, help="config override",
+    )
+    parser.add_argument(
+        '--rollout_dir',
+        type=str, help="config override",
+    )
+
+    args = parser.parse_args()
+
+    config = Config.from_file(args.config_path)
+
+    if args.rollout_dir is not None:
+        config.override(
+            'prooftrace_beam_rollout_dir',
+            os.path.expanduser(args.rollout_dir),
+        )
+    if args.dataset_size is not None:
+        config.override(
+            'prooftrace_dataset_size',
+            args.dataset_size,
+        )
+
+    rollout_dir = os.path.join(
+        os.path.expanduser(config.get('prooftrace_beam_rollout_dir')),
+        config.get('prooftrace_dataset_size'),
+    )
+
+    assert os.path.isdir(rollout_dir)
+    rdirs = [
+        os.path.join(rollout_dir, f)
+        for f in os.listdir(rollout_dir)
+        if os.path.isdir(os.path.join(rollout_dir, f))
+    ]
+
+    executor = concurrent.futures.ProcessPoolExecutor()
+
+    map_args = []
+    for i, rdir in enumerate(rdirs):
+        map_args.append([config, rdir, i])
+
+    executor.map(read, map_args)
