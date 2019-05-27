@@ -17,6 +17,11 @@
   "prooftrace_lstm_hidden_size": 256,
   "prooftrace_lstm_layer_count": 0,
 
+  "prooftrace_beam_batch_size": 8,
+  "prooftrace_beam_learning_rate": 0.00005,
+  "prooftrace_beam_value_coeff": 1.0,
+  "prooftrace_beam_action_coeff": 2.0,
+
   "prooftrace_beam_beta_width": 8,
   "prooftrace_beam_head_width": 8,
   "prooftrace_beam_width": 8,
@@ -26,6 +31,7 @@
 
   "prooftrace_beam_iota_sync_dir": null,
   "prooftrace_beam_rollout_dir": null,
+  "prooftrace_beam_iota_min_update_count": 12,
 
   "tensorboard_log_dir": null
 }
