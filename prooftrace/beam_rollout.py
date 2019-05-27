@@ -149,13 +149,13 @@ class RLL():
 
         assert os.path.isdir(self._rollout_dir)
 
-        rollout_dirs = [
+        rdirs = [
             os.path.join(self._rollout_dir, d)
             for d in os.listdir(self._rollout_dir)
             if os.path.isdir(os.path.join(self._rollout_dir, d))
         ]
 
-        rdir = random.choice(rollout_dirs)
+        rdir = random.choice(rdirs)
         rfiles = sorted([
             os.path.join(rdir, f)
             for f in os.listdir(rdir) if re.search(".rollout$", f)
