@@ -17,7 +17,7 @@
   "prooftrace_lstm_hidden_size": 256,
   "prooftrace_lstm_layer_count": 0,
 
-  "prooftrace_beam_batch_size": 8,
+  "prooftrace_beam_batch_size": 16,
   "prooftrace_beam_learning_rate": 0.00005,
   "prooftrace_beam_value_coeff": 1.0,
   "prooftrace_beam_action_coeff": 2.0,
