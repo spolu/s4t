@@ -1401,7 +1401,13 @@ class ProofTraceLMDataset(Dataset):
     def __getitem__(
             self,
             idx: int,
-    ):
+    ) -> typing.Tuple[
+        int,
+        typing.List[Action],
+        typing.List[Action],
+        Action,
+        float,
+    ]:
         with gzip.open(self._ptra_files[self._cases[idx][0]], 'rb') as f:
             ptra = pickle.load(f)
 
@@ -1431,6 +1437,7 @@ def lm_collate(
         batch
 ) -> typing.Tuple[
     typing.List[int],
+    typing.List[typing.List[Action]],
     typing.List[typing.List[Action]],
     typing.List[Action],
     typing.List[float],

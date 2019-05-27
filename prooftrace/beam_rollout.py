@@ -79,6 +79,20 @@ class Rollout(IOTARollout):
         assert len(self._positives) > 0
         return random.choice(self._positives).copy()
 
+    def random(
+            self,
+    ) -> typing.Tuple[ProofTraceActions, bool]:
+        choices = []
+        for p in self._positives:
+            choices += [(p, True)]
+        for p in self._negatives:
+            choices += [(p, False)]
+
+        assert len(choices) > 0
+
+        ptra, outcome = random.choice(choices)
+        return (ptra.copy(), outcome)
+
 
 class RLL():
     def __init__(
@@ -392,6 +406,11 @@ def rll_run():
 
     if args.device is not None:
         config.override('device', args.device)
+    if args.dataset_size is not None:
+        config.override(
+            'prooftrace_dataset_size',
+            args.dataset_size,
+        )
     if args.sync_dir is not None:
         config.override(
             'prooftrace_beam_iota_sync_dir',
@@ -401,12 +420,6 @@ def rll_run():
         config.override(
             'prooftrace_beam_rollout_dir',
             os.path.expanduser(args.rollout_dir),
-        )
-
-    if args.dataset_size is not None:
-        config.override(
-            'prooftrace_dataset_size',
-            args.dataset_size,
         )
 
     if config.get('device') != 'cpu':
