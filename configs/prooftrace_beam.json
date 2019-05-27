@@ -31,7 +31,7 @@
 
   "prooftrace_beam_iota_sync_dir": null,
   "prooftrace_beam_rollout_dir": null,
-  "prooftrace_beam_iota_min_update_count": 12,
+  "prooftrace_beam_iota_min_update_count": 24,
 
   "tensorboard_log_dir": null
 }
