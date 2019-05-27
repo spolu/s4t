@@ -242,15 +242,16 @@ class RLL():
             'demo_length': demo_length,
         })
 
-        info = {
-            'rll_cnt': 1,
-            'pos_cnt': 1 if proven else 0,
-            'neg_cnt': 0 if proven else 1,
-        }
-        if proven:
-            info['demo_len'] = demo_length
+        if demo_length > 0:
+            info = {
+                'rll_cnt': 1,
+                'pos_cnt': 1 if proven else 0,
+                'neg_cnt': 0 if proven else 1,
+            }
+            if proven:
+                info['demo_len'] = demo_length
 
-        self._rll.publish(info, rollout)
+            self._rll.publish(info, rollout)
 
 
 class AGG():
