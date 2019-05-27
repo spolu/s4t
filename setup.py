@@ -36,6 +36,8 @@ setup(
             'prooftrace_beam_rollout_inspect=prooftrace.beam_rollout:inspect',
             'prooftrace_beam_agg_run=prooftrace.beam_rollout:agg_run',
             'prooftrace_beam_rll_run=prooftrace.beam_rollout:rll_run',
+            'prooftrace_beam_syn_run=prooftrace.beam_iota:syn_run',
+            'prooftrace_beam_ack_run=prooftrace.beam_iota:ack_run',
 
             'prooftrace_embeds_tsne_extract=prooftrace.embeds.tsne:extract',
             'prooftrace_embeds_viewer=prooftrace.embeds.viewer.viewer:run',
