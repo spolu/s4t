@@ -227,12 +227,14 @@ class RLL():
         for i in range(gamma):
             step_start = time.time()
             done, ptra, proven = beam.step(i == (gamma-1), offset)
-            # Log.out('STEP', {
-            #     'i': i,
-            #     'gamma': gamma,
-            #     'time': "{:.2f}".format(time.time() - step_start),
-            # })
             step_end = time.time()
+            Log.out('STEP', {
+                'i': i,
+                'done': done,
+                'proven': proven,
+                'gamma': gamma,
+                'time': "{:.2f}".format(step_end - step_start),
+            })
             if done:
                 if proven:
                     rollout = Rollout(name, [ptra], [])
