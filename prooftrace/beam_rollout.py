@@ -396,6 +396,13 @@ class AGG():
 ###############################################################################
 
 def rll_run():
+    import cProfile
+    cProfile.runctx(
+        'rll_run_profile()', globals(), locals(), 'rll_run.profile'
+    )
+
+
+def rll_run_profile():
     parser = argparse.ArgumentParser(description="")
 
     parser.add_argument(
@@ -456,13 +463,6 @@ def rll_run():
 ###############################################################################
 
 def agg_run():
-    import cProfile
-    cProfile.runctx(
-        'agg_run_profile()', globals(), locals(), 'agg_run.profile'
-    )
-
-
-def agg_run_profile():
     parser = argparse.ArgumentParser(description="")
 
     parser.add_argument(
