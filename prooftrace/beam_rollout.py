@@ -402,14 +402,14 @@ class AGG():
 # RLL Run.
 ###############################################################################
 
+# def rll_run():
+#     import cProfile
+#     cProfile.runctx(
+#         'rll_run_profile()', globals(), locals(), 'rll_run.profile'
+#     )
+
+
 def rll_run():
-    import cProfile
-    cProfile.runctx(
-        'rll_run_profile()', globals(), locals(), 'rll_run.profile'
-    )
-
-
-def rll_run_profile():
     parser = argparse.ArgumentParser(description="")
 
     parser.add_argument(
