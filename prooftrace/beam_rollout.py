@@ -280,6 +280,8 @@ class AGG():
             config.get('prooftrace_beam_iota_sync_dir'),
         )
 
+        self._executor = concurrent.futures.ThreadPoolExecutor()
+
     def update(
             self,
     ) -> None:
@@ -293,11 +295,10 @@ class AGG():
         rollouts, infos = self._agg.aggregate()
 
         if len(infos) == 0:
-            time.sleep(60)
+            time.sleep(10)
             return
 
-        # merge rollouts and atomic_write to new name
-        for r in rollouts:
+        def merge_write(r):
             rdir = os.path.join(self._rollout_dir, r.name())
 
             rfiles = sorted([
@@ -328,6 +329,9 @@ class AGG():
             if len(rfiles) > 1:
                 for p in rfiles[1:]:
                     os.remove(p)
+
+        # merge rollouts and atomic_write to new name
+        self._executor.map(merge_write, rollouts)
 
         rll_cnt_meter = Meter()
         pos_cnt_meter = Meter()
