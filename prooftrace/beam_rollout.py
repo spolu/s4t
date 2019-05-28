@@ -226,6 +226,10 @@ class RLL():
 
         for i in range(gamma):
             ptra, proven = beam.step(i == (gamma-1), offset)
+            Log.out('STEP', {
+                'i': i,
+                'gamma': gamma,
+            })
             if ptra is not None:
                 if proven:
                     rollout = Rollout(name, [ptra], [])
@@ -450,6 +454,13 @@ def rll_run():
 ###############################################################################
 
 def agg_run():
+    import cProfile
+    cProfile.runctx(
+        'agg_run_profile()', globals(), locals(), 'agg_run.profile'
+    )
+
+
+def agg_run_profile():
     parser = argparse.ArgumentParser(description="")
 
     parser.add_argument(
