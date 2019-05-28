@@ -103,20 +103,19 @@ class TST():
             match = re.search("_(\\d+)_(\\d+)\\.actions$", p)
             if match is None:
                 continue
-            ptra_len = int(match.group(1))
             for gamma in GAMMAS:
-                cases[gamma].append((p, ptra_len))
+                cases[gamma].append(p)
 
         info = {
             'demo_len': 0.0,
         }
         for gamma in GAMMAS:
-            cases[gamma] = random.sample(cases[gamma], self._test_size)
+            cases[gamma] = random.sample(cases[gamma], self._test_gamma_size)
             info['gamma_{}'.format(gamma)] = 0.0
 
         for gamma in GAMMAS:
             for i in range(len(cases)):
-                c = cases[i][0]
+                c = cases[i]
                 with gzip.open(c, 'rb') as f:
                     ground = pickle.load(f)
 

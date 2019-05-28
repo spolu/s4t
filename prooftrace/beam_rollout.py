@@ -330,10 +330,10 @@ class AGG():
                 for p in rfiles[1:]:
                     os.remove(p)
 
-            Log.out("MERGE WRITE", {
-                'name': r.name(),
-                'path': fnl_path,
-            })
+            # Log.out("MERGE WRITE", {
+            #     'name': r.name(),
+            #     'path': fnl_path,
+            # })
 
         # merge rollouts and atomic_write to new name
         self._executor.map(merge_write, rollouts)
