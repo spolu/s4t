@@ -25,7 +25,7 @@
   "prooftrace_beam_beta_width": 8,
   "prooftrace_beam_head_width": 8,
   "prooftrace_beam_width": 8,
-  "prooftrace_beam_step_timeout": 8.0,
+  "prooftrace_beam_step_timeout": 30.0,
 
   "prooftrace_dataset_dir": "./data/prooftrace",
   "prooftrace_dataset_size": "small",
