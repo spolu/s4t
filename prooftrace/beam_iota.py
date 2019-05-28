@@ -212,9 +212,10 @@ class ACK:
                     rgt_loss += self._nll_loss(prd_rights, rights)
                     act_cnt += 1
 
-            act_loss /= act_cnt
-            lft_loss /= act_cnt
-            rgt_loss /= act_cnt
+            if act_cnt > 0:
+                act_loss /= act_cnt
+                lft_loss /= act_cnt
+                rgt_loss /= act_cnt
 
             val_loss = self._mse_loss(prd_values, values)
 
