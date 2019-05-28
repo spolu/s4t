@@ -226,17 +226,22 @@ class RLL():
 
         for i in range(gamma):
             step_start = time.time()
-            ptra, proven = beam.step(i == (gamma-1), offset)
-            Log.out('STEP', {
-                'i': i,
-                'gamma': gamma,
-                'time': "{:.2f}".format(time.time() - step_start),
-            })
-            if ptra is not None:
+            done, ptra, proven = beam.step(i == (gamma-1), offset)
+            # Log.out('STEP', {
+            #     'i': i,
+            #     'gamma': gamma,
+            #     'time': "{:.2f}".format(time.time() - step_start),
+            # })
+            step_end = time.time()
+            if done:
                 if proven:
                     rollout = Rollout(name, [ptra], [])
                 else:
                     rollout = Rollout(name, [], [ptra])
+                break
+            if (step_end - step_start) > \
+                    self._config.get('prooftrace_beam_step_timeout'):
+                rollout = Rollout(name, [], [ptra])
                 break
 
         demo_length = (ptra.len() - (ground.prepare_len() + gamma_len))

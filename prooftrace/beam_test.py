@@ -167,8 +167,13 @@ class TST():
                 ptra = None
 
                 for i in range(gamma):
-                    ptra, proven = beam.step(i == (gamma-1), offset)
-                    if ptra is not None:
+                    step_start = time.time()
+                    done, ptra, proven = beam.step(i == (gamma-1), offset)
+                    step_end = time.time()
+                    if done:
+                        break
+                    if (step_end - step_start) > \
+                            self._config.get('prooftrace_beam_step_timeout'):
                         break
 
                 demo_length = (ptra.len() - (ground.prepare_len() + gamma_len))

@@ -248,7 +248,7 @@ class Beam:
             final: bool = False,
             offset: int = 0,
     ) -> typing.Tuple[
-        typing.Optional[ProofTraceActions], bool,
+        bool, typing.Optional[ProofTraceActions], bool,
     ]:
         idx = []
         act = []
@@ -277,7 +277,7 @@ class Beam:
                     Log.out("DEMONSTRATED", {
                         'theorem': thm.thm_string(True),
                     })
-                    return ptra, True
+                    return True, ptra, True
 
                 candidates.append((ptra, repl, action, p))
                 index, actions, arguments = self.process_ptra(ptra)
@@ -305,7 +305,7 @@ class Beam:
             self._repls = []
             self._heads = []
 
-            return last_ptra, False
+            return True, last_ptra, False
 
         prd_actions, prd_lefts, prd_rights, prd_values = \
             self._model.infer(idx, act, arg)
@@ -341,9 +341,9 @@ class Beam:
         #     })
 
         if final:
-            return self._ptras[0], False
+            return True, self._ptras[0], False
         else:
-            return None, False
+            return False, self._ptra[0], False
 
 
 def search():
@@ -475,6 +475,6 @@ def search():
         beam = Beam(config, model, ptra, repl, target)
 
         for i in range(fixed_gamma * 2):
-            ptra, proved = beam.step(False, offset)
-            if ptra is not None:
+            done, ptra, proved = beam.step(False, offset)
+            if done:
                 break
