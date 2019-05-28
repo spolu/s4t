@@ -231,7 +231,6 @@ class IOTAAgg(IOTABase):
     def __init__(
             self,
             sync_dir: str,
-            # modules: typing.Dict[str, nn.Module],
     ):
         super(IOTAAgg, self).__init__(sync_dir, {})
 
@@ -291,4 +290,55 @@ class IOTARll(IOTAAck):
         rnd = random.randint(0, 10e9)
         self.atomic_save(data, "rollout_{}_{}".format(now, rnd))
 
-        # Log.out("{IOTA} ROLLOUT[NEW]", {'path': p})
+
+class IOTACtl(IOTABase):
+    def __init__(
+            self,
+            sync_dir: str,
+    ):
+        super(IOTACtl, self).__init__(sync_dir, {})
+
+        assert os.path.isdir(self._tmp_dir)
+
+    def aggregate(
+            self,
+    ) -> typing.Tuple[
+        typing.List[
+            typing.Dict[str, typing.Any]
+        ],
+    ]:
+        files = self.list_files()
+        tests = [p for p in files if re.search(".*test_.*", p)]
+
+        infos = []
+
+        for p in tests:
+            with gzip.open(p, 'rb') as f:
+                data = torch.load(f)
+
+            infos.append(data['info'])
+
+            os.remove(p)
+            Log.out("{IOTA} TEST[CONSUME]", {'path': p})
+
+        return infos
+
+
+class IOTATst(IOTAAck):
+    def __init__(
+            self,
+            sync_dir: str,
+            modules: typing.Dict[str, nn.Module],
+    ):
+        super(IOTATst, self).__init__(sync_dir, modules)
+
+    def publish(
+            self,
+            info: typing.Dict[str, typing.Any],
+    ) -> None:
+        data = {}
+        data['info'] = info
+
+        now = datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f")
+        rnd = random.randint(0, 10e9)
+        self.atomic_save(data, "test_{}_{}".format(now, rnd))

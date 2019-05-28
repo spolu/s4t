@@ -213,7 +213,7 @@ class RLL():
         beam = Beam(self._config, model, ptra, repl, target)
 
         Log.out("ROLLOUT START", {
-            'name': ground.name(),
+            'name': name,
             'gamma': gamma,
             'prepare_length': ground.prepare_len(),
             'action_length': ground.action_len(),
@@ -236,7 +236,7 @@ class RLL():
         demo_length = (ptra.len() - (ground.prepare_len() + gamma_len))
 
         Log.out("ROLLOUT END", {
-            'name': ground.name(),
+            'name': name,
             'proven': proven,
             'gamma': gamma,
             'demo_length': demo_length,
@@ -330,10 +330,10 @@ class AGG():
                 for p in rfiles[1:]:
                     os.remove(p)
 
-            Log.out("MERGE WRITE", {
-                'name': r.name(),
-                'path': fnl_path,
-            })
+            # Log.out("MERGE WRITE", {
+            #     'name': r.name(),
+            #     'path': fnl_path,
+            # })
 
         # merge rollouts and atomic_write to new name
         self._executor.map(merge_write, rollouts)
@@ -384,6 +384,10 @@ class AGG():
 
         self._epoch += 1
 
+
+###############################################################################
+# RLL Run.
+###############################################################################
 
 def rll_run():
     parser = argparse.ArgumentParser(description="")
@@ -440,6 +444,10 @@ def rll_run():
     while True:
         rll.run_once()
 
+
+###############################################################################
+# AGG Run.
+###############################################################################
 
 def agg_run():
     parser = argparse.ArgumentParser(description="")
