@@ -225,10 +225,12 @@ class RLL():
         ptra = None
 
         for i in range(gamma):
+            step_start = time.time()
             ptra, proven = beam.step(i == (gamma-1), offset)
             Log.out('STEP', {
                 'i': i,
                 'gamma': gamma,
+                'time': "{:.2f}".format(time.time() - step_start),
             })
             if ptra is not None:
                 if proven:
