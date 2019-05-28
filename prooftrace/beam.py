@@ -343,7 +343,7 @@ class Beam:
         if final:
             return True, self._ptras[0], False
         else:
-            return False, self._ptra[0], False
+            return False, self._ptras[0], False
 
 
 def search():
