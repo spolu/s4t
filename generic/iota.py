@@ -1,3 +1,4 @@
+import concurrent.futures
 import datetime
 import gzip
 import os
@@ -236,6 +237,8 @@ class IOTAAgg(IOTABase):
 
         assert os.path.isdir(self._tmp_dir)
 
+        self._executor = concurrent.futures.ThreadPoolExecutor()
+
     def aggregate(
             self,
     ) -> typing.Tuple[
@@ -250,21 +253,24 @@ class IOTAAgg(IOTABase):
         infos = []
         merged = {}
 
-        for p in rollouts:
+        def extract(p):
             with gzip.open(p, 'rb') as f:
                 data = torch.load(f)
 
-            r = data['rollout']
+            os.remove(p)
+            # Log.out("{IOTA} ROLLOUT[CONSUME]", {'path': p})
 
+            return (data['rollout'], data['info'])
+
+        extract = self._executor.map(extract, rollouts)
+
+        for r, info in rollouts:
             if r.name() in merged:
                 merged[r.name()].merge(r)
             else:
                 merged[r.name()] = r
 
-            infos.append(data['info'])
-
-            os.remove(p)
-            # Log.out("{IOTA} ROLLOUT[CONSUME]", {'path': p})
+            infos.append(info)
 
         return merged.values(), infos
 
