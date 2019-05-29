@@ -262,9 +262,9 @@ class IOTAAgg(IOTABase):
 
             return (data['rollout'], data['info'])
 
-        extract = self._executor.map(extract, rollouts)
+        results = self._executor.map(extract, rollouts)
 
-        for r, info in rollouts:
+        for r, info in results:
             if r.name() in merged:
                 merged[r.name()].merge(r)
             else:
