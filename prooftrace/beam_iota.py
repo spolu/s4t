@@ -199,9 +199,9 @@ class ACK:
 
             assert len(trh) == len(val)
 
-            act_loss = torch.tensor(0.0).to(self.device)
-            lft_loss = torch.tensor(0.0).to(self.device)
-            rgt_loss = torch.tensor(0.0).to(self.device)
+            act_loss = torch.tensor(0.0).to(self._device)
+            lft_loss = torch.tensor(0.0).to(self._device)
+            rgt_loss = torch.tensor(0.0).to(self._device)
 
             act_cnt = 0
 
