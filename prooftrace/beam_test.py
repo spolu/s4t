@@ -114,8 +114,8 @@ class TST():
             info['gamma_{}'.format(gamma)] = 0.0
 
         for gamma in GAMMAS:
-            for i in range(len(cases)):
-                c = cases[i]
+            for i in range(len(cases[gamma])):
+                c = cases[gamma][i]
                 with gzip.open(c, 'rb') as f:
                     ground = pickle.load(f)
 
