@@ -256,7 +256,7 @@ class CTL():
         if self._tb_writer is not None:
             if demo_len_meter.avg is not None:
                 self._tb_writer.add_scalar(
-                    "prooftrace_beam_agg/demo_len",
+                    "prooftrace_beam_ctl/demo_len",
                     demo_len_meter.avg, self._epoch,
                 )
             for gamma in GAMMAS:
