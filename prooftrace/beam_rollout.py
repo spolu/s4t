@@ -343,13 +343,14 @@ class AGG():
                 for p in rfiles[1:]:
                     os.remove(p)
 
-            Log.out("MERGE WRITE", {
-                'name': r.name(),
-                'path': fnl_path,
-            })
+            return r.name(), fnl_path
 
         # merge rollouts and atomic_write to new name
-        self._executor.map(merge_write, rollouts)
+        for p, name in self._executor.map(merge_write, rollouts):
+            Log.out("MERGE WRITE", {
+                'name': name,
+                'path': p,
+            })
 
         rll_cnt_meter = Meter()
         pos_cnt_meter = Meter()
