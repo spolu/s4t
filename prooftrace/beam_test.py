@@ -158,7 +158,7 @@ class TST():
                     'name': ground.name(),
                     'prepare_length': ground.prepare_len(),
                     'length': ground.action_len(),
-                    'summary': ground.summary(offset),
+                    # 'summary': ground.summary(offset),
                 })
 
                 beam = Beam(self._config, model, ptra, repl, target)
