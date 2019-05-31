@@ -182,7 +182,7 @@ class Head:
                         continue
 
                     candidates.append((
-                        # self._value *  # PROB
+                        self._value *  # PROB
                         top_actions[0][ia].item() *
                         top_lefts[0][il].item() *
                         top_rights[0][ir].item(),
@@ -219,8 +219,8 @@ class Beam:
                 prd_actions[0].cpu(),
                 prd_lefts[0].cpu(),
                 prd_rights[0].cpu(),
-                prd_values[0].cpu().item(),  # VALUE
-                # 1.0,  # PROB
+                # prd_values[0].cpu().item(),  # VALUE
+                1.0,  # PROB
             )
         ]
 
@@ -319,11 +319,11 @@ class Beam:
                     prd_actions[i].cpu(),
                     prd_lefts[i].cpu(),
                     prd_rights[i].cpu(),
-                    # candidates[i][3],  # PROB
-                    prd_values[i].cpu().item(),  # VALUE
+                    candidates[i][3],  # PROB
+                    # prd_values[i].cpu().item(),  # VALUE
                 ),
-                # candidates[i][3],  # PROB
-                prd_values[i].cpu().item(),  # VALUE
+                candidates[i][3],  # PROB
+                # prd_values[i].cpu().item(),  # VALUE
             ))
 
         next_heads = sorted(
@@ -446,7 +446,7 @@ def search():
         target = repl.prepare(ptra)
 
         offset = 0
-        fixed_gamma = 8
+        fixed_gamma = 4
         if fixed_gamma > 0:
             gamma_len = max(ground.action_len() - fixed_gamma, 0)
             offset = ground.prepare_len() + gamma_len
@@ -474,7 +474,7 @@ def search():
 
         beam = Beam(config, model, ptra, repl, target)
 
-        for i in range(fixed_gamma * 2):
+        for i in range(int(fixed_gamma * 1.5)):
             done, ptra, proved = beam.step(False, offset)
             if done:
                 break
