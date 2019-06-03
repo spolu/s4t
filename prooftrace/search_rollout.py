@@ -111,7 +111,7 @@ class RLL():
         }
 
         self._rollout_dir = os.path.join(
-            os.path.expanduser(config.get('prooftrace_beam_rollout_dir')),
+            os.path.expanduser(config.get('prooftrace_search_rollout_dir')),
             config.get('prooftrace_dataset_size'),
         )
         with gzip.open(
@@ -123,7 +123,7 @@ class RLL():
             self._tokenizer = pickle.load(f)
 
         self._rll = IOTARll(
-            config.get('prooftrace_beam_iota_sync_dir'),
+            config.get('prooftrace_search_iota_sync_dir'),
             self._modules,
         )
 
@@ -242,7 +242,7 @@ class RLL():
                     rollout = Rollout(name, [], [ptra])
                 break
             if (step_end - step_start) > \
-                    self._config.get('prooftrace_beam_step_timeout'):
+                    self._config.get('prooftrace_search_step_timeout'):
                 rollout = Rollout(name, [], [ptra])
                 break
 
@@ -275,7 +275,7 @@ class AGG():
         self._config = config
 
         self._rollout_dir = os.path.join(
-            os.path.expanduser(config.get('prooftrace_beam_rollout_dir')),
+            os.path.expanduser(config.get('prooftrace_search_rollout_dir')),
             config.get('prooftrace_dataset_size'),
         )
 
@@ -290,7 +290,7 @@ class AGG():
         Log.out("AGG Initializing", {})
 
         self._agg = IOTAAgg(
-            config.get('prooftrace_beam_iota_sync_dir'),
+            config.get('prooftrace_search_iota_sync_dir'),
         )
 
         self._executor = concurrent.futures.ThreadPoolExecutor()
@@ -377,22 +377,22 @@ class AGG():
         if self._tb_writer is not None:
             if rll_cnt_meter.avg is not None:
                 self._tb_writer.add_scalar(
-                    "prooftrace_beam_agg/rll_cnt",
+                    "prooftrace_search_agg/rll_cnt",
                     rll_cnt_meter.sum, self._epoch,
                 )
             if pos_cnt_meter.avg is not None:
                 self._tb_writer.add_scalar(
-                    "prooftrace_beam_agg/pos_cnt",
+                    "prooftrace_search_agg/pos_cnt",
                     pos_cnt_meter.avg, self._epoch,
                 )
             if neg_cnt_meter.avg is not None:
                 self._tb_writer.add_scalar(
-                    "prooftrace_beam_agg/neg_cnt",
+                    "prooftrace_search_agg/neg_cnt",
                     neg_cnt_meter.avg, self._epoch,
                 )
             if demo_len_meter.avg is not None:
                 self._tb_writer.add_scalar(
-                    "prooftrace_beam_agg/demo_len",
+                    "prooftrace_search_agg/demo_len",
                     demo_len_meter.avg, self._epoch,
                 )
 
@@ -448,12 +448,12 @@ def rll_run():
         )
     if args.sync_dir is not None:
         config.override(
-            'prooftrace_beam_iota_sync_dir',
+            'prooftrace_search_iota_sync_dir',
             os.path.expanduser(args.sync_dir),
         )
     if args.rollout_dir is not None:
         config.override(
-            'prooftrace_beam_rollout_dir',
+            'prooftrace_search_rollout_dir',
             os.path.expanduser(args.rollout_dir),
         )
 
@@ -519,12 +519,12 @@ def agg_run():
         )
     if args.sync_dir is not None:
         config.override(
-            'prooftrace_beam_iota_sync_dir',
+            'prooftrace_search_iota_sync_dir',
             os.path.expanduser(args.sync_dir),
         )
     if args.rollout_dir is not None:
         config.override(
-            'prooftrace_beam_rollout_dir',
+            'prooftrace_search_rollout_dir',
             os.path.expanduser(args.rollout_dir),
         )
 
@@ -558,7 +558,7 @@ def translate(
     rollout = Rollout(ptra.name(), [ptra], [])
 
     rollout_dir = os.path.join(
-        os.path.expanduser(config.get('prooftrace_beam_rollout_dir')),
+        os.path.expanduser(config.get('prooftrace_search_rollout_dir')),
         config.get('prooftrace_dataset_size'),
     )
 
@@ -606,7 +606,7 @@ def bootstrap():
 
     if args.rollout_dir is not None:
         config.override(
-            'prooftrace_beam_rollout_dir',
+            'prooftrace_search_rollout_dir',
             os.path.expanduser(args.rollout_dir),
         )
     if args.dataset_size is not None:
@@ -683,7 +683,7 @@ def inspect():
 
     if args.rollout_dir is not None:
         config.override(
-            'prooftrace_beam_rollout_dir',
+            'prooftrace_search_rollout_dir',
             os.path.expanduser(args.rollout_dir),
         )
     if args.dataset_size is not None:
@@ -693,7 +693,7 @@ def inspect():
         )
 
     rollout_dir = os.path.join(
-        os.path.expanduser(config.get('prooftrace_beam_rollout_dir')),
+        os.path.expanduser(config.get('prooftrace_search_rollout_dir')),
         config.get('prooftrace_dataset_size'),
     )
 

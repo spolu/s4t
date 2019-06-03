@@ -142,9 +142,14 @@ def search():
             'summary': ground.summary(offset),
         })
 
-        beam = Beam(config, model, ptra, repl, target)
+        search = None
+        if config.get('prooftrace_search_type') == 'beam':
+            search = Beam(config, model, ptra, repl, target)
+        if config.get('prooftrace_search_type') == 'mcts':
+            search = None
+        assert search is not None
 
         for i in range(int(fixed_gamma * 1.5)):
-            done, ptra, proved = beam.step(False, offset)
+            done, ptra, proved = search.step(False, offset)
             if done:
                 break

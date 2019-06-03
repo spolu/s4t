@@ -107,8 +107,8 @@ class ACK:
     ):
         self._config = config
 
-        self._action_coeff = config.get('prooftrace_beam_action_coeff')
-        self._value_coeff = config.get('prooftrace_beam_value_coeff')
+        self._action_coeff = config.get('prooftrace_search_action_coeff')
+        self._value_coeff = config.get('prooftrace_search_value_coeff')
 
         self._device = torch.device(config.get('device'))
 
@@ -120,7 +120,7 @@ class ACK:
         }
 
         self._ack = IOTAAck(
-            config.get('prooftrace_beam_iota_sync_dir'),
+            config.get('prooftrace_search_iota_sync_dir'),
             self._modules,
         )
 
@@ -129,13 +129,13 @@ class ACK:
 
         self._train_loader = torch.utils.data.DataLoader(
             train_dataset,
-            batch_size=self._config.get('prooftrace_beam_batch_size'),
+            batch_size=self._config.get('prooftrace_search_batch_size'),
             shuffle=True,
             collate_fn=lm_collate,
         )
 
         Log.out('ACK initialization', {
-            "batch_size": self._config.get('prooftrace_beam_batch_size'),
+            "batch_size": self._config.get('prooftrace_search_batch_size'),
         })
 
         self._train_batch = 0
@@ -146,17 +146,17 @@ class ACK:
     ) -> None:
         self._config = config
 
-        coeff = self._config.get('prooftrace_beam_action_coeff')
+        coeff = self._config.get('prooftrace_search_action_coeff')
         if coeff != self._action_coeff:
             self._action_coeff = coeff
             Log.out("Updated", {
-                "prooftrace_beam_action_coeff": coeff,
+                "prooftrace_search_action_coeff": coeff,
             })
-        coeff = self._config.get('prooftrace_beam_value_coeff')
+        coeff = self._config.get('prooftrace_search_value_coeff')
         if coeff != self._value_coeff:
             self._value_coeff = coeff
             Log.out("Updated", {
-                "prooftrace_beam_value_coeff": coeff,
+                "prooftrace_search_value_coeff": coeff,
             })
 
     def run_once(
@@ -256,9 +256,9 @@ class SYN:
     ):
         self._config = config
 
-        self._learning_rate = config.get('prooftrace_beam_learning_rate')
+        self._learning_rate = config.get('prooftrace_search_learning_rate')
         self._min_update_count = \
-            config.get('prooftrace_beam_iota_min_update_count')
+            config.get('prooftrace_search_iota_min_update_count')
         self._device = torch.device(config.get('device'))
 
         self._save_dir = config.get('prooftrace_save_dir')
@@ -289,7 +289,7 @@ class SYN:
         )
 
         self._syn = IOTASyn(
-            config.get('prooftrace_beam_iota_sync_dir'),
+            config.get('prooftrace_search_iota_sync_dir'),
             self._modules,
         )
 
@@ -390,33 +390,33 @@ class SYN:
     ) -> None:
         update = self._config.update()
         if update:
-            if 'prooftrace_beam_learning_rate' in update:
-                lr = self._config.get('prooftrace_beam_learning_rate')
+            if 'prooftrace_search_learning_rate' in update:
+                lr = self._config.get('prooftrace_search_learning_rate')
                 if lr != self._learning_rate:
                     self._learning_rate = lr
                     for group in self._optimizer.param_groups:
                         group['lr'] = lr
                     Log.out("Updated", {
-                        "prooftrace_beam_learning_rate": lr,
+                        "prooftrace_search_learning_rate": lr,
                     })
-            if 'prooftrace_beam_iota_min_update_count' in update:
-                cnt = self._config.get('prooftrace_beam_iota_min_update_count')
+            if 'prooftrace_search_iota_min_update_count' in update:
+                cnt = self._config.get('prooftrace_search_iota_min_update_count')
                 if cnt != self._min_update_count:
                     self._min_update_count = cnt
                     Log.out("Updated", {
-                        "prooftrace_beam_iota_min_update_count": cnt,
+                        "prooftrace_search_iota_min_update_count": cnt,
                     })
 
             if self._tb_writer is not None:
                 for k in update:
                     if k in [
-                            'prooftrace_beam_learning_rate',
-                            'prooftrace_beam_iota_min_update_count',
-                            'prooftrace_beam_action_coeff',
-                            'prooftrace_beam_value_coeff',
+                            'prooftrace_search_learning_rate',
+                            'prooftrace_search_iota_min_update_count',
+                            'prooftrace_search_action_coeff',
+                            'prooftrace_search_value_coeff',
                     ]:
                         self._tb_writer.add_scalar(
-                            "prooftrace_beam_train_run/{}".format(k),
+                            "prooftrace_search_train_run/{}".format(k),
                             update[k], self._epoch,
                         )
 
@@ -462,26 +462,26 @@ class SYN:
         if self._tb_writer is not None:
             if act_loss_meter.avg is not None:
                 self._tb_writer.add_scalar(
-                    "prooftrace_beam_train/act_loss",
+                    "prooftrace_search_train/act_loss",
                     act_loss_meter.avg, self._epoch,
                 )
             if lft_loss_meter.avg is not None:
                 self._tb_writer.add_scalar(
-                    "prooftrace_beam_train/lft_loss",
+                    "prooftrace_search_train/lft_loss",
                     lft_loss_meter.avg, self._epoch,
                 )
             if rgt_loss_meter.avg is not None:
                 self._tb_writer.add_scalar(
-                    "prooftrace_beam_train/rgt_loss",
+                    "prooftrace_search_train/rgt_loss",
                     rgt_loss_meter.avg, self._epoch,
                 )
             if val_loss_meter.avg is not None:
                 self._tb_writer.add_scalar(
-                    "prooftrace_beam_train/val_loss",
+                    "prooftrace_search_train/val_loss",
                     val_loss_meter.avg, self._epoch,
                 )
             self._tb_writer.add_scalar(
-                "prooftrace_beam_train/update_count",
+                "prooftrace_search_train/update_count",
                 len(infos), self._epoch,
             )
 
@@ -529,12 +529,12 @@ def ack_run():
         )
     if args.sync_dir is not None:
         config.override(
-            'prooftrace_beam_iota_sync_dir',
+            'prooftrace_search_iota_sync_dir',
             os.path.expanduser(args.sync_dir),
         )
     if args.rollout_dir is not None:
         config.override(
-            'prooftrace_beam_rollout_dir',
+            'prooftrace_search_rollout_dir',
             os.path.expanduser(args.rollout_dir),
         )
 
@@ -543,7 +543,7 @@ def ack_run():
 
     train_dataset = ProofTraceRLLDataset(
         os.path.join(
-            os.path.expanduser(config.get('prooftrace_beam_rollout_dir')),
+            os.path.expanduser(config.get('prooftrace_search_rollout_dir')),
             config.get('prooftrace_dataset_size'),
         ),
         config.get('prooftrace_sequence_length'),
@@ -594,7 +594,7 @@ def syn_run():
         config.override('device', args.device)
     if args.sync_dir is not None:
         config.override(
-            'prooftrace_beam_iota_sync_dir',
+            'prooftrace_search_iota_sync_dir',
             os.path.expanduser(args.sync_dir),
         )
 

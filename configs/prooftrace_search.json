@@ -17,24 +17,25 @@
   "prooftrace_lstm_hidden_size": 256,
   "prooftrace_lstm_layer_count": 0,
 
-  "prooftrace_beam_batch_size": 16,
-  "prooftrace_beam_learning_rate": 0.00005,
-  "prooftrace_beam_value_coeff": 2.0,
-  "prooftrace_beam_action_coeff": 2.0,
+  "prooftrace_search_batch_size": 16,
+  "prooftrace_search_learning_rate": 0.00005,
+  "prooftrace_search_value_coeff": 2.0,
+  "prooftrace_search_action_coeff": 2.0,
 
-  "prooftrace_beam_beta_width": 8,
-  "prooftrace_beam_head_width": 8,
-  "prooftrace_beam_width": 8,
-  "prooftrace_beam_step_timeout": 20.0,
+  "prooftrace_search_iota_sync_dir": null,
+  "prooftrace_search_rollout_dir": null,
+  "prooftrace_search_iota_min_update_count": 32,
+  "prooftrace_search_step_timeout": 20.0,
+  "prooftrace_search_test_gamma_size": 16,
+
+  "prooftrace_search_type": "beam",
+
+  "prooftrace_search_beam_beta_width": 8,
+  "prooftrace_search_beam_head_width": 8,
+  "prooftrace_search_beam_width": 8,
 
   "prooftrace_dataset_dir": "./data/prooftrace",
   "prooftrace_dataset_size": "small",
-
-  "prooftrace_beam_iota_sync_dir": null,
-  "prooftrace_beam_rollout_dir": null,
-  "prooftrace_beam_iota_min_update_count": 32,
-
-  "prooftrace_beam_test_gamma_size": 16,
 
   "tensorboard_log_dir": null
 }

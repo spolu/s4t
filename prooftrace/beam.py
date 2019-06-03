@@ -144,8 +144,8 @@ class Beam(Search):
             for p, action in self._heads[i].apply(
                 self._ptras[i],
                 self._repls[i],
-                self._config.get('prooftrace_beam_beta_width'),
-                self._config.get('prooftrace_beam_head_width'),
+                self._config.get('prooftrace_search_beam_beta_width'),
+                self._config.get('prooftrace_search_beam_head_width'),
             ):
                 repl = self._repls[i].copy()
                 ptra = self._ptras[i].copy()
@@ -212,7 +212,7 @@ class Beam(Search):
 
         next_heads = sorted(
             next_heads, key=lambda v: v[3], reverse=True
-        )[0:self._config.get('prooftrace_beam_width')]
+        )[0:self._config.get('prooftrace_search_beam_width')]
 
         self._ptras = [v[0] for v in next_heads]
         self._repls = [v[1] for v in next_heads]
