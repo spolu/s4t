@@ -2,12 +2,6 @@
   "device": "cuda:0",
   "config_update_path": "configs/run.json",
 
-  "distributed_training": false,
-  "distributed_rank": 0,
-  "distributed_world_size": 1,
-  "distributed_backend": "nccl",
-  "distributed_init_method": "env://",
-
   "prooftrace_load_dir": null,
   "prooftrace_save_dir": null,
 
@@ -23,21 +17,27 @@
   "prooftrace_lstm_hidden_size": 256,
   "prooftrace_lstm_layer_count": 0,
 
-  "prooftrace_lm_batch_size": 8,
-  "prooftrace_lm_accumulation_step_count": 1,
-  "prooftrace_lm_learning_rate": 0.00005,
-  "prooftrace_lm_value_coeff": 1.0,
-  "prooftrace_lm_action_coeff": 2.0,
+  "prooftrace_search_batch_size": 16,
+  "prooftrace_search_learning_rate": 0.00005,
+  "prooftrace_search_value_coeff": 2.0,
+  "prooftrace_search_action_coeff": 2.0,
 
-  "prooftrace_search_beta_width": 8,
-  "prooftrace_search_head_width": 8,
-  "prooftrace_search_width": 8,
+  "prooftrace_search_iota_sync_dir": null,
+  "prooftrace_search_rollout_dir": null,
+  "prooftrace_search_iota_min_update_count": 32,
+  "prooftrace_search_step_timeout": 20.0,
+  "prooftrace_search_test_gamma_size": 16,
+
+  "prooftrace_search_type": "mcts",
+
+  "prooftrace_search_beam_beta_width": 8,
+  "prooftrace_search_beam_head_width": 8,
+  "prooftrace_search_beam_width": 8,
+
+  "prooftrace_search_mcts_beta_width": 8,
 
   "prooftrace_dataset_dir": "./data/prooftrace",
   "prooftrace_dataset_size": "small",
-
-  "prooftrace_lm_iota_sync_dir": null,
-  "prooftrace_lm_iota_min_update_count": 12,
 
   "tensorboard_log_dir": null
 }

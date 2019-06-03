@@ -60,11 +60,11 @@ class TST():
             self._tokenizer = pickle.load(f)
 
         self._tst = IOTATst(
-            config.get('prooftrace_beam_iota_sync_dir'),
+            config.get('prooftrace_search_iota_sync_dir'),
             self._modules,
         )
 
-        self._test_gamma_size = config.get('prooftrace_beam_test_gamma_size')
+        self._test_gamma_size = config.get('prooftrace_search_test_gamma_size')
 
         Log.out('TST initialization', {})
 
@@ -173,7 +173,7 @@ class TST():
                     if done:
                         break
                     if (step_end - step_start) > \
-                            self._config.get('prooftrace_beam_step_timeout'):
+                            self._config.get('prooftrace_search_step_timeout'):
                         break
 
                 demo_length = (ptra.len() - (ground.prepare_len() + gamma_len))
@@ -212,7 +212,7 @@ class CTL():
         Log.out("CTL Initializing", {})
 
         self._ctl = IOTACtl(
-            config.get('prooftrace_beam_iota_sync_dir'),
+            config.get('prooftrace_search_iota_sync_dir'),
         )
 
     def update(
@@ -256,14 +256,14 @@ class CTL():
         if self._tb_writer is not None:
             if demo_len_meter.avg is not None:
                 self._tb_writer.add_scalar(
-                    "prooftrace_beam_ctl/demo_len",
+                    "prooftrace_search_ctl/demo_len",
                     demo_len_meter.avg, self._epoch,
                 )
             for gamma in GAMMAS:
                 key = 'gamma_{}'.format(gamma)
                 if gamma_meters[key].avg is not None:
                     self._tb_writer.add_scalar(
-                        "prooftrace_beam_ctl/{}".format(key),
+                        "prooftrace_search_ctl/{}".format(key),
                         gamma_meters[key].avg, self._epoch,
                     )
 
@@ -308,7 +308,7 @@ def tst_run():
         )
     if args.sync_dir is not None:
         config.override(
-            'prooftrace_beam_iota_sync_dir',
+            'prooftrace_search_iota_sync_dir',
             os.path.expanduser(args.sync_dir),
         )
 
@@ -363,7 +363,7 @@ def ctl_run():
         )
     if args.sync_dir is not None:
         config.override(
-            'prooftrace_beam_iota_sync_dir',
+            'prooftrace_search_iota_sync_dir',
             os.path.expanduser(args.sync_dir),
         )
 
