@@ -1,129 +1,16 @@
-import argparse
-import datetime
-import gzip
-import os
-import pickle
-import random
-import re
 import torch
 import typing
 
 from prooftrace.prooftrace import \
-    ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, INV_PREPARE_TOKENS, \
+    ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, \
     Action, ProofTraceActions
-
-from prooftrace.models.embedder import E
-from prooftrace.models.heads import PH, VH
-from prooftrace.models.torso import T
 
 from prooftrace.repl.repl import REPL
 from prooftrace.repl.fusion import Thm
+from prooftrace.search_base import Search, SearchModel
 
 from utils.config import Config
 from utils.log import Log
-
-
-class BeamModel:
-    def __init__(
-            self,
-            config: Config,
-            modules: typing.Dict[str, torch.nn.Module] = None,
-    ):
-        self._config = config
-
-        self._device = torch.device(config.get('device'))
-
-        if modules is not None:
-            assert 'E' in modules
-            assert 'T' in modules
-            assert 'PH' in modules
-            assert 'VH' in modules
-
-            self._modules = modules
-        else:
-            self._modules = {
-                'E': E(self._config).to(self._device),
-                'T': T(self._config).to(self._device),
-                'PH': PH(self._config).to(self._device),
-                'VH': VH(self._config).to(self._device),
-            }
-
-    def load(
-            self,
-    ):
-        load_dir = self._config.get('prooftrace_load_dir')
-
-        if load_dir:
-            Log.out(
-                "Loading prooftrace LM", {
-                    'load_dir': load_dir,
-                })
-            if os.path.isfile(load_dir + "/model_E.pt"):
-                self._modules['E'].load_state_dict(
-                    torch.load(
-                        load_dir + "/model_E.pt",
-                        map_location=self._device,
-                    ),
-                )
-            if os.path.isfile(load_dir + "/model_T.pt"):
-                self._modules['T'].load_state_dict(
-                    torch.load(
-                        load_dir + "/model_T.pt",
-                        map_location=self._device,
-                    ),
-                )
-            if os.path.isfile(load_dir + "/model_PH.pt"):
-                self._modules['PH'].load_state_dict(
-                    torch.load(
-                        load_dir + "/model_PH.pt",
-                        map_location=self._device,
-                    ),
-                )
-            if os.path.isfile(load_dir + "/model_VH.pt"):
-                self._modules['VH'].load_state_dict(
-                    torch.load(
-                        load_dir + "/model_VH.pt",
-                        map_location=self._device,
-                    ),
-                )
-
-        self._modules['E'].eval()
-        self._modules['T'].eval()
-        self._modules['PH'].eval()
-        self._modules['VH'].eval()
-
-        return self
-
-    def infer(
-            self,
-            idx: typing.List[typing.List[int]],
-            act: typing.List[typing.List[Action]],
-            arg: typing.List[typing.List[Action]],
-    ) -> typing.Tuple[
-        torch.Tensor, torch.Tensor, torch.Tensor,
-        torch.Tensor,
-    ]:
-        with torch.no_grad():
-            action_embeds = self._modules['E'](act)
-            argument_embeds = self._modules['E'](arg)
-
-            hiddens = self._modules['T'](action_embeds, argument_embeds)
-
-            heads = torch.cat([
-                hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
-            ], dim=0)
-            targets = torch.cat([
-                action_embeds[i][0].unsqueeze(0) for i in range(len(idx))
-            ], dim=0)
-
-            prd_actions, prd_lefts, prd_rights = \
-                self._modules['PH'](heads, hiddens, targets)
-            prd_values = self._modules['VH'](heads, targets)
-
-            return (
-                prd_actions, prd_lefts, prd_rights,
-                prd_values,
-            )
 
 
 class Head:
@@ -194,19 +81,16 @@ class Head:
         )[:head_width]
 
 
-class Beam:
+class Beam(Search):
     def __init__(
             self,
             config: Config,
-            model: BeamModel,
+            model: SearchModel,
             ptra: ProofTraceActions,
             repl: REPL,
             target: Thm,
     ) -> None:
-        self._config = config
-
-        self._model = model
-        self._target = target
+        super(Beam, self).__init__(config, model, ptra, repl, target)
 
         index, actions, arguments = self.process_ptra(ptra)
         prd_actions, prd_lefts, prd_rights, prd_values = \
@@ -344,137 +228,3 @@ class Beam:
             return True, self._ptras[0], False
         else:
             return False, self._ptras[0], False
-
-
-def search():
-    parser = argparse.ArgumentParser(description="")
-
-    parser.add_argument(
-        'config_path',
-        type=str, help="path to the config file",
-    )
-    parser.add_argument(
-        '--dataset_size',
-        type=str, help="config override",
-    )
-    parser.add_argument(
-        '--load_dir',
-        type=str, help="config override",
-    )
-
-    parser.add_argument(
-        '--device',
-        type=str, help="config override",
-    )
-
-    args = parser.parse_args()
-
-    config = Config.from_file(args.config_path)
-
-    if args.device is not None:
-        config.override('device', args.device)
-
-    if args.dataset_size is not None:
-        config.override(
-            'prooftrace_dataset_size',
-            args.dataset_size,
-        )
-    if args.load_dir is not None:
-        config.override(
-            'prooftrace_load_dir',
-            os.path.expanduser(args.load_dir),
-        )
-
-    dataset_dir = os.path.join(
-        os.path.expanduser(config.get('prooftrace_dataset_dir')),
-        config.get('prooftrace_dataset_size'),
-        'test_traces'
-    )
-
-    assert os.path.isdir(dataset_dir)
-    files = [
-        os.path.join(dataset_dir, f)
-        for f in os.listdir(dataset_dir)
-        if os.path.isfile(os.path.join(dataset_dir, f))
-    ]
-    cases = []
-
-    with gzip.open(
-            os.path.join(
-                os.path.expanduser(config.get('prooftrace_dataset_dir')),
-                config.get('prooftrace_dataset_size'),
-                'traces.tokenizer',
-            ), 'rb') as f:
-        tokenizer = pickle.load(f)
-
-    for p in files:
-        match = re.search("_(\\d+)_(\\d+)\\.actions$", p)
-        if match is None:
-            continue
-        ptra_len = int(match.group(1))
-        cases.append((p, ptra_len))
-
-    Log.out(
-        "Loaded ProofTraceActions", {
-            'cases': len(cases),
-        })
-
-    model = BeamModel(config).load()
-
-    cases = sorted(cases, key=lambda c: c[1])
-
-    for i in range(len(cases)):
-        c = cases[i][0]
-        with gzip.open(c, 'rb') as f:
-            ground = pickle.load(f)
-
-        ptra = ProofTraceActions(
-            'BEAM-{}-{}'.format(
-                datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f"),
-                random.randint(0, 9999),
-            ),
-            [
-                ground.actions()[i] for i in range(ground.len())
-                if ground.actions()[i].value in INV_PREPARE_TOKENS
-            ],
-            [
-                ground.arguments()[i] for i in range(ground.len())
-                if ground.actions()[i].value in INV_PREPARE_TOKENS
-            ],
-        )
-        repl = REPL(tokenizer)
-        target = repl.prepare(ptra)
-
-        offset = 0
-        fixed_gamma = 4
-        if fixed_gamma > 0:
-            gamma_len = max(ground.action_len() - fixed_gamma, 0)
-            offset = ground.prepare_len() + gamma_len
-
-            for i in range(gamma_len):
-                assert ground.prepare_len() + i < ground.len() - 1
-                pos = ground.prepare_len() + i
-
-                action = ground.actions()[pos]
-                argument = ground.arguments()[pos]
-
-                thm = repl.apply(action)
-
-                action._index = thm.index()
-                argument._index = thm.index()
-
-                ptra.append(action, argument)
-
-        Log.out("TARGET", {
-            'name': ground.name(),
-            'prepare_length': ground.prepare_len(),
-            'length': ground.action_len(),
-            'summary': ground.summary(offset),
-        })
-
-        beam = Beam(config, model, ptra, repl, target)
-
-        for i in range(int(fixed_gamma * 1.5)):
-            done, ptra, proved = beam.step(False, offset)
-            if done:
-                break
