@@ -160,6 +160,7 @@ class Beam(Search):
                 if self._target.thm_string(True) == thm.thm_string(True):
                     Log.out("DEMONSTRATED", {
                         'theorem': thm.thm_string(True),
+                        'summary': ptra.summary(offset),
                     })
                     return True, ptra, True
 
