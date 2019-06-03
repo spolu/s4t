@@ -11,6 +11,7 @@ from prooftrace.prooftrace import ProofTraceActions, INV_PREPARE_TOKENS
 from prooftrace.repl.repl import REPL
 from prooftrace.search_base import SearchModel
 from prooftrace.beam import Beam
+from prooftrace.mcts import MCTS
 
 from utils.config import Config
 from utils.log import Log
@@ -146,10 +147,10 @@ def search():
         if config.get('prooftrace_search_type') == 'beam':
             search = Beam(config, model, ptra, repl, target)
         if config.get('prooftrace_search_type') == 'mcts':
-            search = None
+            search = MCTS(config, model, ptra, repl, target)
         assert search is not None
 
-        for i in range(int(fixed_gamma * 1.5)):
+        for i in range(int(128)):
             done, ptra, proved = search.step(False, offset)
             if done:
                 break

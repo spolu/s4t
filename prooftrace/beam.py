@@ -92,7 +92,7 @@ class Beam(Search):
     ) -> None:
         super(Beam, self).__init__(config, model, ptra, repl, target)
 
-        index, actions, arguments = self.process_ptra(ptra)
+        index, actions, arguments = self.preprocess_ptra(ptra)
         prd_actions, prd_lefts, prd_rights, prd_values = \
             self._model.infer([index], [actions], [arguments])
 
@@ -108,7 +108,7 @@ class Beam(Search):
             )
         ]
 
-    def process_ptra(
+    def preprocess_ptra(
             self,
             ptra: ProofTraceActions,
     ) -> typing.Tuple[
@@ -164,7 +164,7 @@ class Beam(Search):
                     return True, ptra, True
 
                 candidates.append((ptra, repl, action, p))
-                index, actions, arguments = self.process_ptra(ptra)
+                index, actions, arguments = self.preprocess_ptra(ptra)
 
                 idx.append(index)
                 act.append(actions)
