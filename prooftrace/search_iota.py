@@ -172,7 +172,7 @@ class ACK:
             rgt_loss = torch.tensor(0.0).to(self._device)
             val_loss = torch.tensor(0.0).to(self._device)
 
-            if self._type == 'value' or self._policy == 'both':
+            if self._type == 'value' or self._type == 'both':
                 prd_actions, prd_lefts, prd_rights, prd_values = \
                     self._model.infer(idx, act, arg)
 
@@ -180,7 +180,7 @@ class ACK:
 
                 val_loss = self._mse_loss(prd_values, values)
 
-            if self._type == 'policy' or self._policy == 'both':
+            if self._type == 'policy' or self._type == 'both':
                 prd_actions, prd_lefts, prd_rights = \
                     self._model.infer_actions(idx, act, arg)
 
@@ -405,9 +405,9 @@ class SYN:
 
         run_start = time.time()
 
-        if self._type == 'policy' or self._policy == 'both':
+        if self._type == 'policy' or self._type == 'both':
             self._policy_optimizer.zero_grad()
-        if self._type == 'value' or self._policy == 'both':
+        if self._type == 'value' or self._type == 'both':
             self._value_optimizer.zero_grad()
 
         infos = self._syn.reduce(self._device, self._min_update_count)
@@ -416,9 +416,9 @@ class SYN:
             time.sleep(1)
             return
 
-        if self._type == 'policy' or self._policy == 'both':
+        if self._type == 'policy' or self._type == 'both':
             self._policy_optimizer.step()
-        if self._type == 'value' or self._policy == 'both':
+        if self._type == 'value' or self._type == 'both':
             self._value_optimizer.step()
 
         self._syn.broadcast({'config': self._config})
