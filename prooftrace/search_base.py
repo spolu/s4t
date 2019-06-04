@@ -108,20 +108,29 @@ class SearchModel:
 
         if save_dir:
             torch.save(
-                self._modules['E'].state_dict(),
-                save_dir + "/model_E.pt",
+                self._modules['pE'].state_dict(),
+                save_dir + "/model_pE.pt",
             )
             torch.save(
-                self._modules['T'].state_dict(),
-                save_dir + "/model_T.pt",
+                self._modules['pT'].state_dict(),
+                save_dir + "/model_pT.pt",
             )
             torch.save(
-                self._modules['PH'].state_dict(),
-                save_dir + "/model_PH.pt",
+                self._modules['pH'].state_dict(),
+                save_dir + "/model_pH.pt",
+            )
+
+            torch.save(
+                self._modules['vE'].state_dict(),
+                save_dir + "/model_vE.pt",
             )
             torch.save(
-                self._modules['VH'].state_dict(),
-                save_dir + "/model_VH.pt",
+                self._modules['vT'].state_dict(),
+                save_dir + "/model_vT.pt",
+            )
+            torch.save(
+                self._modules['vH'].state_dict(),
+                save_dir + "/model_vH.pt",
             )
 
     def infer_values(
