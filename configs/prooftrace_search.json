@@ -20,7 +20,6 @@
   "prooftrace_search_model_type": "policy",
   "prooftrace_search_batch_size": 16,
   "prooftrace_search_learning_rate": 0.0001,
-  "prooftrace_search_value_coeff": 2.0,
   "prooftrace_search_action_coeff": 2.0,
 
   "prooftrace_search_iota_sync_dir": null,

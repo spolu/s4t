@@ -106,7 +106,6 @@ class ACK:
         self._config = config
 
         self._action_coeff = config.get('prooftrace_search_action_coeff')
-        self._value_coeff = config.get('prooftrace_search_value_coeff')
 
         self._device = torch.device(config.get('device'))
         self._type = config.get('prooftrace_search_model_type')
@@ -145,12 +144,6 @@ class ACK:
             self._action_coeff = coeff
             Log.out("Updated", {
                 "prooftrace_search_action_coeff": coeff,
-            })
-        coeff = self._config.get('prooftrace_search_value_coeff')
-        if coeff != self._value_coeff:
-            self._value_coeff = coeff
-            Log.out("Updated", {
-                "prooftrace_search_value_coeff": coeff,
             })
 
     def run_once(
@@ -213,7 +206,7 @@ class ACK:
                 self._model.modules()[m].zero_grad()
 
             (self._action_coeff * act_loss + lft_loss + rgt_loss +
-             self._value_coeff * val_loss).backward()
+             val_loss).backward()
 
             self._ack.push({
                 'act_loss': act_loss.item(),
@@ -391,7 +384,6 @@ class SYN:
                             'prooftrace_search_learning_rate',
                             'prooftrace_search_iota_min_update_count',
                             'prooftrace_search_action_coeff',
-                            'prooftrace_search_value_coeff',
                     ]:
                         self._tb_writer.add_scalar(
                             "prooftrace_search_train_run/{}".format(k),
