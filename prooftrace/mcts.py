@@ -208,6 +208,8 @@ class MCTS(Search):
 
         while node is not None and node._expanded is True:
             child = node.select()
+            if child is None:
+                return True, node._ptra, False
             node.update_visit()
             node = child
 
