@@ -77,8 +77,9 @@ class Node:
         while len(arguments) < sequence_length:
             arguments.append(empty)
 
-        prd_actions, prd_lefts, prd_rights, prd_values = \
-            model.infer([index], [actions], [arguments])
+        with torch.no_grad():
+            prd_actions, prd_lefts, prd_rights, prd_values = \
+                model.infer([index], [actions], [arguments])
 
         a_count = min(
             beta_width,

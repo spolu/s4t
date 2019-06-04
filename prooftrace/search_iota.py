@@ -14,9 +14,7 @@ from prooftrace.prooftrace import PREPARE_TOKENS, Action, lm_collate
 
 from generic.iota import IOTAAck, IOTASyn
 
-from prooftrace.models.embedder import E
-from prooftrace.models.heads import PH, VH
-from prooftrace.models.torso import T
+from prooftrace.seach_base import SearchModel
 
 from tensorboardX import SummaryWriter
 
@@ -111,17 +109,13 @@ class ACK:
         self._value_coeff = config.get('prooftrace_search_value_coeff')
 
         self._device = torch.device(config.get('device'))
+        self._type = config.get('prooftrace_search_model_type')
 
-        self._modules = {
-            'E': E(self._config).to(self._device),
-            'T': T(self._config).to(self._device),
-            'PH': PH(self._config).to(self._device),
-            'VH': VH(self._config).to(self._device),
-        }
+        self._model = SearchModel(config)
 
         self._ack = IOTAAck(
             config.get('prooftrace_search_iota_sync_dir'),
-            self._modules,
+            self._model.modules(),
         )
 
         self._nll_loss = nn.NLLLoss()
@@ -171,53 +165,48 @@ class ACK:
                 for m in self._modules:
                     self._modules[m].train()
 
-            action_embeds = self._modules['E'](act)
-            argument_embeds = self._modules['E'](arg)
-
-            hiddens = self._modules['T'](action_embeds, argument_embeds)
-            heads = torch.cat([
-                hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
-            ], dim=0)
-            targets = torch.cat([
-                action_embeds[i][0].unsqueeze(0) for i in range(len(idx))
-            ], dim=0)
-
-            prd_actions, prd_lefts, prd_rights = \
-                self._modules['PH'](heads, hiddens, targets)
-            prd_values = self._modules['VH'](heads, targets)
-
-            actions = torch.tensor([
-                trh[i].value - len(PREPARE_TOKENS) for i in range(len(trh))
-            ], dtype=torch.int64).to(self._device)
-            lefts = torch.tensor([
-                arg[i].index(trh[i].left) for i in range(len(trh))
-            ], dtype=torch.int64).to(self._device)
-            rights = torch.tensor([
-                arg[i].index(trh[i].right) for i in range(len(trh))
-            ], dtype=torch.int64).to(self._device)
-            values = torch.tensor(val).unsqueeze(1).to(self._device)
-
             assert len(trh) == len(val)
 
             act_loss = torch.tensor(0.0).to(self._device)
             lft_loss = torch.tensor(0.0).to(self._device)
             rgt_loss = torch.tensor(0.0).to(self._device)
+            val_loss = torch.tensor(0.0).to(self._device)
 
-            act_cnt = 0
+            if self._type == 'value' or self._policy == 'both':
+                prd_actions, prd_lefts, prd_rights, prd_values = \
+                    self._model.infer(idx, act, arg)
 
-            for i in range(len(val)):
-                if val[i] > 0:
-                    act_loss += self._nll_loss(prd_actions, actions)
-                    lft_loss += self._nll_loss(prd_lefts, lefts)
-                    rgt_loss += self._nll_loss(prd_rights, rights)
-                    act_cnt += 1
+                values = torch.tensor(val).unsqueeze(1).to(self._device)
 
-            if act_cnt > 0:
-                act_loss /= act_cnt
-                lft_loss /= act_cnt
-                rgt_loss /= act_cnt
+                val_loss = self._mse_loss(prd_values, values)
 
-            val_loss = self._mse_loss(prd_values, values)
+            if self._type == 'policy' or self._policy == 'both':
+                prd_actions, prd_lefts, prd_rights = \
+                    self._model.infer_actions(idx, act, arg)
+
+                actions = torch.tensor([
+                    trh[i].value - len(PREPARE_TOKENS) for i in range(len(trh))
+                ], dtype=torch.int64).to(self._device)
+                lefts = torch.tensor([
+                    arg[i].index(trh[i].left) for i in range(len(trh))
+                ], dtype=torch.int64).to(self._device)
+                rights = torch.tensor([
+                    arg[i].index(trh[i].right) for i in range(len(trh))
+                ], dtype=torch.int64).to(self._device)
+
+                act_cnt = 0
+
+                for i in range(len(val)):
+                    if val[i] > 0:
+                        act_loss += self._nll_loss(prd_actions, actions)
+                        lft_loss += self._nll_loss(prd_lefts, lefts)
+                        rgt_loss += self._nll_loss(prd_rights, rights)
+                        act_cnt += 1
+
+                if act_cnt > 0:
+                    act_loss /= act_cnt
+                    lft_loss /= act_cnt
+                    rgt_loss /= act_cnt
 
             # Backward pass.
             for m in self._modules:
@@ -259,7 +248,9 @@ class SYN:
         self._learning_rate = config.get('prooftrace_search_learning_rate')
         self._min_update_count = \
             config.get('prooftrace_search_iota_min_update_count')
+
         self._device = torch.device(config.get('device'))
+        self._type = config.get('prooftrace_search_model_type')
 
         self._save_dir = config.get('prooftrace_save_dir')
         self._load_dir = config.get('prooftrace_load_dir')
@@ -272,33 +263,43 @@ class SYN:
                 self._config.get('tensorboard_log_dir'),
             )
 
-        self._modules = {
-            'E': E(self._config).to(self._device),
-            'T': T(self._config).to(self._device),
-            'PH': PH(self._config).to(self._device),
-            'VH': VH(self._config).to(self._device),
-        }
+        self._model = SearchModel(config)
 
         Log.out(
             "SYN Initializing", {
-                'parameter_count_E': self._modules['E'].parameters_count(),
-                'parameter_count_T': self._modules['T'].parameters_count(),
-                'parameter_count_PH': self._modules['PH'].parameters_count(),
-                'parameter_count_VH': self._modules['VH'].parameters_count(),
+                'parameters_count_pE':
+                self._model.modules()['pE'].parameters_count(),
+                'parameters_count_pT':
+                self._model.modules()['pT'].parameters_count(),
+                'parameters_count_pH':
+                self._model.modules()['pH'].parameters_count(),
+                'parameters_count_vE':
+                self._model.modules()['vE'].parameters_count(),
+                'parameters_count_vT':
+                self._model.modules()['vT'].parameters_count(),
+                'parameters_count_vH':
+                self._model.modules()['vH'].parameters_count(),
             },
         )
 
         self._syn = IOTASyn(
             config.get('prooftrace_search_iota_sync_dir'),
-            self._modules,
+            self._model.modules(),
         )
 
-        self._optimizer = optim.Adam(
+        self._value_optimizer = optim.Adam(
             [
-                {'params': self._modules['E'].parameters()},
-                {'params': self._modules['T'].parameters()},
-                {'params': self._modules['PH'].parameters()},
-                {'params': self._modules['VH'].parameters()},
+                {'params': self._model.modules()['vE'].parameters()},
+                {'params': self._model.modules()['vT'].parameters()},
+                {'params': self._model.modules()['vH'].parameters()},
+            ],
+            lr=self._learning_rate,
+        )
+        self._policy_optimizer = optim.Adam(
+            [
+                {'params': self._model.modules()['pE'].parameters()},
+                {'params': self._model.modules()['pT'].parameters()},
+                {'params': self._model.modules()['pH'].parameters()},
             ],
             lr=self._learning_rate,
         )
@@ -309,44 +310,26 @@ class SYN:
             self,
             training=True,
     ):
+
         if self._load_dir:
             Log.out(
-                "Loading prooftrace BEAM", {
+                "Loading prooftrace search models", {
                     'load_dir': self._load_dir,
+                    'type': self._type,
                 })
-            if os.path.isfile(self._load_dir + "/model_E.pt"):
-                self._modules['E'].load_state_dict(
-                    torch.load(
-                        self._load_dir + "/model_E.pt",
-                        map_location=self._device,
-                    ),
-                )
-            if os.path.isfile(self._load_dir + "/model_T.pt"):
-                self._modules['T'].load_state_dict(
-                    torch.load(
-                        self._load_dir + "/model_T.pt",
-                        map_location=self._device,
-                    ),
-                )
-            if os.path.isfile(self._load_dir + "/model_PH.pt"):
-                self._modules['PH'].load_state_dict(
-                    torch.load(
-                        self._load_dir + "/model_PH.pt",
-                        map_location=self._device,
-                    ),
-                )
-            if os.path.isfile(self._load_dir + "/model_VH.pt"):
-                self._modules['VH'].load_state_dict(
-                    torch.load(
-                        self._load_dir + "/model_VH.pt",
-                        map_location=self._device,
-                    ),
-                )
+
+            self._model.load()
 
             if training and os.path.isfile(self._load_dir + "/optimizer.pt"):
-                self._optimizer.load_state_dict(
+                self._value_optimizer.load_state_dict(
                     torch.load(
-                        self._load_dir + "/optimizer.pt",
+                        self._load_dir + "/value_optimizer.pt",
+                        map_location=self._device,
+                    ),
+                )
+                self._policy_optimizer.load_state_dict(
+                    torch.load(
+                        self._load_dir + "/policy_optimizer.pt",
                         map_location=self._device,
                     ),
                 )
@@ -360,29 +343,20 @@ class SYN:
     ):
         if self._save_dir:
             Log.out(
-                "Saving prooftrace models", {
+                "Saving prooftrace search models", {
                     'save_dir': self._save_dir,
+                    'type': self._type,
                 })
 
+            self._model.save()
+
             torch.save(
-                self._modules['E'].state_dict(),
-                self._save_dir + "/model_E.pt",
+                self._value_optimizer.state_dict(),
+                self._save_dir + "/value_optimizer.pt",
             )
             torch.save(
-                self._modules['T'].state_dict(),
-                self._save_dir + "/model_T.pt",
-            )
-            torch.save(
-                self._modules['PH'].state_dict(),
-                self._save_dir + "/model_PH.pt",
-            )
-            torch.save(
-                self._modules['VH'].state_dict(),
-                self._save_dir + "/model_VH.pt",
-            )
-            torch.save(
-                self._optimizer.state_dict(),
-                self._save_dir + "/optimizer.pt",
+                self._policy_optimizer.state_dict(),
+                self._save_dir + "/policy_optimizer.pt",
             )
 
     def update(
@@ -400,7 +374,8 @@ class SYN:
                         "prooftrace_search_learning_rate": lr,
                     })
             if 'prooftrace_search_iota_min_update_count' in update:
-                cnt = self._config.get('prooftrace_search_iota_min_update_count')
+                cnt = \
+                    self._config.get('prooftrace_search_iota_min_update_count')
                 if cnt != self._min_update_count:
                     self._min_update_count = cnt
                     Log.out("Updated", {
@@ -435,7 +410,11 @@ class SYN:
             time.sleep(1)
             return
 
-        self._optimizer.step()
+        if self._type == 'policy' or self._policy == 'both':
+            self._policy_optimizer.step()
+        if self._type == 'value' or self._policy == 'both':
+            self._value_optimizer.step()
+
         self._syn.broadcast({'config': self._config})
 
         act_loss_meter = Meter()
