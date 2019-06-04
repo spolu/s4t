@@ -1,11 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-su stan
+cd /home/stan/src/z3ta
+sudo -u stan git pull origin master
+sudo -u stan /home/stan/src/z3ta/scripts/prooftrace_search_ack_startup_stan.sh
 
-sshfs stan@syn:/home/stan/tmp/iota ~/tmp/iot
-
-cd ~/src/z3ta
-source activate z3ta
-
-git pull origin master
-python setup.py develop
