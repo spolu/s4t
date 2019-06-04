@@ -162,7 +162,8 @@ class Node:
     def select(
             self,
     ):
-        assert len(self._children) > 0
+        if len(self._children) == 0:
+            return None
 
         total = 0
         for n in self._children:
