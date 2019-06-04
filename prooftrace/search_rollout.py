@@ -18,7 +18,9 @@ from prooftrace.models.torso import T
 
 from prooftrace.prooftrace import ProofTraceActions, INV_PREPARE_TOKENS
 
-from prooftrace.beam import Beam, BeamModel
+from prooftrace.search_base import SearchModel
+from prooftrace.beam import Beam
+from prooftrace.mcts import MCTS
 
 from prooftrace.repl.repl import REPL
 
@@ -209,8 +211,14 @@ class RLL():
 
             ptra.append(action, argument)
 
-        model = BeamModel(self._config, self._modules)
-        beam = Beam(self._config, model, ptra, repl, target)
+        model = SearchModel(self._config, self._modules)
+
+        search = None
+        if self._config.get('prooftrace_search_type') == 'beam':
+            search = Beam(self._config, model, ptra, repl, target)
+        if self._config.get('prooftrace_search_type') == 'mcts':
+            search = MCTS(self._config, model, ptra, repl, target)
+        assert search is not None
 
         Log.out("ROLLOUT START", {
             'name': name,
@@ -224,9 +232,9 @@ class RLL():
         proven = False
         ptra = None
 
-        for i in range(gamma):
+        for i in range(self._config.get('prooftrace_search_depth')):
             step_start = time.time()
-            done, ptra, proven = beam.step(i == (gamma-1), offset)
+            done, ptra, proven = search.step(i == (gamma-1), offset)
             step_end = time.time()
             Log.out('STEP', {
                 'i': i,

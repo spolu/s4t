@@ -29,6 +29,7 @@
   "prooftrace_search_test_gamma_size": 16,
 
   "prooftrace_search_type": "mcts",
+  "prooftrace_search_depth": 2048,
 
   "prooftrace_search_beam_beta_width": 8,
   "prooftrace_search_beam_head_width": 8,
