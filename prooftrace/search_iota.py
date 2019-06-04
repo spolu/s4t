@@ -14,7 +14,7 @@ from prooftrace.prooftrace import PREPARE_TOKENS, Action, lm_collate
 
 from generic.iota import IOTAAck, IOTASyn
 
-from prooftrace.seach_base import SearchModel
+from prooftrace.search_base import SearchModel
 
 from tensorboardX import SummaryWriter
 
@@ -162,8 +162,8 @@ class ACK:
             if info is not None:
                 self.update(info['config'])
 
-                for m in self._modules:
-                    self._modules[m].train()
+                for m in self._model.modules():
+                    self._model.modules()[m].train()
 
             assert len(trh) == len(val)
 
@@ -209,8 +209,8 @@ class ACK:
                     rgt_loss /= act_cnt
 
             # Backward pass.
-            for m in self._modules:
-                self._modules[m].zero_grad()
+            for m in self._model.modules():
+                self._model.modules()[m].zero_grad()
 
             (self._action_coeff * act_loss + lft_loss + rgt_loss +
              self._value_coeff * val_loss).backward()
@@ -368,7 +368,9 @@ class SYN:
                 lr = self._config.get('prooftrace_search_learning_rate')
                 if lr != self._learning_rate:
                     self._learning_rate = lr
-                    for group in self._optimizer.param_groups:
+                    for group in self._policy_optimizer.param_groups:
+                        group['lr'] = lr
+                    for group in self._value_optimizer.param_groups:
                         group['lr'] = lr
                     Log.out("Updated", {
                         "prooftrace_search_learning_rate": lr,
@@ -398,12 +400,16 @@ class SYN:
     def run_once(
             self,
     ):
-        for m in self._modules:
-            self._modules[m].train()
+        for m in self._model.modules():
+            self._model.modules()[m].train()
 
         run_start = time.time()
 
-        self._optimizer.zero_grad()
+        if self._type == 'policy' or self._policy == 'both':
+            self._policy_optimizer.zero_grad()
+        if self._type == 'value' or self._policy == 'both':
+            self._value_optimizer.zero_grad()
+
         infos = self._syn.reduce(self._device, self._min_update_count)
 
         if len(infos) == 0:
