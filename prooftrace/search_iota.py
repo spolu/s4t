@@ -446,7 +446,7 @@ class SYN:
 
         if self._tb_writer is not None:
             self._tb_writer.add_scalar(
-                "prooftrace_ppo_train/update_delta",
+                "prooftrace_search_train/update_delta",
                 update_delta, self._epoch,
             )
             if act_loss_meter.avg is not None:
