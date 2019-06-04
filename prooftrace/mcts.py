@@ -14,7 +14,7 @@ from utils.config import Config
 from utils.log import Log
 
 
-C_PUCT = 0.7
+C_PUCT = 10.0
 
 
 class Node:
@@ -56,34 +56,6 @@ class Node:
     ) -> None:
         self._N += 1
 
-    def value(
-            self,
-            sequence_length: int,
-            offset: int,
-            model: SearchModel,
-    ) -> float:
-        actions = self._ptra.actions().copy()
-        arguments = self._ptra.arguments().copy()
-
-        index = len(actions)
-
-        empty = Action.from_action('EMPTY', None, None)
-        while len(actions) < sequence_length:
-            actions.append(empty)
-        while len(arguments) < sequence_length:
-            arguments.append(empty)
-
-        prd_values = model.value([index], [actions], [arguments])
-
-        self._Q = prd_values[0].item()
-
-        Log.out(">> VALUE", {
-            'value': "{:.3f}".format(self._Q),
-            'length': self._ptra.len(),
-            'summary': self._ptra.summary(offset),
-            # 'theorem': self._theorem.thm_string(True),
-        })
-
     def expand(
             self,
             beta_width: int,
@@ -115,7 +87,7 @@ class Node:
         top_actions = torch.exp(prd_actions[0].cpu()).topk(a_count)
         top_lefts = torch.exp(prd_lefts[0].cpu()).topk(beta_width)
         top_rights = torch.exp(prd_rights[0].cpu()).topk(beta_width)
-        value = prd_values[0].item()
+        value = prd_values[0].item() * 2.0 - 1.0
 
         candidates = []
 
@@ -156,9 +128,6 @@ class Node:
                         a
                     ))
 
-        proved = False
-        final = self._ptra
-
         for p, action in candidates:
             repl = self._repl.copy()
             ptra = self._ptra.copy()
@@ -172,12 +141,11 @@ class Node:
             ptra.append(action, argument)
 
             if target.thm_string(True) == thm.thm_string(True):
-                proved = True
-                final = ptra
                 Log.out("DEMONSTRATED", {
                     'theorem': thm.thm_string(True),
                     'summary': ptra.summary(offset),
                 })
+                return value, True, ptra
 
             self._children.append(Node(
                 self,
@@ -186,11 +154,10 @@ class Node:
                 ptra,
                 thm,
             ))
-            # self._children[-1].value(sequence_length, offset, model)
 
         self._expanded = True
 
-        return value, proved, final
+        return value, False, self._ptra
 
     def select(
             self,

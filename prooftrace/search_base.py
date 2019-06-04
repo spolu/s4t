@@ -117,29 +117,6 @@ class SearchModel:
                 prd_values,
             )
 
-    def value(
-            self,
-            idx: typing.List[typing.List[int]],
-            act: typing.List[typing.List[Action]],
-            arg: typing.List[typing.List[Action]],
-    ) -> torch.Tensor:
-        with torch.no_grad():
-            action_embeds = self._modules['E'](act)
-            argument_embeds = self._modules['E'](arg)
-
-            hiddens = self._modules['T'](action_embeds, argument_embeds)
-
-            heads = torch.cat([
-                hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
-            ], dim=0)
-            targets = torch.cat([
-                action_embeds[i][0].unsqueeze(0) for i in range(len(idx))
-            ], dim=0)
-
-            prd_values = self._modules['VH'](heads, targets)
-
-            return prd_values
-
 
 class Search:
     def __init__(

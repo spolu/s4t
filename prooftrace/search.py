@@ -150,7 +150,7 @@ def search():
             search = MCTS(config, model, ptra, repl, target)
         assert search is not None
 
-        for i in range(int(128)):
+        for i in range(int(256)):
             done, ptra, proved = search.step(False, offset)
             if done:
                 break

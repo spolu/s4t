@@ -34,7 +34,7 @@
   "prooftrace_search_beam_head_width": 8,
   "prooftrace_search_beam_width": 8,
 
-  "prooftrace_search_mcts_beta_width": 8,
+  "prooftrace_search_mcts_beta_width": 3,
 
   "prooftrace_dataset_dir": "./data/prooftrace",
   "prooftrace_dataset_size": "small",
