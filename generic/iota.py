@@ -1,4 +1,3 @@
-import concurrent.futures
 import datetime
 import gzip
 import os
@@ -210,101 +209,16 @@ class IOTAAck(IOTABase):
         Log.out("{IOTA} UPDATE[NEW]", {'path': p})
 
 
-class IOTARollout:
-    def __init__(
-            self,
-    ):
-        pass
-
-    def name(
-            self,
-    ) -> str:
-        raise Exception('Not implemented')
-
-    def merge(
-            self,
-            other,
-    ):
-        raise Exception('Not implemented')
-
-
-class IOTAAgg(IOTABase):
-    def __init__(
-            self,
-            sync_dir: str,
-    ):
-        super(IOTAAgg, self).__init__(sync_dir, {})
-
-        assert os.path.isdir(self._tmp_dir)
-
-        self._executor = concurrent.futures.ThreadPoolExecutor()
-
-    def aggregate(
-            self,
-    ) -> typing.Tuple[
-        typing.List[IOTARollout],
-        typing.List[
-            typing.Dict[str, typing.Any]
-        ],
-    ]:
-        files = self.list_files()
-        rollouts = [p for p in files if re.search(".*rollout_.*", p)]
-
-        infos = []
-        merged = {}
-
-        def extract(p):
-            with gzip.open(p, 'rb') as f:
-                data = torch.load(f)
-
-            os.remove(p)
-            # Log.out("{IOTA} ROLLOUT[CONSUME]", {'path': p})
-
-            return (data['rollout'], data['info'])
-
-        results = self._executor.map(extract, rollouts)
-
-        for r, info in results:
-            if r.name() in merged:
-                merged[r.name()].merge(r)
-            else:
-                merged[r.name()] = r
-
-            infos.append(info)
-
-        return merged.values(), infos
-
-
-class IOTARll(IOTAAck):
-    def __init__(
-            self,
-            sync_dir: str,
-            modules: typing.Dict[str, nn.Module],
-    ):
-        super(IOTARll, self).__init__(sync_dir, modules)
-
-    def publish(
-            self,
-            info: typing.Dict[str, typing.Any],
-            rollout: IOTARollout,
-    ) -> None:
-        data = {}
-        data['rollout'] = rollout
-        data['info'] = info
-
-        now = datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f")
-        rnd = random.randint(0, 10e9)
-        self.atomic_save(data, "rollout_{}_{}".format(now, rnd))
-
-
 class IOTACtl(IOTABase):
     def __init__(
             self,
             sync_dir: str,
+            prefix: str,
     ):
         super(IOTACtl, self).__init__(sync_dir, {})
 
         assert os.path.isdir(self._tmp_dir)
+        self._prefix = prefix
 
     def aggregate(
             self,
@@ -314,7 +228,10 @@ class IOTACtl(IOTABase):
         ],
     ]:
         files = self.list_files()
-        tests = [p for p in files if re.search(".*test_.*", p)]
+        tests = [
+            p for p in files
+            if re.search(".*run_{}.*".format(self._prefix), p)
+        ]
 
         infos = []
 
@@ -330,13 +247,16 @@ class IOTACtl(IOTABase):
         return infos
 
 
-class IOTATst(IOTAAck):
+class IOTARun(IOTAAck):
     def __init__(
             self,
             sync_dir: str,
+            prefix: str,
             modules: typing.Dict[str, nn.Module],
     ):
-        super(IOTATst, self).__init__(sync_dir, modules)
+        super(IOTARun, self).__init__(sync_dir, modules)
+
+        self._prefix = prefix
 
     def publish(
             self,
@@ -347,4 +267,4 @@ class IOTATst(IOTAAck):
 
         now = datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f")
         rnd = random.randint(0, 10e9)
-        self.atomic_save(data, "test_{}_{}".format(now, rnd))
+        self.atomic_save(data, "run_{}_{}_{}".format(self._prefix, now, rnd))

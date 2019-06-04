@@ -8,7 +8,7 @@ import re
 import time
 import torch
 
-from generic.iota import IOTATst, IOTACtl
+from generic.iota import IOTARun, IOTACtl
 
 from prooftrace.models.embedder import E
 from prooftrace.models.heads import PH, VH
@@ -59,8 +59,9 @@ class TST():
                 ), 'rb') as f:
             self._tokenizer = pickle.load(f)
 
-        self._tst = IOTATst(
+        self._tst = IOTARun(
             config.get('prooftrace_search_iota_sync_dir'),
+            'test',
             self._modules,
         )
 
@@ -213,6 +214,7 @@ class CTL():
 
         self._ctl = IOTACtl(
             config.get('prooftrace_search_iota_sync_dir'),
+            'test',
         )
 
     def update(

@@ -10,7 +10,7 @@ import time
 import torch
 import typing
 
-from generic.iota import IOTARollout, IOTAAgg, IOTARll
+from generic.iota import IOTACtl, IOTARun
 
 from prooftrace.models.embedder import E
 from prooftrace.models.heads import PH, VH
@@ -34,7 +34,7 @@ from utils.log import Log
 GAMMAS = [8, 16, 32, 64, 128, 256, 512, 1024]
 
 
-class Rollout(IOTARollout):
+class Rollout():
     def __init__(
             self,
             name: str,
@@ -42,8 +42,6 @@ class Rollout(IOTARollout):
             negatives: typing.List[ProofTraceActions],
             capacity: int = 5,
     ) -> None:
-        super(IOTARollout, self).__init__()
-
         self._name = name
         self._positives = positives
         self._negatives = negatives
@@ -124,9 +122,10 @@ class RLL():
                 ), 'rb') as f:
             self._tokenizer = pickle.load(f)
 
-        self._rll = IOTARll(
+        self._rll = IOTARun(
             config.get('prooftrace_search_iota_sync_dir'),
             self._modules,
+            'rollout',
         )
 
         Log.out('RLL initialization', {})
@@ -297,8 +296,9 @@ class AGG():
 
         Log.out("AGG Initializing", {})
 
-        self._agg = IOTAAgg(
+        self._agg = IOTACtl(
             config.get('prooftrace_search_iota_sync_dir'),
+            'rollout',
         )
 
         self._executor = concurrent.futures.ThreadPoolExecutor()
