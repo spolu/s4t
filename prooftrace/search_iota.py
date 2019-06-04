@@ -256,6 +256,7 @@ class SYN:
         self._load_dir = config.get('prooftrace_load_dir')
 
         self._epoch = 0
+        self._last_update = None
 
         self._tb_writer = None
         if self._config.get('tensorboard_log_dir'):
@@ -423,6 +424,12 @@ class SYN:
 
         self._syn.broadcast({'config': self._config})
 
+        if self._last_update is not None:
+            update_delta = time.time() - self._last_update
+        else:
+            update_delta = 0.0
+        self._last_update = time.time()
+
         act_loss_meter = Meter()
         lft_loss_meter = Meter()
         rgt_loss_meter = Meter()
@@ -438,6 +445,7 @@ class SYN:
             'epoch': self._epoch,
             'run_time': "{:.2f}".format(time.time() - run_start),
             'update_count': len(infos),
+            'update_delta': "{:.2f}".format(update_delta),
             'act_loss': "{:.4f}".format(act_loss_meter.avg or 0.0),
             'lft_loss': "{:.4f}".format(lft_loss_meter.avg or 0.0),
             'rgt_loss': "{:.4f}".format(rgt_loss_meter.avg or 0.0),
@@ -445,6 +453,10 @@ class SYN:
         })
 
         if self._tb_writer is not None:
+            self._tb_writer.add_scalar(
+                "prooftrace_ppo_train/update_delta",
+                update_delta, self._epoch,
+            )
             if act_loss_meter.avg is not None:
                 self._tb_writer.add_scalar(
                     "prooftrace_search_train/act_loss",
