@@ -10,6 +10,14 @@ mkdir -p ~/tmp/prooftrace/`git rev-parse HEAD` && prooftrace_ppo_syn_run configs
 prooftrace_ppo_ack_run configs/prooftrace_ppo.json --sync_dir=~/tmp/iota/ppo --device=cuda:0
 ```
 
+## PROOFTRACE SEARCH/IOTA Distributed Training
+
+```
+mkdir -p ~/tmp/prooftrace/`git rev-parse HEAD` && prooftrace_search_syn_run configs/prooftrace_search.json --tensorboard_log_dir=~/tmp/tensorboard/`git rev-parse HEAD`_`now` --save_dir=~/tmp/prooftrace/`git rev-parse HEAD` --device=cpu --sync_dir=~/tmp/iota/search-1
+```
+
+## PROOFTRACE distribution
+
 ```
 [20190505_0326_56.550245] ================================================
 [20190505_0326_56.550245]  ProofTraces Length
