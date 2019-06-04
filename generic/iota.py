@@ -123,11 +123,11 @@ class IOTASyn(IOTABase):
             for m in self._modules:
                 for name, param in self._modules[m].named_parameters():
                     key = "grad_{}_{}".format(m, name)
-                    assert key in data
-                    if param.grad is None:
-                        param.grad = data[key] / len(updates)
-                    else:
-                        param.grad += data[key] / len(updates)
+                    if key in data:
+                        if param.grad is None:
+                            param.grad = data[key] / len(updates)
+                        else:
+                            param.grad += data[key] / len(updates)
 
             infos.append(data['info'])
 
@@ -196,10 +196,11 @@ class IOTAAck(IOTABase):
         for m in self._modules:
             for name, param in self._modules[m].named_parameters():
                 key = "grad_{}_{}".format(m, name)
-                if hook is not None:
-                    data[key] = hook(m, name, param.grad.data)
-                else:
-                    data[key] = param.grad.data
+                if param.grad is not None:
+                    if hook is not None:
+                        data[key] = hook(m, name, param.grad.data)
+                    else:
+                        data[key] = param.grad.data
         data['info'] = info
 
         now = datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f")
