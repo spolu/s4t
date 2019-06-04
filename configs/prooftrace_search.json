@@ -25,7 +25,7 @@
 
   "prooftrace_search_iota_sync_dir": null,
   "prooftrace_search_rollout_dir": null,
-  "prooftrace_search_iota_min_update_count": 32,
+  "prooftrace_search_iota_min_update_count": 12,
   "prooftrace_search_step_timeout": 20.0,
   "prooftrace_search_test_gamma_size": 16,
 
