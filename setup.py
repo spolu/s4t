@@ -25,21 +25,18 @@ setup(
             'prooftrace_test_fusion=prooftrace.repl.fusion:test',
             'prooftrace_test_repl_env=prooftrace.repl.env:test',
 
-            'prooftrace_lm_syn_run=prooftrace.language_model_iota:syn_run',
-            'prooftrace_lm_ack_run=prooftrace.language_model_iota:ack_run',
-
             'prooftrace_ppo_syn_run=prooftrace.ppo_iota:syn_run',
             'prooftrace_ppo_ack_run=prooftrace.ppo_iota:ack_run',
 
             'prooftrace_search=prooftrace.search:search',
             'prooftrace_search_rollout_bootstrap=prooftrace.search_rollout:bootstrap',
             'prooftrace_search_rollout_inspect=prooftrace.search_rollout:inspect',
-            'prooftrace_search_agg_run=prooftrace.search_rollout:agg_run',
-            'prooftrace_search_rll_run=prooftrace.search_rollout:rll_run',
             'prooftrace_search_syn_run=prooftrace.search_iota:syn_run',
             'prooftrace_search_ack_run=prooftrace.search_iota:ack_run',
-            'prooftrace_search_ctl_run=prooftrace.search_test:ctl_run',
-            'prooftrace_search_tst_run=prooftrace.search_test:tst_run',
+            'prooftrace_search_rollout_ctl_run=prooftrace.search_rollout:ctl_run',
+            'prooftrace_search_rollout_run_run=prooftrace.search_rollout:run_run',
+            'prooftrace_search_search_ctl_run=prooftrace.search_test:ctl_run',
+            'prooftrace_search_search_run_run=prooftrace.search_test:run_run',
 
             'prooftrace_embeds_tsne_extract=prooftrace.embeds.tsne:extract',
             'prooftrace_embeds_viewer=prooftrace.embeds.viewer.viewer:run',
