@@ -310,7 +310,10 @@ class WRK():
 
             if len(rfiles) > 1:
                 for p in rfiles[1:]:
-                    os.remove(p)
+                    try:
+                        os.remove(p)
+                    except FileNotFoundError:
+                        pass
 
             Log.out("MERGE WRITE", {
                 'name': name,
@@ -668,6 +671,8 @@ def read(
         'index': idx,
     })
 
+    return (len(rollout._positives), len(rollout._negatives))
+
 
 def inspect():
     parser = argparse.ArgumentParser(description="")
@@ -718,4 +723,17 @@ def inspect():
     for i, rdir in enumerate(rdirs):
         map_args.append([config, rdir, i])
 
-    executor.map(read, map_args)
+    values = executor.map(read, map_args)
+
+    positives = 0
+    negatives = 0
+    for p, n in values:
+        if p > 0:
+            positives += 1
+        if n > 0:
+            negatives += 1
+
+    Log.out("Summary", {
+        'positives': positives,
+        'negatives': negatives,
+    })
