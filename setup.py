@@ -34,9 +34,9 @@ setup(
             'prooftrace_search_syn_run=prooftrace.search_iota:syn_run',
             'prooftrace_search_ack_run=prooftrace.search_iota:ack_run',
             'prooftrace_search_rollout_ctl_run=prooftrace.search_rollout:ctl_run',
-            'prooftrace_search_rollout_run_run=prooftrace.search_rollout:run_run',
+            'prooftrace_search_rollout_wrk_run=prooftrace.search_rollout:wrk_run',
             'prooftrace_search_search_ctl_run=prooftrace.search_test:ctl_run',
-            'prooftrace_search_search_run_run=prooftrace.search_test:run_run',
+            'prooftrace_search_search_wrk_run=prooftrace.search_test:wrk_run',
 
             'prooftrace_embeds_tsne_extract=prooftrace.embeds.tsne:extract',
             'prooftrace_embeds_viewer=prooftrace.embeds.viewer.viewer:run',

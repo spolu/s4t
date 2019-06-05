@@ -10,11 +10,7 @@ import time
 import torch
 import typing
 
-from generic.iota import IOTACtl, IOTARun
-
-from prooftrace.models.embedder import E
-from prooftrace.models.heads import PH, VH
-from prooftrace.models.torso import T
+from generic.iota import IOTACtl, IOTAWrk
 
 from prooftrace.prooftrace import ProofTraceActions, INV_PREPARE_TOKENS
 
@@ -94,7 +90,7 @@ class Rollout():
         return (ptra.copy(), outcome)
 
 
-class RLL():
+class Wrk():
     def __init__(
             self,
             config: Config,
@@ -103,12 +99,7 @@ class RLL():
 
         self._device = torch.device(config.get('device'))
 
-        self._modules = {
-            'E': E(self._config).to(self._device),
-            'T': T(self._config).to(self._device),
-            'PH': PH(self._config).to(self._device),
-            'VH': VH(self._config).to(self._device),
-        }
+        self._model = SearchModel(config)
 
         self._rollout_dir = os.path.join(
             os.path.expanduser(config.get('prooftrace_search_rollout_dir')),
@@ -122,13 +113,13 @@ class RLL():
                 ), 'rb') as f:
             self._tokenizer = pickle.load(f)
 
-        self._rll = IOTARun(
+        self._rll = IOTAWrk(
             config.get('prooftrace_search_iota_sync_dir'),
-            self._modules,
+            self._model.modules(),
             'rollout',
         )
 
-        Log.out('RLL initialization', {})
+        Log.out('Wrk initialization', {})
 
     def update(
             self,
@@ -143,10 +134,8 @@ class RLL():
         if info is not None:
             self.update(info['config'])
 
-        self._modules['E'].eval()
-        self._modules['T'].eval()
-        self._modules['PH'].eval()
-        self._modules['VH'].eval()
+        for m in self._model.modules():
+            self._model.modules()[m].eval()
 
         assert os.path.isdir(self._rollout_dir)
 
@@ -167,13 +156,12 @@ class RLL():
 
         path = rfiles[0]
         with gzip.open(path, 'rb') as f:
-            rollout = pickle.load(f)
+            base = pickle.load(f)
 
         gamma = random.choice(GAMMAS)
 
-        ground = rollout.positive()
-        name = rollout.name()
-        del rollout
+        ground = base.positive()
+        name = base.name()
 
         ptra = ProofTraceActions(
             'BEAM-{}-{}'.format(
@@ -210,13 +198,11 @@ class RLL():
 
             ptra.append(action, argument)
 
-        model = SearchModel(self._config, self._modules)
-
         search = None
         if self._config.get('prooftrace_search_type') == 'beam':
-            search = Beam(self._config, model, ptra, repl, target)
+            search = Beam(self._config, self._model, ptra, repl, target)
         if self._config.get('prooftrace_search_type') == 'mcts':
-            search = MCTS(self._config, model, ptra, repl, target)
+            search = MCTS(self._config, self._model, ptra, repl, target)
         assert search is not None
 
         Log.out("ROLLOUT START", {
@@ -271,7 +257,35 @@ class RLL():
             if proven:
                 info['demo_len'] = demo_length
 
-            self._rll.publish(info, rollout)
+            # Publish the statistics.
+            self._rll.publish(info)
+
+            # Finally merge and store the new rollout
+            base.merge(rollout)
+
+            now = datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f")
+            rnd = random.randint(0, 10e9)
+
+            tmp_path = os.path.join(rdir, "{}_{}.tmp".format(now, rnd))
+            fnl_path = os.path.join(rdir, "{}_{}.rollout".format(now, rnd))
+
+            with gzip.open(tmp_path, 'wb') as f:
+                pickle.dump(
+                    base, f, protocol=pickle.HIGHEST_PROTOCOL
+                )
+            os.rename(tmp_path, fnl_path)
+
+            del base
+            del rollout
+
+            if len(rfiles) > 1:
+                for p in rfiles[1:]:
+                    os.remove(p)
+
+            Log.out("MERGE WRITE", {
+                'name': name,
+                'path': fnl_path,
+            })
 
 
 class AGG():
@@ -313,52 +327,11 @@ class AGG():
     ):
         run_start = time.time()
 
-        rollouts, infos = self._agg.aggregate()
+        infos = self._agg.aggregate()
 
         if len(infos) == 0:
             time.sleep(10)
             return
-
-        def merge_write(r):
-            rdir = os.path.join(self._rollout_dir, r.name())
-
-            rfiles = sorted([
-                os.path.join(rdir, f)
-                for f in os.listdir(rdir) if re.search(".rollout$", f)
-            ], reverse=True)
-
-            assert len(rfiles) > 0
-
-            path = rfiles[0]
-            with gzip.open(path, 'rb') as f:
-                rollout = pickle.load(f)
-
-            rollout.merge(r)
-
-            now = datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f")
-            rnd = random.randint(0, 10e9)
-
-            tmp_path = os.path.join(rdir, "{}_{}.tmp".format(now, rnd))
-            fnl_path = os.path.join(rdir, "{}_{}.rollout".format(now, rnd))
-
-            with gzip.open(tmp_path, 'wb') as f:
-                pickle.dump(
-                    rollout, f, protocol=pickle.HIGHEST_PROTOCOL
-                )
-            os.rename(tmp_path, fnl_path)
-
-            if len(rfiles) > 1:
-                for p in rfiles[1:]:
-                    os.remove(p)
-
-            return r.name(), fnl_path
-
-        # merge rollouts and atomic_write to new name
-        for p, name in self._executor.map(merge_write, rollouts):
-            Log.out("MERGE WRITE", {
-                'name': name,
-                'path': p,
-            })
 
         rll_cnt_meter = Meter()
         pos_cnt_meter = Meter()
@@ -408,17 +381,17 @@ class AGG():
 
 
 ###############################################################################
-# RLL Run.
+# Wrk run.
 ###############################################################################
 
-# def rll_run():
+# def wrk_run():
 #     import cProfile
 #     cProfile.runctx(
-#         'rll_run_profile()', globals(), locals(), 'rll_run.profile'
+#         'wrk_run_profile()', globals(), locals(), 'wrk_run.profile'
 #     )
 
 
-def rll_run():
+def wrk_run():
     parser = argparse.ArgumentParser(description="")
 
     parser.add_argument(
@@ -468,14 +441,14 @@ def rll_run():
     if config.get('device') != 'cpu':
         torch.cuda.set_device(torch.device(config.get('device')))
 
-    rll = RLL(config)
+    wrk = Wrk(config)
 
     while True:
-        rll.run_once()
+        wrk.run_once()
 
 
 ###############################################################################
-# AGG Run.
+# AGG run.
 ###############################################################################
 
 # def agg_run():

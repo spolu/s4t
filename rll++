@@ -1,5 +1,0 @@
-#!/bin/bash
-
-tmux -S ~/rll new-window -n "rll-$1-$2-$3"
-tmux -S ~/rll send-keys "z3ta" C-m
-tmux -S ~/rll send-keys "prooftrace_$1_rll_run configs/prooftrace_$1.json --sync_dir=~/tmp/iota/$1-$2 --rollout_dir=~/tmp/iota/$1-$2-rollouts --device=cuda:$3" C-m

@@ -231,7 +231,7 @@ class IOTACtl(IOTABase):
         files = self.list_files()
         tests = [
             p for p in files
-            if re.search(".*run_{}.*".format(self._prefix), p)
+            if re.search(".*wrk_{}.*".format(self._prefix), p)
         ]
 
         infos = []
@@ -248,14 +248,14 @@ class IOTACtl(IOTABase):
         return infos
 
 
-class IOTARun(IOTAAck):
+class IOTAWrk(IOTAAck):
     def __init__(
             self,
             sync_dir: str,
             prefix: str,
             modules: typing.Dict[str, nn.Module],
     ):
-        super(IOTARun, self).__init__(sync_dir, modules)
+        super(IOTAWrk, self).__init__(sync_dir, modules)
 
         self._prefix = prefix
 
@@ -268,4 +268,4 @@ class IOTARun(IOTAAck):
 
         now = datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f")
         rnd = random.randint(0, 10e9)
-        self.atomic_save(data, "run_{}_{}_{}".format(self._prefix, now, rnd))
+        self.atomic_save(data, "wrk_{}_{}_{}".format(self._prefix, now, rnd))
