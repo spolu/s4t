@@ -90,7 +90,7 @@ class Rollout():
         return (ptra.copy(), outcome)
 
 
-class Wrk():
+class WRK():
     def __init__(
             self,
             config: Config,
@@ -113,13 +113,13 @@ class Wrk():
                 ), 'rb') as f:
             self._tokenizer = pickle.load(f)
 
-        self._rll = IOTAWrk(
+        self._wrk = IOTAWrk(
             config.get('prooftrace_search_iota_sync_dir'),
             self._model.modules(),
             'rollout',
         )
 
-        Log.out('Wrk initialization', {})
+        Log.out('WRK initialization', {})
 
     def update(
             self,
@@ -130,7 +130,7 @@ class Wrk():
     def run_once(
             self,
     ):
-        info = self._rll.fetch(self._device, False)
+        info = self._wrk.fetch(self._device, False)
         if info is not None:
             self.update(info['config'])
 
@@ -258,7 +258,7 @@ class Wrk():
                 info['demo_len'] = demo_length
 
             # Publish the statistics.
-            self._rll.publish(info)
+            self._wrk.publish(info)
 
             # Finally merge and store the new rollout
             base.merge(rollout)
@@ -288,17 +288,12 @@ class Wrk():
             })
 
 
-class AGG():
+class CTL():
     def __init__(
             self,
             config: Config,
     ):
         self._config = config
-
-        self._rollout_dir = os.path.join(
-            os.path.expanduser(config.get('prooftrace_search_rollout_dir')),
-            config.get('prooftrace_dataset_size'),
-        )
 
         self._epoch = 0
 
@@ -308,9 +303,9 @@ class AGG():
                 self._config.get('tensorboard_log_dir'),
             )
 
-        Log.out("AGG Initializing", {})
+        Log.out("CTL Initializing", {})
 
-        self._agg = IOTACtl(
+        self._ctl = IOTACtl(
             config.get('prooftrace_search_iota_sync_dir'),
             'rollout',
         )
@@ -327,7 +322,7 @@ class AGG():
     ):
         run_start = time.time()
 
-        infos = self._agg.aggregate()
+        infos = self._ctl.aggregate()
 
         if len(infos) == 0:
             time.sleep(10)
@@ -345,7 +340,7 @@ class AGG():
             if 'demo_len' in info:
                 demo_len_meter.update(info['demo_len'])
 
-        Log.out("PROOFTRACE BEAM AGG RUN", {
+        Log.out("PROOFTRACE BEAM ROLLOUT CTL RUN", {
             'epoch': self._epoch,
             'run_time': "{:.2f}".format(time.time() - run_start),
             'update_count': len(infos),
@@ -358,22 +353,22 @@ class AGG():
         if self._tb_writer is not None:
             if rll_cnt_meter.avg is not None:
                 self._tb_writer.add_scalar(
-                    "prooftrace_search_agg/rll_cnt",
+                    "prooftrace_search_rollout/rll_cnt",
                     rll_cnt_meter.sum, self._epoch,
                 )
             if pos_cnt_meter.avg is not None:
                 self._tb_writer.add_scalar(
-                    "prooftrace_search_agg/pos_cnt",
+                    "prooftrace_search_rollout/pos_cnt",
                     pos_cnt_meter.avg, self._epoch,
                 )
             if neg_cnt_meter.avg is not None:
                 self._tb_writer.add_scalar(
-                    "prooftrace_search_agg/neg_cnt",
+                    "prooftrace_search_rollout/neg_cnt",
                     neg_cnt_meter.avg, self._epoch,
                 )
             if demo_len_meter.avg is not None:
                 self._tb_writer.add_scalar(
-                    "prooftrace_search_agg/demo_len",
+                    "prooftrace_search_rollout/demo_len",
                     demo_len_meter.avg, self._epoch,
                 )
 
@@ -381,7 +376,7 @@ class AGG():
 
 
 ###############################################################################
-# Wrk run.
+# WRK run.
 ###############################################################################
 
 # def wrk_run():
@@ -441,24 +436,24 @@ def wrk_run():
     if config.get('device') != 'cpu':
         torch.cuda.set_device(torch.device(config.get('device')))
 
-    wrk = Wrk(config)
+    wrk = WRK(config)
 
     while True:
         wrk.run_once()
 
 
 ###############################################################################
-# AGG run.
+# CTL run.
 ###############################################################################
 
-# def agg_run():
+# def ctl_run():
 #     import cProfile
 #     cProfile.runctx(
-#         'agg_run_profile()', globals(), locals(), 'agg_run.profile'
+#         'ctl_run_profile()', globals(), locals(), 'ctl_run.profile'
 #     )
 
 
-def agg_run():
+def ctl_run():
     parser = argparse.ArgumentParser(description="")
 
     parser.add_argument(
@@ -482,10 +477,6 @@ def agg_run():
         '--sync_dir',
         type=str, help="config override",
     )
-    parser.add_argument(
-        '--rollout_dir',
-        type=str, help="config override",
-    )
 
     args = parser.parse_args()
 
@@ -503,11 +494,6 @@ def agg_run():
             'prooftrace_search_iota_sync_dir',
             os.path.expanduser(args.sync_dir),
         )
-    if args.rollout_dir is not None:
-        config.override(
-            'prooftrace_search_rollout_dir',
-            os.path.expanduser(args.rollout_dir),
-        )
 
     if args.dataset_size is not None:
         config.override(
@@ -518,10 +504,10 @@ def agg_run():
     if config.get('device') != 'cpu':
         torch.cuda.set_device(torch.device(config.get('device')))
 
-    agg = AGG(config)
+    ctl = CTL(config)
 
     while True:
-        agg.run_once()
+        ctl.run_once()
 
 
 ###############################################################################
