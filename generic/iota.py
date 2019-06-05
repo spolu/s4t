@@ -172,6 +172,8 @@ class IOTAAck(IOTABase):
 
                 for m in self._modules:
                     key = "state_dict_{}".format(m)
+                    if key not in data:
+                        print(key)
                     assert key in data
                     self._modules[m].load_state_dict(data[key])
                 info = data['info']

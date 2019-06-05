@@ -150,7 +150,11 @@ def search():
             search = MCTS(config, model, ptra, repl, target)
         assert search is not None
 
-        for i in range(config.get('prooftrace_search_depth')):
+        depth = config.get('prooftrace_search_depth')
+        if config.get('prooftrace_search_type') == 'beam':
+            depth = fixed_gamma * 2
+
+        for i in range(depth):
             done, ptra, proved = search.step(False, offset)
             if done:
                 break

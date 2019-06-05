@@ -115,9 +115,12 @@ class WRK():
 
         self._wrk = IOTAWrk(
             config.get('prooftrace_search_iota_sync_dir'),
-            self._model.modules(),
             'rollout',
+            self._model.modules(),
         )
+
+        self._type = config.get('prooftrace_search_type')
+        self._depth = config.get('prooftrace_search_depth')
 
         Log.out('WRK initialization', {})
 
@@ -126,6 +129,19 @@ class WRK():
             config: Config,
     ) -> None:
         self._config = config
+
+        depth = self._config.get('prooftrace_search_depth')
+        if depth != self._depth:
+            self._depth = depth
+            Log.out("Updated", {
+                "prooftrace_search_depth": depth,
+            })
+        t = self._config.get('prooftrace_search_type')
+        if t != self._type:
+            self._type = t
+            Log.out("Updated", {
+                "prooftrace_search_type": t,
+            })
 
     def run_once(
             self,
@@ -213,11 +229,20 @@ class WRK():
             'length': ground.len(),
         })
 
+        Log.out("TARGET", {
+            'name': name,
+            'summary': ground.summary(offset),
+        })
+
         rollout = None
         proven = False
         ptra = None
 
-        for i in range(self._config.get('prooftrace_search_depth')):
+        depth = self._config.get('prooftrace_search_depth')
+        if self._config.get('prooftrace_search_type') == 'beam':
+            depth = gamma * 2
+
+        for i in range(depth):
             step_start = time.time()
             done, ptra, proven = search.step(i == (gamma-1), offset)
             step_end = time.time()
@@ -246,6 +271,11 @@ class WRK():
             'proven': proven,
             'gamma': gamma,
             'demo_length': demo_length,
+        })
+
+        Log.out("PTRA", {
+            'name': name,
+            'summary': ptra.summary(offset),
         })
 
         if demo_length > 0:
@@ -315,7 +345,18 @@ class CTL():
     def update(
             self,
     ) -> None:
-        self._config.update()
+        update = self._config.update()
+
+        if self._tb_writer is not None:
+            for k in update:
+                if k in [
+                        'prooftrace_search_type',
+                        'prooftrace_search_depth',
+                ]:
+                    self._tb_writer.add_scalar(
+                        "prooftrace_search_rollout_run/{}".format(k),
+                        update[k], self._epoch,
+                    )
 
     def run_once(
             self,
