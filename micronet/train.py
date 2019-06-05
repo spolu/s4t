@@ -1,21 +1,23 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
 
 from torch.utils.data import DataLoader
 
 DEVICE = 'cpu'
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 NUM_WORKERS = 8
 
 OUTPUT_SIZE = 100
 INPUT_SIZE = 3072
 CORE_SIZE = 1024
 
-POPULATION = 32
+POPULATION = 64
 EPSILON_SCALE = 2
-ITERATIONS = 8
+ITERATIONS = 4
+LEARNING_RATE = 0.1
 
 
 class EQI(nn.Module):
@@ -87,13 +89,53 @@ class EQI(nn.Module):
         losses = torch.Tensor(losses)
         losses = -(losses - losses.mean()) / (losses.std() + 1e-5)
 
+        diff = {
+            'itoc': torch.zeros(
+                [INPUT_SIZE, CORE_SIZE],
+                device=torch.device(DEVICE),
+            ),
+            'itoc_b': torch.zeros(
+                [CORE_SIZE],
+                device=torch.device(DEVICE),
+            ),
+            'ctoc': torch.zeros(
+                [CORE_SIZE, CORE_SIZE],
+                device=torch.device(DEVICE),
+            ),
+            'ctoc_b': torch.zeros(
+                [CORE_SIZE],
+                device=torch.device(DEVICE),
+            ),
+            'ctoo': torch.zeros(
+                [CORE_SIZE, OUTPUT_SIZE],
+                device=torch.device(DEVICE),
+            ),
+            'ctoo_b': torch.zeros(
+                [OUTPUT_SIZE],
+                device=torch.device(DEVICE),
+            )
+        }
+
         for i in range(len(epsilons)):
-            self._weights['itoc'] += losses[i] * epsilons[i]['itoc']
-            self._weights['itoc_b'] += losses[i] * epsilons[i]['itoc_b']
-            self._weights['ctoc'] += losses[i] * epsilons[i]['ctoc']
-            self._weights['ctoc_b'] += losses[i] * epsilons[i]['ctoc_b']
-            self._weights['ctoo'] += losses[i] * epsilons[i]['ctoo']
-            self._weights['ctoo_b'] += losses[i] * epsilons[i]['ctoo_b']
+            diff['itoc'] += LEARNING_RATE * \
+                losses[i] * epsilons[i]['itoc'].to(torch.float)
+            diff['itoc_b'] += LEARNING_RATE * \
+                losses[i] * epsilons[i]['itoc_b'].to(torch.float)
+            diff['ctoc'] += LEARNING_RATE * \
+                losses[i] * epsilons[i]['ctoc'].to(torch.float)
+            diff['ctoc_b'] += LEARNING_RATE * \
+                losses[i] * epsilons[i]['ctoc_b'].to(torch.float)
+            diff['ctoo'] += LEARNING_RATE * \
+                losses[i] * epsilons[i]['ctoo'].to(torch.float)
+            diff['ctoo_b'] += LEARNING_RATE * \
+                losses[i] * epsilons[i]['ctoo_b'].to(torch.float)
+
+        self._weights['itoc'] += diff['itoc'].to(torch.int8)
+        self._weights['itoc_b'] += diff['itoc_b'].to(torch.int8)
+        self._weights['ctoc'] += diff['ctoc'].to(torch.int8)
+        self._weights['ctoc_b'] += diff['ctoc_b'].to(torch.int8)
+        self._weights['ctoo'] += diff['ctoo'].to(torch.int8)
+        self._weights['ctoo_b'] += diff['ctoo_b'].to(torch.int8)
 
     def forward(
             self,
@@ -107,11 +149,15 @@ class EQI(nn.Module):
                 inputs,
                 self._weights['itoc'] + epsilon['itoc'],
             )
+            inputs = F.relu(inputs)
+
             hiddens = torch.addmm(
                 self._weights['ctoc_b'] + epsilon['ctoc_b'],
                 hiddens + inputs,
                 self._weights['ctoc'] + epsilon['ctoc'],
             )
+            hiddens = F.relu(hiddens)
+
             outputs = torch.addmm(
                 self._weights['ctoo_b'] + epsilon['ctoo_b'],
                 hiddens,
@@ -148,7 +194,7 @@ if __name__ == '__main__':
     for idx, (images, labels) in enumerate(dataloader):
         inputs = (images * 256 - 127).reshape(
             BATCH_SIZE, INPUT_SIZE
-        ).to(torch.int8)
+        ).to(dtype=torch.int8, device=torch.device(DEVICE))
 
         epsilons = [
             model.epsilon() for _ in range(POPULATION)

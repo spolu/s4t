@@ -160,10 +160,10 @@ class ACK:
 
             assert len(trh) == len(val)
 
-            act_loss = torch.tensor(0.0).to(self._device)
-            lft_loss = torch.tensor(0.0).to(self._device)
-            rgt_loss = torch.tensor(0.0).to(self._device)
-            val_loss = torch.tensor(0.0).to(self._device)
+            act_loss = torch.tensor(0.0, requires_grad=True).to(self._device)
+            lft_loss = torch.tensor(0.0, requires_grad=True).to(self._device)
+            rgt_loss = torch.tensor(0.0, requires_grad=True).to(self._device)
+            val_loss = torch.tensor(0.0, requires_grad=True).to(self._device)
 
             if self._type == 'value' or self._type == 'both':
                 prd_actions, prd_lefts, prd_rights, prd_values = \
