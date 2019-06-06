@@ -15,9 +15,9 @@ INPUT_SIZE = 3072
 CORE_SIZE = 1024
 
 POPULATION = 64
-EPSILON_SCALE = 2
-ITERATIONS = 4
-LEARNING_RATE = 0.1
+EPSILON_SCALE = 0.08
+ITERATIONS = 8
+LEARNING_RATE = 0.002
 
 
 class EQI(nn.Module):
@@ -29,32 +29,32 @@ class EQI(nn.Module):
         self._weights = {
             'itoc': torch.zeros(
                 [INPUT_SIZE, CORE_SIZE],
-                dtype=torch.int8,
+                # dtype=torch.int8,
                 device=torch.device(DEVICE),
             ),
             'itoc_b': torch.zeros(
                 [CORE_SIZE],
-                dtype=torch.int8,
+                # dtype=torch.int8,
                 device=torch.device(DEVICE),
             ),
             'ctoc': torch.zeros(
                 [CORE_SIZE, CORE_SIZE],
-                dtype=torch.int8,
+                # dtype=torch.int8,
                 device=torch.device(DEVICE),
             ),
             'ctoc_b': torch.zeros(
                 [CORE_SIZE],
-                dtype=torch.int8,
+                # dtype=torch.int8,
                 device=torch.device(DEVICE),
             ),
             'ctoo': torch.zeros(
                 [CORE_SIZE, OUTPUT_SIZE],
-                dtype=torch.int8,
+                # dtype=torch.int8,
                 device=torch.device(DEVICE),
             ),
             'ctoo_b': torch.zeros(
                 [OUTPUT_SIZE],
-                dtype=torch.int8,
+                # dtype=torch.int8,
                 device=torch.device(DEVICE),
             )
         }
@@ -65,7 +65,7 @@ class EQI(nn.Module):
             scale,
     ):
         return ((torch.rand(size) * 2 - 1) * scale).to(
-            dtype=torch.int8,
+            # dtype=torch.int8,
             device=torch.device(DEVICE),
         )
 
@@ -130,12 +130,12 @@ class EQI(nn.Module):
             diff['ctoo_b'] += LEARNING_RATE * \
                 losses[i] * epsilons[i]['ctoo_b'].to(torch.float)
 
-        self._weights['itoc'] += diff['itoc'].to(torch.int8)
-        self._weights['itoc_b'] += diff['itoc_b'].to(torch.int8)
-        self._weights['ctoc'] += diff['ctoc'].to(torch.int8)
-        self._weights['ctoc_b'] += diff['ctoc_b'].to(torch.int8)
-        self._weights['ctoo'] += diff['ctoo'].to(torch.int8)
-        self._weights['ctoo_b'] += diff['ctoo_b'].to(torch.int8)
+        self._weights['itoc'] += diff['itoc']  # .to(torch.int8)
+        self._weights['itoc_b'] += diff['itoc_b']  # .to(torch.int8)
+        self._weights['ctoc'] += diff['ctoc']  # .to(torch.int8)
+        self._weights['ctoc_b'] += diff['ctoc_b']  # .to(torch.int8)
+        self._weights['ctoo'] += diff['ctoo']  # .to(torch.int8)
+        self._weights['ctoo_b'] += diff['ctoo_b']  # .to(torch.int8)
 
     def forward(
             self,
@@ -183,51 +183,70 @@ if __name__ == '__main__':
     )
 
     dataloader = DataLoader(
-        dataset, shuffle=True, num_workers=NUM_WORKERS, batch_size=BATCH_SIZE,
+        dataset,
+        shuffle=True,
+        num_workers=NUM_WORKERS,
+        batch_size=BATCH_SIZE,
+        drop_last=True,
     )
 
-    loss = nn.CrossEntropyLoss()
+    loss = nn.NLLLoss()
 
     model = EQI()
     model.eval()
 
-    for idx, (images, labels) in enumerate(dataloader):
-        inputs = (images * 256 - 127).reshape(
-            BATCH_SIZE, INPUT_SIZE
-        ).to(dtype=torch.int8, device=torch.device(DEVICE))
+    epoch = 0
 
-        epsilons = [
-            model.epsilon() for _ in range(POPULATION)
-        ]
-        hiddens = [
-            torch.zeros(
-                [BATCH_SIZE, CORE_SIZE],
-                dtype=torch.int8,
+    while True:
+        for idx, (images, labels) in enumerate(dataloader):
+            # inputs = (images * 256 - 127).reshape(
+            inputs = images.reshape(
+                BATCH_SIZE, INPUT_SIZE
+            ).to(
+                # dtype=torch.int8,
                 device=torch.device(DEVICE),
-            ) for _ in range(POPULATION)
-        ]
-        outputs = [
-            torch.zeros(
-                [BATCH_SIZE, OUTPUT_SIZE],
-                dtype=torch.int8,
-                device=torch.device(DEVICE),
-            ) for _ in range(POPULATION)
-        ]
+            )
 
-        for _ in range(ITERATIONS):
+            epsilons = [
+                model.epsilon() for _ in range(POPULATION)
+            ]
+            hiddens = [
+                torch.zeros(
+                    [BATCH_SIZE, CORE_SIZE],
+                    # dtype=torch.int8,
+                    device=torch.device(DEVICE),
+                ) for _ in range(POPULATION)
+            ]
+            outputs = [
+                torch.zeros(
+                    [BATCH_SIZE, OUTPUT_SIZE],
+                    # dtype=torch.int8,
+                    device=torch.device(DEVICE),
+                ) for _ in range(POPULATION)
+            ]
+
+            for _ in range(ITERATIONS):
+                for i in range(POPULATION):
+                    hiddens[i], outputs[i] = \
+                        model(epsilons[i], inputs, hiddens[i])
+
             for i in range(POPULATION):
-                hiddens[i], outputs[i] = model(epsilons[i], inputs, hiddens[i])
+                outputs[i] = F.log_softmax(outputs[i], dim=1)
 
-        losses = [
-            loss(outputs[i].to(torch.float32), labels).item()
-            for i in range(POPULATION)
-        ]
+            losses = [
+                loss(outputs[i].to(torch.float32), labels).item()
+                for i in range(POPULATION)
+            ]
 
-        model.apply(losses, epsilons)
+            model.apply(losses, epsilons)
 
-        best = losses[0]
-        for i in range(POPULATION):
-            if best > losses[i]:
-                best = losses[i]
+            best = losses[0]
+            for i in range(POPULATION):
+                if best > losses[i]:
+                    best = losses[i]
 
-        print("Iteration: idx={} best={}".format(idx, best))
+            print("BATCH epoch={} idx={} best={:.2f}".format(
+                epoch, idx, best,
+            ))
+
+        epoch += 1
