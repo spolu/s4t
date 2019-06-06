@@ -146,6 +146,13 @@ class ACK:
                 "prooftrace_search_action_coeff": coeff,
             })
 
+        model_type = self._config.get('prooftrace_search_model_type')
+        if model_type != self._type:
+            self._type = model_type
+            Log.out("Updated", {
+                "prooftrace_search_model_type": model_type,
+            })
+
     def run_once(
             self,
             epoch,
@@ -309,7 +316,6 @@ class SYN:
             Log.out(
                 "Loading prooftrace search models", {
                     'load_dir': self._load_dir,
-                    'type': self._type,
                 })
 
             self._model.load()
@@ -339,7 +345,6 @@ class SYN:
             Log.out(
                 "Saving prooftrace search models", {
                     'save_dir': self._save_dir,
-                    'type': self._type,
                 })
 
             self._model.save()
@@ -376,6 +381,13 @@ class SYN:
                     self._min_update_count = cnt
                     Log.out("Updated", {
                         "prooftrace_search_iota_min_update_count": cnt,
+                    })
+            if 'prooftrace_search_model_type' in update:
+                model_type = self._config.get('prooftrace_search_model_type')
+                if model_type != self._type:
+                    self._type = model_type
+                    Log.out("Updated", {
+                        "prooftrace_search_model_type": model_type,
                     })
 
             if self._tb_writer is not None:
