@@ -245,7 +245,7 @@ class WRK():
 
         for i in range(depth):
             step_start = time.time()
-            done, ptra, proven = search.step(i == (gamma-1), offset)
+            done, ptra, proven = search.step(i == (depth-1), offset)
             step_end = time.time()
             Log.out('STEP', {
                 'i': i,
