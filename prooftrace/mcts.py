@@ -93,13 +93,13 @@ class Node:
 
         candidates = []
 
-        Log.out("EXPAND", {
-            'step': step,
-            'value': "{:.3f}".format(value),
-            'length': self._ptra.len(),
-            'summary': self._ptra.summary(offset),
-            # 'theorem': self._theorem.thm_string(True),
-        })
+        # Log.out("EXPAND", {
+        #     'step': step,
+        #     'value': "{:.3f}".format(value),
+        #     'length': self._ptra.len(),
+        #     'summary': self._ptra.summary(offset),
+        #     # 'theorem': self._theorem.thm_string(True),
+        # })
 
         for ia in range(a_count):
             for il in range(beta_width):
@@ -188,6 +188,7 @@ class Node:
     def next(
             self,
             offset,
+            step: int,
     ):
         assert len(self._children) > 0
 
@@ -198,19 +199,20 @@ class Node:
         max_roll = 0
         child = None
         for n in self._children:
-            Log.out("SELECT", {
-                'q': "{:.3f}".format(n._Q),
-                'score': "{:.3f}".format(n._Q + C_PUCT * n._P * math.sqrt(total) / (1 + n._N)),
-                'p': "{:.3f}".format(n._P),
-                'n': "{:.3f}".format(n._N),
-                'total': "{:.3f}".format(total),
-                'summary': n._ptra.summary(offset),
-            })
+            # Log.out("SELECT", {
+            #     'q': "{:.3f}".format(n._Q),
+            #     'score': "{:.3f}".format(n._Q + C_PUCT * n._P * math.sqrt(total) / (1 + n._N)),
+            #     'p': "{:.3f}".format(n._P),
+            #     'n': "{:.3f}".format(n._N),
+            #     'total': "{:.3f}".format(total),
+            #     'summary': n._ptra.summary(offset),
+            # })
             if n._N > max_roll:
                 max_roll = n._N
                 child = n
 
         Log.out("NEXT", {
+            'step': step,
             'q': "{:.3f}".format(child._Q),
             'p': "{:.3f}".format(child._P),
             'n': "{:.3f}".format(child._N),
@@ -278,7 +280,7 @@ class MCTS(Search):
             assert False
 
         if tree_total > self._roll_count:
-            self._tree = self._tree.next(offset)
+            self._tree = self._tree.next(offset, self._step)
             self._tree._parent = None
 
         if final:
