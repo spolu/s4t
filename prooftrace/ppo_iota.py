@@ -494,13 +494,13 @@ class ACK:
                 ).mean()
 
                 # Clipped value loss.
-                clipped_values = rollout_values + \
-                    (values - rollout_values).clamp(-self._clip, self._clip)
-                value_loss = torch.max(
-                    F.mse_loss(values, rollout_returns),
-                    F.mse_loss(clipped_values, rollout_returns),
-                )
-                # value_loss = F.mse_loss(values, rollout_returns)
+                # clipped_values = rollout_values + \
+                #     (values - rollout_values).clamp(-self._clip, self._clip)
+                # value_loss = torch.max(
+                #     F.mse_loss(values, rollout_returns),
+                #     F.mse_loss(clipped_values, rollout_returns),
+                # )
+                value_loss = F.mse_loss(values, rollout_returns)
 
                 # Log.out("RATIO/ADV/LOSS", {
                 #     'clipped_ratio': torch.clamp(
