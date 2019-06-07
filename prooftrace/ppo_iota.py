@@ -162,7 +162,10 @@ class ACK:
         self._epoch_count = config.get('prooftrace_ppo_epoch_count')
         self._clip = config.get('prooftrace_ppo_clip')
         self._grad_norm_max = config.get('prooftrace_ppo_grad_norm_max')
-        self._entropy_coeff = config.get('prooftrace_ppo_entropy_coeff')
+        self._act_entropy_coeff = \
+            config.get('prooftrace_ppo_act_entropy_coeff')
+        self._ptr_entropy_coeff = \
+            config.get('prooftrace_ppo_ptr_entropy_coeff')
         self._value_coeff = config.get('prooftrace_ppo_value_coeff')
         self._learning_rate = config.get('prooftrace_ppo_learning_rate')
 
@@ -218,11 +221,17 @@ class ACK:
     ) -> None:
         self._config = config
 
-        coeff = self._config.get('prooftrace_ppo_entropy_coeff')
-        if coeff != self._entropy_coeff:
-            self._entropy_coeff = coeff
+        coeff = self._config.get('prooftrace_ppo_act_entropy_coeff')
+        if coeff != self._act_entropy_coeff:
+            self._act_entropy_coeff = coeff
             Log.out("Updated", {
-                "prooftrace_ppo_entropy_coeff": coeff,
+                "prooftrace_ppo_act_entropy_coeff": coeff,
+            })
+        coeff = self._config.get('prooftrace_ppo_ptr_entropy_coeff')
+        if coeff != self._ptr_entropy_coeff:
+            self._ptr_entropy_coeff = coeff
+            Log.out("Updated", {
+                "prooftrace_ppo_ptr_entropy_coeff": coeff,
             })
 
         coeff = self._config.get('prooftrace_ppo_value_coeff')
@@ -297,7 +306,8 @@ class ACK:
         fnl_reward_meter = Meter()
         act_loss_meter = Meter()
         val_loss_meter = Meter()
-        entropy_meter = Meter()
+        act_entropy_meter = Meter()
+        ptr_entropy_meter = Meter()
         match_count_meter = Meter()
         run_length_meter = Meter()
         demo_length_meter = Meter()
@@ -467,10 +477,12 @@ class ACK:
                     prd_rights.gather(1, rollout_actions[:, 2].unsqueeze(1)),
                 ), dim=1)
 
-                entropy = -(
-                    (prd_actions * torch.exp(prd_actions)).mean() +
-                    (prd_lefts * torch.exp(prd_lefts)).mean() +
-                    (prd_rights * torch.exp(prd_rights)).mean()
+                act_entropy = -(
+                     (prd_actions * torch.exp(prd_actions)).mean()
+                )
+                ptr_entropy = -(
+                     (prd_lefts * torch.exp(prd_lefts)).mean() +
+                     (prd_rights * torch.exp(prd_rights)).mean()
                 )
 
                 # Clipped action loss.
@@ -503,13 +515,15 @@ class ACK:
                         abs(action_loss.item()) > 10e2 or
                         abs(value_loss.item()) > 10e5 or
                         math.isnan(value_loss.item()) or
-                        math.isnan(entropy.item())
+                        math.isnan(act_entropy.item()) or
+                        math.isnan(ptr_entropy.item())
                 ):
                     Log.out("IGNORING", {
                         'epoch': epoch,
                         'act_loss': "{:.4f}".format(action_loss.item()),
                         'val_loss': "{:.4f}".format(value_loss.item()),
-                        'entropy': "{:.4f}".format(entropy.item()),
+                        'act_entropy': "{:.4f}".format(act_entropy.item()),
+                        'ptr_entropy': "{:.4f}".format(ptr_entropy.item()),
                     })
                     ignored = True
                 else:
@@ -520,7 +534,8 @@ class ACK:
                     (
                         action_loss +
                         self._value_coeff * value_loss -
-                        self._entropy_coeff * entropy
+                        (self._act_entropy_coeff * act_entropy +
+                         self._ptr_entropy_coeff * ptr_entropy)
                     ).backward()
 
                     if self._grad_norm_max > 0.0:
@@ -543,13 +558,15 @@ class ACK:
 
                     act_loss_meter.update(action_loss.item())
                     val_loss_meter.update(value_loss.item())
-                    entropy_meter.update(entropy.item())
+                    act_entropy_meter.update(act_entropy.item())
+                    ptr_entropy_meter.update(ptr_entropy.item())
 
                     info = {
                         'frame_count': frame_count,
                         'act_loss': act_loss_meter.avg,
                         'val_loss': val_loss_meter.avg,
-                        'entropy': entropy_meter.avg,
+                        'act_entropy': act_entropy_meter.avg,
+                        'ptr_entropy': ptr_entropy_meter.avg,
                     }
                     if match_count_meter.avg:
                         info['match_count'] = match_count_meter.avg
@@ -593,7 +610,8 @@ class ACK:
             'fnl_reward': "{:.4f}".format(fnl_reward_meter.avg or 0.0),
             'act_loss': "{:.4f}".format(act_loss_meter.avg or 0.0),
             'val_loss': "{:.4f}".format(val_loss_meter.avg or 0.0),
-            'entropy': "{:.4f}".format(entropy_meter.avg or 0.0),
+            'act_entropy': "{:.4f}".format(act_entropy_meter.avg or 0.0),
+            'ptr_entropy': "{:.4f}".format(ptr_entropy_meter.avg or 0.0),
         })
 
 
@@ -762,7 +780,8 @@ class SYN:
                     if k in [
                             'prooftrace_ppo_learning_rate',
                             'prooftrace_ppo_iota_min_update_count',
-                            'prooftrace_ppo_entropy_coeff',
+                            'prooftrace_ppo_act_entropy_coeff',
+                            'prooftrace_ppo_ptr_entropy_coeff',
                             'prooftrace_ppo_value_coeff',
                             'prooftrace_ppo_reset_gamma',
                             'prooftrace_ppo_fixed_gamma',
@@ -818,7 +837,8 @@ class SYN:
         tot_reward_meter = Meter()
         act_loss_meter = Meter()
         val_loss_meter = Meter()
-        entropy_meter = Meter()
+        act_entropy_meter = Meter()
+        ptr_entropy_meter = Meter()
 
         for info in infos:
             frame_count_meter.update(info['frame_count'])
@@ -850,7 +870,8 @@ class SYN:
                 tot_reward_meter.update(tot_reward)
             act_loss_meter.update(info['act_loss'])
             val_loss_meter.update(info['val_loss'])
-            entropy_meter.update(info['entropy'])
+            act_entropy_meter.update(info['act_entropy'])
+            ptr_entropy_meter.update(info['ptr_entropy'])
 
         Log.out("PROOFTRACE PPO SYN RUN", {
             'epoch': self._epoch,
@@ -871,7 +892,8 @@ class SYN:
             'tot_reward': "{:.4f}".format(tot_reward_meter.avg or 0.0),
             'act_loss': "{:.4f}".format(act_loss_meter.avg or 0.0),
             'val_loss': "{:.4f}".format(val_loss_meter.avg or 0.0),
-            'entropy': "{:.4f}".format(entropy_meter.avg or 0.0),
+            'act_entropy': "{:.4f}".format(act_entropy_meter.avg or 0.0),
+            'ptr_entropy': "{:.4f}".format(ptr_entropy_meter.avg or 0.0),
         })
 
         if self._tb_writer is not None:
@@ -914,8 +936,12 @@ class SYN:
                     val_loss_meter.avg, self._epoch,
                 )
                 self._tb_writer.add_scalar(
-                    "prooftrace_ppo_train/entropy",
-                    entropy_meter.avg, self._epoch,
+                    "prooftrace_ppo_train/act_entropy",
+                    act_entropy_meter.avg, self._epoch,
+                )
+                self._tb_writer.add_scalar(
+                    "prooftrace_ppo_train/ptr_entropy",
+                    ptr_entropy_meter.avg, self._epoch,
                 )
                 if stp_reward_meter.avg:
                     self._tb_writer.add_scalar(
