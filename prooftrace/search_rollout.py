@@ -27,7 +27,8 @@ from utils.meter import Meter
 from utils.log import Log
 
 
-GAMMAS = [8, 16, 32, 64, 128, 256, 512, 1024]
+# GAMMAS = [8, 16, 32, 64, 128, 256, 512, 1024]
+GAMMAS = [8, 16, 32]
 
 
 class Rollout():

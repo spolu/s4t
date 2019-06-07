@@ -14,7 +14,7 @@ from utils.config import Config
 from utils.log import Log
 
 
-C_PUCT = 10.0
+C_PUCT = 1.0
 
 
 class Node:
@@ -63,6 +63,7 @@ class Node:
             offset: int,
             model: SearchModel,
             target: Thm,
+            step: int,
     ) -> typing.Tuple[
         float, ProofTraceActions, bool,
     ]:
@@ -93,6 +94,7 @@ class Node:
         candidates = []
 
         Log.out("EXPAND", {
+            'step': step,
             'value': "{:.3f}".format(value),
             'length': self._ptra.len(),
             'summary': self._ptra.summary(offset),
@@ -162,9 +164,10 @@ class Node:
 
     def select(
             self,
+            offset: int,
     ):
         if len(self._children) == 0:
-            return None
+            return None, None
 
         total = 0
         for n in self._children:
@@ -180,7 +183,41 @@ class Node:
         m = max(scores)
         for i in range(len(scores)):
             if scores[i] == m:
-                return self._children[i]
+                return self._children[i], total
+
+    def next(
+            self,
+            offset,
+    ):
+        assert len(self._children) > 0
+
+        total = 0
+        for n in self._children:
+            total += n._N
+
+        max_roll = 0
+        child = None
+        for n in self._children:
+            Log.out("SELECT", {
+                'q': "{:.3f}".format(n._Q),
+                'score': "{:.3f}".format(n._Q + C_PUCT * n._P * math.sqrt(total) / (1 + n._N)),
+                'p': "{:.3f}".format(n._P),
+                'n': "{:.3f}".format(n._N),
+                'total': "{:.3f}".format(total),
+                'summary': n._ptra.summary(offset),
+            })
+            if n._N > max_roll:
+                max_roll = n._N
+                child = n
+
+        Log.out("NEXT", {
+            'q': "{:.3f}".format(child._Q),
+            'p': "{:.3f}".format(child._P),
+            'n': "{:.3f}".format(child._N),
+            'summary': child._ptra.summary(offset),
+        })
+
+        return child
 
 
 class MCTS(Search):
@@ -195,9 +232,12 @@ class MCTS(Search):
         super(MCTS, self).__init__(config, model, ptra, repl, target)
 
         self._beta_width = config.get('prooftrace_search_mcts_beta_width')
+        self._roll_count = config.get('prooftrace_search_mcts_roll_count')
         self._sequence_length = config.get('prooftrace_sequence_length')
 
         self._tree = Node(None, 1.0, repl, ptra, target)
+
+        self._step = 0
 
     def step(
             self,
@@ -207,9 +247,13 @@ class MCTS(Search):
         bool, typing.Optional[ProofTraceActions], bool,
     ]:
         node = self._tree
+        self._step += 1
+        tree_total = 0
 
         while node is not None and node._expanded is True:
-            child = node.select()
+            child, total = node.select(offset)
+            if node._parent is None:
+                tree_total = total
             if child is None:
                 return True, node._ptra, False
             node.update_visit()
@@ -222,6 +266,7 @@ class MCTS(Search):
                 offset,
                 self._model,
                 self._target,
+                self._step,
             )
             if proved:
                 return True, ptra, True
@@ -231,6 +276,10 @@ class MCTS(Search):
                 node = node._parent
         else:
             assert False
+
+        if tree_total > self._roll_count:
+            self._tree = self._tree.next(offset)
+            self._tree._parent = None
 
         if final:
             return True, ptra, False
