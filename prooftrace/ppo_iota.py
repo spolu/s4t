@@ -808,7 +808,7 @@ class SYN:
             self._syn.broadcast({'config': self._config})
 
         self._optimizer.zero_grad()
-        infos = self._syn.aggregate(self._device, self._min_update_count)
+        infos = self._syn.reduce(self._device, self._min_update_count)
 
         if len(infos) == 0:
             if self._epoch == 0:
@@ -1094,6 +1094,7 @@ def syn_run():
     torch.manual_seed(0)
 
     syn = SYN(config).load(True)
+    syn.save()
 
     while True:
         syn.update()
