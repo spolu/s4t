@@ -93,13 +93,13 @@ class Node:
 
         candidates = []
 
-        # Log.out("EXPAND", {
-        #     'step': step,
-        #     'value': "{:.3f}".format(value),
-        #     'length': self._ptra.len(),
-        #     'summary': self._ptra.summary(offset),
-        #     # 'theorem': self._theorem.thm_string(True),
-        # })
+        Log.out("EXPAND", {
+            'step': step,
+            'value': "{:.3f}".format(value),
+            'length': self._ptra.len(),
+            'summary': self._ptra.summary(offset),
+            # 'theorem': self._theorem.thm_string(True),
+        })
 
         for ia in range(a_count):
             for il in range(beta_width):
