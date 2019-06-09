@@ -14,8 +14,6 @@ import xxhash
 
 from generic.tree_lstm import BVT
 
-from torch.utils.data import Dataset
-
 from utils.config import Config
 from utils.log import Log
 
@@ -1340,122 +1338,6 @@ class ProofTrace():
             tokenize_theorem(self._theorems[idx])
         for idx in self._premises:
             tokenize_theorem(self._premises[idx])
-
-
-class ProofTraceLMDataset(Dataset):
-    def __init__(
-            self,
-            dataset_dir: str,
-            dataset_size: str,
-            test: bool,
-            sequence_length: int,
-            trace_max_length=-1,
-    ) -> None:
-        self._sequence_length = sequence_length
-
-        self._cases = []
-        self._ptra_files = []
-
-        if test:
-            dataset_dir = os.path.join(
-                dataset_dir, dataset_size, 'test_traces'
-            )
-        else:
-            dataset_dir = os.path.join(
-                dataset_dir, dataset_size, 'train_traces'
-            )
-
-        assert os.path.isdir(dataset_dir)
-        files = [
-            os.path.join(dataset_dir, f)
-            for f in os.listdir(dataset_dir)
-            if os.path.isfile(os.path.join(dataset_dir, f))
-        ]
-
-        processed = 0
-        for p in files:
-            match = re.search("_(\\d+)_(\\d+)\\.actions$", p)
-            if match is None:
-                continue
-            ptra_len = int(match.group(1))
-            prepare_len = int(match.group(2))
-
-            if trace_max_length <= -1 or ptra_len <= trace_max_length:
-                self._ptra_files.append(p)
-                for pos in range(prepare_len, ptra_len):
-                    if pos < self._sequence_length:
-                        self._cases.append((processed, pos))
-                processed += 1
-
-        Log.out(
-            "Loaded extracted ProofTraces LM Dataset", {
-                'cases': len(self._cases),
-                'processed': processed,
-            })
-
-    def __len__(
-            self,
-    ) -> int:
-        return len(self._cases)
-
-    def __getitem__(
-            self,
-            idx: int,
-    ) -> typing.Tuple[
-        int,
-        typing.List[Action],
-        typing.List[Action],
-        Action,
-        float,
-    ]:
-        with gzip.open(self._ptra_files[self._cases[idx][0]], 'rb') as f:
-            ptra = pickle.load(f)
-
-        truth = ptra.actions()[self._cases[idx][1]]
-        actions = ptra.actions()[:self._cases[idx][1]]
-        arguments = ptra.arguments()[:self._cases[idx][1]]
-
-        # value = 0.0
-        # for i in range(ptra.len() - len(trace)):
-        #     value = 1.0 + 0.99 * value
-        # value = float(ptra.len() - len(actions))
-        # value = ptra.action_len() * 0.99 ** (ptra.len() - len(actions))
-        value = 10 * 0.995 ** (ptra.len() - len(actions))
-
-        actions.append(Action.from_action('EXTRACT', None, None))
-
-        empty = Action.from_action('EMPTY', None, None)
-        while len(actions) < self._sequence_length:
-            actions.append(empty)
-        while len(arguments) < self._sequence_length:
-            arguments.append(empty)
-
-        return (self._cases[idx][1], actions, arguments, truth, value)
-
-
-def lm_collate(
-        batch
-) -> typing.Tuple[
-    typing.List[int],
-    typing.List[typing.List[Action]],
-    typing.List[typing.List[Action]],
-    typing.List[Action],
-    typing.List[float],
-]:
-    indices = []
-    actions = []
-    arguments = []
-    truths = []
-    values = []
-
-    for (idx, act, arg, trh, val) in batch:
-        indices.append(idx)
-        actions.append(act)
-        arguments.append(arg)
-        truths.append(trh)
-        values.append(val)
-
-    return (indices, actions, arguments, truths, values)
 
 
 def dump_trace(

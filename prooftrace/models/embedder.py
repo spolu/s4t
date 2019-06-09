@@ -1,16 +1,12 @@
-import argparse
-import os
 import torch
 import torch.nn as nn
 import typing
 
 from prooftrace.prooftrace import \
     Term, Type, Action, \
-    ACTION_TOKENS, ProofTraceLMDataset
+    ACTION_TOKENS
 
 from generic.tree_lstm import BinaryTreeLSTM
-
-from utils.config import Config
 
 
 class TypeEmbedder(nn.Module):
@@ -272,54 +268,3 @@ class E(nn.Module):
             [t.unsqueeze(0) for t in torch.chunk(h, len(actions), dim=0)],
             dim=0,
         )
-
-
-def test():
-    parser = argparse.ArgumentParser(description="")
-    parser.add_argument(
-        'config_path',
-        type=str, help="path to the config file",
-    )
-    parser.add_argument(
-        '--dataset_size',
-        type=str, help="congif override",
-    )
-
-    args = parser.parse_args()
-
-    config = Config.from_file(args.config_path)
-
-    if args.dataset_size is not None:
-        config.override(
-            'prooftrace_dataset_size',
-            args.dataset_size,
-        )
-
-    # train_set = ProofTraceLMDataset(
-    #     os.path.expanduser(config.get('prooftrace_dataset_dir')),
-    #     config.get('prooftrace_dataset_size'),
-    #     False,
-    #     config.get('prooftrace_sequence_length'),
-    # )
-    test_set = ProofTraceLMDataset(
-        os.path.expanduser(config.get('prooftrace_dataset_dir')),
-        config.get('prooftrace_dataset_size'),
-        True,
-        config.get('prooftrace_sequence_length'),
-    )
-
-    embedder = E(config)
-
-    device = torch.device(config.get('device'))
-    embedder.to(device)
-
-    indices = []
-    traces = []
-
-    for i in range(test_set.__len__()):
-        idx, tr = test_set.__getitem__(i)
-        indices.append(idx)
-        traces.append(tr)
-
-    embeds = embedder(traces[0:32])
-    print(embeds)

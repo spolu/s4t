@@ -6,9 +6,10 @@ from prooftrace.prooftrace import \
     ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, \
     Action, ProofTraceActions
 
+from prooftrace.models.model import Model
 from prooftrace.repl.repl import REPL
 from prooftrace.repl.fusion import Thm
-from prooftrace.search_base import Search, SearchModel
+from prooftrace.search import Search
 
 from utils.config import Config
 from utils.log import Log
@@ -61,7 +62,7 @@ class Node:
             beta_width: int,
             sequence_length: int,
             offset: int,
-            model: SearchModel,
+            model: Model,
             target: Thm,
             step: int,
     ) -> typing.Tuple[
@@ -226,7 +227,7 @@ class MCTS(Search):
     def __init__(
             self,
             config: Config,
-            model: SearchModel,
+            model: Model,
             ptra: ProofTraceActions,
             repl: REPL,
             target: Thm,

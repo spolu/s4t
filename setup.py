@@ -29,14 +29,11 @@ setup(
             'prooftrace_ppo_ack_run=prooftrace.ppo_iota:ack_run',
 
             'prooftrace_search=prooftrace.search:search',
-            'prooftrace_search_rollout_bootstrap=prooftrace.search_rollout:bootstrap',
-            'prooftrace_search_rollout_inspect=prooftrace.search_rollout:inspect',
-            'prooftrace_search_syn_run=prooftrace.search_iota:syn_run',
-            'prooftrace_search_ack_run=prooftrace.search_iota:ack_run',
-            'prooftrace_search_rollout_ctl_run=prooftrace.search_rollout:ctl_run',
-            'prooftrace_search_rollout_wrk_run=prooftrace.search_rollout:wrk_run',
-            'prooftrace_search_search_ctl_run=prooftrace.search_test:ctl_run',
-            'prooftrace_search_search_wrk_run=prooftrace.search_test:wrk_run',
+            'prooftrace_rollout_bootstrap=prooftrace.rollout:bootstrap',
+            'prooftrace_rollout_inspect=prooftrace.rollout:inspect',
+
+            'prooftrace_lm_syn_run=prooftrace.lm_iota:syn_run',
+            'prooftrace_lm_ack_run=prooftrace.lm_iota:ack_run',
 
             'prooftrace_embeds_tsne_extract=prooftrace.embeds.tsne:extract',
             'prooftrace_embeds_viewer=prooftrace.embeds.viewer.viewer:run',

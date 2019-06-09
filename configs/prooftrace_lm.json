@@ -1,0 +1,42 @@
+{
+  "device": "cuda:0",
+  "config_update_path": "configs/run.json",
+
+  "prooftrace_load_dir": null,
+  "prooftrace_save_dir": null,
+  "prooftrace_rollout_dir": null,
+
+  "prooftrace_type_token_count": 70,
+  "prooftrace_term_token_count": 1125,
+  "prooftrace_hidden_size": 256,
+  "prooftrace_sequence_length": 1024,
+
+  "prooftrace_transformer_hidden_size": 256,
+  "prooftrace_transformer_attention_head_count": 4,
+  "prooftrace_transformer_layer_count": 4,
+
+  "prooftrace_lstm_hidden_size": 256,
+  "prooftrace_lstm_layer_count": 0,
+
+  "prooftrace_lm_batch_size": 16,
+  "prooftrace_lm_learning_rate": 0.0001,
+  "prooftrace_lm_action_coeff": 2.0,
+
+  "prooftrace_lm_iota_sync_dir": null,
+  "prooftrace_lm_iota_min_update_count": 12,
+
+  "prooftrace_search_type": "beam",
+  "prooftrace_search_depth": 1024,
+
+  "prooftrace_search_beam_beta_width": 8,
+  "prooftrace_search_beam_head_width": 1,
+  "prooftrace_search_beam_width": 1,
+
+  "prooftrace_search_mcts_beta_width": 4,
+  "prooftrace_search_mcts_roll_count": 64,
+
+  "prooftrace_dataset_dir": "./data/prooftrace",
+  "prooftrace_dataset_size": "small",
+
+  "tensorboard_log_dir": null
+}
