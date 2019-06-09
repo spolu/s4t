@@ -43,7 +43,7 @@
   "prooftrace_ppo_epoch_count": 4,
   "prooftrace_ppo_clip": 0.2,
   "prooftrace_ppo_grad_norm_max": 0.0,
-  "prooftrace_ppo_act_entropy_coeff": 0.01,
+  "prooftrace_ppo_act_entropy_coeff": 0.0,
   "prooftrace_ppo_ptr_entropy_coeff": 0.0,
   "prooftrace_ppo_value_coeff": 0.5,
 
@@ -55,7 +55,7 @@
   "prooftrace_dataset_size": "small",
 
   "prooftrace_ppo_iota_sync_dir": null,
-  "prooftrace_ppo_iota_min_update_count": 48,
+  "prooftrace_ppo_iota_min_update_count": 32,
 
   "tensorboard_log_dir": null
 }
