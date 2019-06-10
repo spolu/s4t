@@ -17,6 +17,7 @@ from prooftrace.mcts import MCTS
 
 from utils.config import Config
 from utils.log import Log
+from utils.str2bool import str2bool
 
 
 class Rollout():
@@ -86,17 +87,25 @@ class Rollout():
 def translate(
         args,
 ):
-    config, path, idx = args
+    config, test, path, idx = args
 
     with gzip.open(path, 'rb') as f:
         ptra = pickle.load(f)
 
     rollout = Rollout(ptra.name(), [ptra], [])
 
-    rollout_dir = os.path.join(
-        os.path.expanduser(config.get('prooftrace_rollout_dir')),
-        config.get('prooftrace_dataset_size'),
-    )
+    if test:
+        rollout_dir = os.path.join(
+            os.path.expanduser(config.get('prooftrace_rollout_dir')),
+            config.get('prooftrace_dataset_size'),
+            'test_rollouts',
+        )
+    else:
+        rollout_dir = os.path.join(
+            os.path.expanduser(config.get('prooftrace_rollout_dir')),
+            config.get('prooftrace_dataset_size'),
+            'train_rollouts',
+        )
 
     rdir = os.path.join(rollout_dir, rollout.name())
     if not os.path.exists(rdir):
@@ -135,6 +144,10 @@ def bootstrap():
         '--rollout_dir',
         type=str, help="config override",
     )
+    parser.add_argument(
+        '--test',
+        type=str2bool, help="config override",
+    )
 
     args = parser.parse_args()
 
@@ -151,11 +164,23 @@ def bootstrap():
             args.dataset_size,
         )
 
-    dataset_dir = os.path.join(
-        os.path.expanduser(config.get('prooftrace_dataset_dir')),
-        config.get('prooftrace_dataset_size'),
-        'train_traces'
-    )
+    test = False
+    if args.test is not None:
+        test = args.test
+
+    if test:
+        dataset_dir = os.path.join(
+            os.path.expanduser(config.get('prooftrace_dataset_dir')),
+            config.get('prooftrace_dataset_size'),
+            'test_traces'
+        )
+    else:
+        dataset_dir = os.path.join(
+            os.path.expanduser(config.get('prooftrace_dataset_dir')),
+            config.get('prooftrace_dataset_size'),
+            'train_traces'
+        )
+
     assert os.path.isdir(dataset_dir)
     files = [
         os.path.join(dataset_dir, f)
@@ -167,7 +192,7 @@ def bootstrap():
 
     map_args = []
     for i, path in enumerate(files):
-        map_args.append([config, path, i])
+        map_args.append([config, test, path, i])
 
     executor.map(translate, map_args)
 

@@ -563,11 +563,20 @@ def ack_run():
         os.path.join(
             os.path.expanduser(config.get('prooftrace_lm_rollout_dir')),
             config.get('prooftrace_dataset_size'),
+            'train_rollouts',
+        ),
+        config.get('prooftrace_sequence_length'),
+    )
+    test_dataset = ProofTraceLMDataset(
+        os.path.join(
+            os.path.expanduser(config.get('prooftrace_lm_rollout_dir')),
+            config.get('prooftrace_dataset_size'),
+            'test_rollouts',
         ),
         config.get('prooftrace_sequence_length'),
     )
 
-    ack = ACK(config, train_dataset)
+    ack = ACK(config, train_dataset, test_dataset)
 
     epoch = 0
     while True:
