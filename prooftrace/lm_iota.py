@@ -119,6 +119,7 @@ class ACK:
             self,
             config: Config,
             train_dataset: ProofTraceLMDataset,
+            test_dataset: ProofTraceLMDataset,
     ):
         self._config = config
 
@@ -140,6 +141,13 @@ class ACK:
             batch_size=self._config.get('prooftrace_lm_batch_size'),
             shuffle=True,
             collate_fn=lm_collate,
+            num_workers=4,
+        )
+        self._test_loader = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=self._config.get('prooftrace_lm_batch_size'),
+            shuffle=True,
+            collate_fn=lm_collate,
         )
 
         Log.out('ACK initialization', {
@@ -147,6 +155,7 @@ class ACK:
         })
 
         self._train_batch = 0
+        self._test_info = None
 
     def update(
             self,
@@ -169,9 +178,7 @@ class ACK:
             info = self._ack.fetch(self._device)
             if info is not None:
                 self.update(info['config'])
-
-                for m in self._model.modules():
-                    self._model.modules()[m].train()
+            self._model.train()
 
             prd_actions, prd_lefts, prd_rights = \
                 self._model.infer(idx, act, arg)
@@ -196,11 +203,16 @@ class ACK:
 
             (self._action_coeff * act_loss + lft_loss + rgt_loss).backward()
 
-            self._ack.push({
+            info = {
                 'act_loss': act_loss.item(),
                 'lft_loss': lft_loss.item(),
                 'rgt_loss': rgt_loss.item(),
-            }, None)
+            }
+            if self._test_info is not None:
+                info.update(self._test_info)
+                self._test_info = None
+
+            self._ack.push(info, None)
 
             Log.out("PROOFTRACE LM ACK RUN", {
                 'epoch': epoch,
@@ -215,6 +227,52 @@ class ACK:
         Log.out("EPOCH DONE", {
             'epoch': epoch,
         })
+
+    def test(
+            self,
+            epoch,
+    ):
+        self._model.eval()
+
+        act_loss_meter = Meter()
+        lft_loss_meter = Meter()
+        rgt_loss_meter = Meter()
+
+        with torch.no_grad():
+            for it, (idx, act, arg, trh) in enumerate(self._train_loader):
+                prd_actions, prd_lefts, prd_rights = \
+                    self._model.infer(idx, act, arg)
+
+                actions = torch.tensor([
+                    trh[i].value - len(PREPARE_TOKENS) for i in range(len(trh))
+                ], dtype=torch.int64).to(self._device)
+                lefts = torch.tensor([
+                    arg[i].index(trh[i].left) for i in range(len(trh))
+                ], dtype=torch.int64).to(self._device)
+                rights = torch.tensor([
+                    arg[i].index(trh[i].right) for i in range(len(trh))
+                ], dtype=torch.int64).to(self._device)
+
+                act_loss = self._nll_loss(prd_actions, actions)
+                lft_loss = self._nll_loss(prd_lefts, lefts)
+                rgt_loss = self._nll_loss(prd_rights, rights)
+
+                act_loss_meter.update(act_loss.item())
+                lft_loss_meter.update(lft_loss.item())
+                rgt_loss_meter.update(rgt_loss.item())
+
+        Log.out("PROOFTRACE LM ACK TEST", {
+            'epoch': epoch,
+            'act_loss_avg': "{:.4f}".format(act_loss.item()),
+            'lft_loss_avg': "{:.4f}".format(lft_loss.item()),
+            'rgt_loss_avg': "{:.4f}".format(rgt_loss.item()),
+        })
+
+        self._test_info = {
+            'test_act_loss': act_loss_meter.avg,
+            'test_lft_loss': lft_loss_meter.avg,
+            'test_rgt_loss': rgt_loss_meter.avg,
+        }
 
 
 class SYN:
@@ -376,11 +434,20 @@ class SYN:
         act_loss_meter = Meter()
         lft_loss_meter = Meter()
         rgt_loss_meter = Meter()
+        test_act_loss_meter = Meter()
+        test_lft_loss_meter = Meter()
+        test_rgt_loss_meter = Meter()
 
         for info in infos:
             act_loss_meter.update(info['act_loss'])
             lft_loss_meter.update(info['lft_loss'])
             rgt_loss_meter.update(info['rgt_loss'])
+            if 'test_act_loss' in info:
+                test_act_loss_meter.update(info['test_act_loss'])
+            if 'test_lft_loss' in info:
+                test_lft_loss_meter.update(info['test_lft_loss'])
+            if 'test_rgt_loss' in info:
+                test_rgt_loss_meter.update(info['test_rgt_loss'])
 
         Log.out("PROOFTRACE BEAM SYN RUN", {
             'epoch': self._epoch,
@@ -390,12 +457,19 @@ class SYN:
             'act_loss': "{:.4f}".format(act_loss_meter.avg or 0.0),
             'lft_loss': "{:.4f}".format(lft_loss_meter.avg or 0.0),
             'rgt_loss': "{:.4f}".format(rgt_loss_meter.avg or 0.0),
+            'test_act_loss': "{:.4f}".format(test_act_loss_meter.avg or 0.0),
+            'test_lft_loss': "{:.4f}".format(test_lft_loss_meter.avg or 0.0),
+            'test_rgt_loss': "{:.4f}".format(test_rgt_loss_meter.avg or 0.0),
         })
 
         if self._tb_writer is not None:
             self._tb_writer.add_scalar(
                 "prooftrace_lm_train/update_delta",
                 update_delta, self._epoch,
+            )
+            self._tb_writer.add_scalar(
+                "prooftrace_lm_train/update_count",
+                len(infos), self._epoch,
             )
             if act_loss_meter.avg is not None:
                 self._tb_writer.add_scalar(
@@ -412,10 +486,22 @@ class SYN:
                     "prooftrace_lm_train/rgt_loss",
                     rgt_loss_meter.avg, self._epoch,
                 )
-            self._tb_writer.add_scalar(
-                "prooftrace_lm_train/update_count",
-                len(infos), self._epoch,
-            )
+
+            if test_act_loss_meter.avg is not None:
+                self._tb_writer.add_scalar(
+                    "prooftrace_lm_test/act_loss",
+                    test_act_loss_meter.avg, self._epoch,
+                )
+            if test_lft_loss_meter.avg is not None:
+                self._tb_writer.add_scalar(
+                    "prooftrace_lm_test/lft_loss",
+                    test_lft_loss_meter.avg, self._epoch,
+                )
+            if test_rgt_loss_meter.avg is not None:
+                self._tb_writer.add_scalar(
+                    "prooftrace_lm_test/rgt_loss",
+                    test_rgt_loss_meter.avg, self._epoch,
+                )
 
         self._epoch += 1
 
@@ -485,6 +571,8 @@ def ack_run():
 
     epoch = 0
     while True:
+        if epoch % 10 == 0:
+            ack.test(epoch)
         ack.run_once(epoch)
         epoch += 1
 

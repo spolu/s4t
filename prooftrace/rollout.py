@@ -306,7 +306,7 @@ def search():
     dataset_dir = os.path.join(
         os.path.expanduser(config.get('prooftrace_dataset_dir')),
         config.get('prooftrace_dataset_size'),
-        'test_traces'
+        'train_traces'
     )
 
     assert os.path.isdir(dataset_dir)

@@ -96,7 +96,7 @@ class Beam(Search):
         index, actions, arguments = self.preprocess_ptra(ptra)
 
         with torch.no_grad():
-            prd_actions, prd_lefts, prd_rights, prd_values = \
+            prd_actions, prd_lefts, prd_rights = \
                 self._model.infer([index], [actions], [arguments])
 
         self._ptras = [ptra.copy()]
@@ -196,7 +196,7 @@ class Beam(Search):
             return True, last_ptra, False
 
         with torch.no_grad():
-            prd_actions, prd_lefts, prd_rights, prd_values = \
+            prd_actions, prd_lefts, prd_rights = \
                 self._model.infer(idx, act, arg)
 
         next_heads = []

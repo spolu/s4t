@@ -88,6 +88,18 @@ class Model:
                 save_dir + "/model_pH.pt",
             )
 
+    def eval(
+            self,
+    ):
+        for m in self._modules:
+            self._modules[m].eval()
+
+    def train(
+            self,
+    ):
+        for m in self._modules:
+            self._modules[m].train()
+
     def infer(
             self,
             idx: typing.List[typing.List[int]],
