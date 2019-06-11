@@ -141,7 +141,6 @@ class ACK:
             batch_size=self._config.get('prooftrace_lm_batch_size'),
             shuffle=True,
             collate_fn=lm_collate,
-            num_workers=4,
         )
         self._test_loader = torch.utils.data.DataLoader(
             train_dataset,
