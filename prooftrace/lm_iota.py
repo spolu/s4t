@@ -579,7 +579,7 @@ def ack_run():
 
     epoch = 0
     while True:
-        if epoch % 10 == 0:
+        if epoch % 10 == 0 and epoch > 0:
             ack.test(epoch)
         ack.run_once(epoch)
         epoch += 1
