@@ -331,7 +331,7 @@ def search():
     dataset_dir = os.path.join(
         os.path.expanduser(config.get('prooftrace_dataset_dir')),
         config.get('prooftrace_dataset_size'),
-        'train_traces'
+        'test_traces'
     )
 
     assert os.path.isdir(dataset_dir)
@@ -424,7 +424,7 @@ def search():
 
         depth = config.get('prooftrace_search_depth')
         if config.get('prooftrace_search_type') == 'beam':
-            depth = fixed_gamma * 2
+            depth = fixed_gamma * 4
 
         for i in range(depth):
             done, ptra, proved = search.step(False, offset)

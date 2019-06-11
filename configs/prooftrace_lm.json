@@ -29,8 +29,8 @@
   "prooftrace_search_depth": 1024,
 
   "prooftrace_search_beam_beta_width": 8,
-  "prooftrace_search_beam_head_width": 1,
-  "prooftrace_search_beam_width": 1,
+  "prooftrace_search_beam_head_width": 2,
+  "prooftrace_search_beam_width": 2,
 
   "prooftrace_search_mcts_beta_width": 4,
   "prooftrace_search_mcts_roll_count": 64,
