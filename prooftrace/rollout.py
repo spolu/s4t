@@ -13,7 +13,7 @@ from prooftrace.prooftrace import ProofTraceActions, INV_PREPARE_TOKENS
 from prooftrace.models.model import Model
 from prooftrace.repl.repl import REPL
 from prooftrace.beam import Beam
-from prooftrace.mcts import MCTS
+from prooftrace.particle_filter import ParticleFilter
 
 from utils.config import Config
 from utils.log import Log
@@ -389,7 +389,7 @@ def search():
         target = repl.prepare(ptra)
 
         offset = 0
-        fixed_gamma = 4
+        fixed_gamma = 2
         if fixed_gamma > 0:
             gamma_len = max(ground.action_len() - fixed_gamma, 0)
             offset = ground.prepare_len() + gamma_len
@@ -418,12 +418,14 @@ def search():
         search = None
         if config.get('prooftrace_search_type') == 'beam':
             search = Beam(config, model, ptra, repl, target)
-        if config.get('prooftrace_search_type') == 'mcts':
-            search = MCTS(config, model, ptra, repl, target)
+        if config.get('prooftrace_search_type') == 'particle_filter':
+            search = ParticleFilter(config, model, ptra, repl, target)
         assert search is not None
 
         depth = config.get('prooftrace_search_depth')
         if config.get('prooftrace_search_type') == 'beam':
+            depth = fixed_gamma * 4
+        if config.get('prooftrace_search_type') == 'particle_filter':
             depth = fixed_gamma * 4
 
         for i in range(depth):

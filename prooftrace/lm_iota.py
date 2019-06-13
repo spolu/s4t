@@ -97,7 +97,7 @@ class ProofTraceLMDataset(Dataset):
 
         index = random.randrange(ptra.prepare_len(), ptra.len())
 
-        assert idx <= self._sequence_length
+        assert index <= self._sequence_length
 
         truth = ptra.actions()[index]
         actions = ptra.actions()[:index]
