@@ -431,4 +431,11 @@ def search():
         for i in range(depth):
             done, ptra, proved = search.step(False, offset)
             if done:
+                if proved:
+                    Log.out("DEMONSTRATED", {
+                        'theorem': thm.thm_string(True),
+                    })
                 break
+        Log.out("FINISH", {
+            'summary': ptra.summary(offset),
+        })

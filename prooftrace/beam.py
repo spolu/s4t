@@ -11,7 +11,6 @@ from prooftrace.repl.fusion import Thm
 from prooftrace.search import Search
 
 from utils.config import Config
-from utils.log import Log
 
 
 class Head:
@@ -161,10 +160,6 @@ class Beam(Search):
                 ptra.append(action, argument)
 
                 if self._target.thm_string(True) == thm.thm_string(True):
-                    Log.out("DEMONSTRATED", {
-                        'theorem': thm.thm_string(True),
-                        'summary': ptra.summary(offset),
-                    })
                     return True, ptra, True
 
                 candidates.append((ptra, repl, action, p))

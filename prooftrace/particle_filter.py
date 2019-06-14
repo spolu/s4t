@@ -4,7 +4,7 @@ import torch.distributions as D
 import torch.nn.functional as F
 
 from prooftrace.prooftrace import \
-    ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, \
+    PREPARE_TOKENS, INV_ACTION_TOKENS, \
     Action, ProofTraceActions
 
 from prooftrace.models.model import Model
@@ -13,7 +13,6 @@ from prooftrace.repl.fusion import Thm
 from prooftrace.search import Search
 
 from utils.config import Config
-from utils.log import Log
 
 
 class ParticleFilter(Search):
@@ -158,10 +157,6 @@ class ParticleFilter(Search):
             ptra.append(action, argument)
 
             if self._target.thm_string(True) == thm.thm_string(True):
-                Log.out("DEMONSTRATED", {
-                    'theorem': thm.thm_string(True),
-                    'summary': ptra.summary(offset),
-                })
                 return True, ptra, True
 
             self._particles.append({
@@ -174,4 +169,3 @@ class ParticleFilter(Search):
             return True, self._particles[0]['ptra'], False
         else:
             return False, self._particles[0]['ptra'], False
-
