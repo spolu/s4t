@@ -105,29 +105,9 @@ class Beam(Search):
                 prd_actions[0].cpu(),
                 prd_lefts[0].cpu(),
                 prd_rights[0].cpu(),
-                # prd_values[0].cpu().item(),  # VALUE
                 1.0,  # PROB
             )
         ]
-
-    def preprocess_ptra(
-            self,
-            ptra: ProofTraceActions,
-    ) -> typing.Tuple[
-        int, typing.List[Action], typing.List[Action],
-    ]:
-        actions = ptra.actions().copy()
-        arguments = ptra.arguments().copy()
-
-        index = len(actions)
-
-        empty = Action.from_action('EMPTY', None, None)
-        while len(actions) < self._config.get('prooftrace_sequence_length'):
-            actions.append(empty)
-        while len(arguments) < self._config.get('prooftrace_sequence_length'):
-            arguments.append(empty)
-
-        return index, actions, arguments
 
     def step(
             self,
@@ -136,10 +116,6 @@ class Beam(Search):
     ) -> typing.Tuple[
         bool, typing.Optional[ProofTraceActions], bool,
     ]:
-        idx = []
-        act = []
-        arg = []
-
         candidates = []
 
         for i in range(len(self._heads)):
@@ -163,11 +139,15 @@ class Beam(Search):
                     return True, ptra, True
 
                 candidates.append((ptra, repl, action, p))
-                index, actions, arguments = self.preprocess_ptra(ptra)
 
-                idx.append(index)
-                act.append(actions)
-                arg.append(arguments)
+        if len(candidates) == 0:
+            last_ptra = self._ptras[0]
+
+            self._ptras = []
+            self._repls = []
+            self._heads = []
+
+            return True, last_ptra, False
 
         h = {}
         uniques = []
@@ -178,17 +158,16 @@ class Beam(Search):
 
         candidates = uniques
 
-        # Log.out("PRE-BEAM", {
-        #     'candidates': len(candidates),
-        # })
-        if len(candidates) == 0:
-            last_ptra = self._ptras[0]
+        idx = []
+        act = []
+        arg = []
 
-            self._ptras = []
-            self._repls = []
-            self._heads = []
+        for c in candidates:
+            index, actions, arguments = self.preprocess_ptra(c[0])
 
-            return True, last_ptra, False
+            idx.append(index)
+            act.append(actions)
+            arg.append(arguments)
 
         with torch.no_grad():
             prd_actions, prd_lefts, prd_rights = \
@@ -204,10 +183,8 @@ class Beam(Search):
                     prd_lefts[i].cpu(),
                     prd_rights[i].cpu(),
                     candidates[i][3],  # PROB
-                    # prd_values[i].cpu().item(),  # VALUE
                 ),
                 candidates[i][3],  # PROB
-                # prd_values[i].cpu().item(),  # VALUE
             ))
 
         next_heads = sorted(

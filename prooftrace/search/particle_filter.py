@@ -37,25 +37,6 @@ class ParticleFilter(Search):
             'cost': 1.0,
         } for _ in range(self._filter_size)]
 
-    def preprocess_ptra(
-            self,
-            ptra: ProofTraceActions,
-    ) -> typing.Tuple[
-        int, typing.List[Action], typing.List[Action],
-    ]:
-        actions = ptra.actions().copy()
-        arguments = ptra.arguments().copy()
-
-        index = len(actions)
-
-        empty = Action.from_action('EMPTY', None, None)
-        while len(actions) < self._config.get('prooftrace_sequence_length'):
-            actions.append(empty)
-        while len(arguments) < self._config.get('prooftrace_sequence_length'):
-            arguments.append(empty)
-
-        return index, actions, arguments
-
     def step(
             self,
             final: bool = False,

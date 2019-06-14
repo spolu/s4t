@@ -16,6 +16,7 @@ from prooftrace.models.model import Model
 from prooftrace.repl.repl import REPL
 from prooftrace.search.beam import Beam
 from prooftrace.search.particle_filter import ParticleFilter
+from prooftrace.search.policy_sample import PolicySample
 
 from utils.config import Config
 from utils.log import Log
@@ -307,7 +308,7 @@ def search():
         target = repl.prepare(ptra)
 
         offset = 0
-        fixed_gamma = 2
+        fixed_gamma = config.get('prooftrace_search_fixed_gamma')
         if fixed_gamma > 0:
             gamma_len = max(ground.action_len() - fixed_gamma, 0)
             offset = ground.prepare_len() + gamma_len
@@ -338,13 +339,11 @@ def search():
             search = Beam(config, model, ptra, repl, target)
         if config.get('prooftrace_search_type') == 'particle_filter':
             search = ParticleFilter(config, model, ptra, repl, target)
+        if config.get('prooftrace_search_type') == 'policy_sample':
+            search = PolicySample(config, model, ptra, repl, target)
         assert search is not None
 
-        depth = config.get('prooftrace_search_depth')
-        if config.get('prooftrace_search_type') == 'beam':
-            depth = fixed_gamma * 4
-        if config.get('prooftrace_search_type') == 'particle_filter':
-            depth = fixed_gamma * 4
+        depth = fixed_gamma * 4
 
         for i in range(depth):
             done, ptra, proved = search.step(False, offset)

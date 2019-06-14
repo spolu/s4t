@@ -25,15 +25,17 @@
   "prooftrace_lm_iota_sync_dir": null,
   "prooftrace_lm_iota_min_update_count": 12,
 
-  "prooftrace_search_type": "beam",
-  "prooftrace_search_depth": 1024,
+  "prooftrace_search_type": "policy_sample",
+  "prooftrace_search_fixed_gamma": 2,
 
-  "prooftrace_search_beam_beta_width": 8,
+  "prooftrace_search_beam_beta_width": 10,
   "prooftrace_search_beam_head_width": 8,
   "prooftrace_search_beam_width": 8,
 
+  "prooftrace_search_policy_sample_beta_width": 10,
+
   "prooftrace_search_particle_filter_size": 16,
-  "prooftrace_search_particle_filter_sample_size": 8,
+  "prooftrace_search_particle_filter_sample_size": 32,
 
   "prooftrace_search_mcts_beta_width": 4,
   "prooftrace_search_mcts_roll_count": 64,
