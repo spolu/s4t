@@ -14,7 +14,7 @@ from prooftrace.prooftrace import PREPARE_TOKENS, Action
 
 from generic.iota import IOTAAck, IOTASyn
 
-from prooftrace.search import Model
+from prooftrace.model.model import Model
 
 from tensorboardX import SummaryWriter
 
