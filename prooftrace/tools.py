@@ -346,7 +346,7 @@ def search():
         depth = fixed_gamma * 4
 
         for i in range(depth):
-            done, ptra, proved = search.step(False, offset)
+            done, ptra, proved = search.step(offset)
             if done:
                 if proved:
                     Log.out("DEMONSTRATED", {
