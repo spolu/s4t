@@ -8,7 +8,7 @@ from prooftrace.prooftrace import \
 from prooftrace.models.model import Model
 from prooftrace.repl.repl import REPL
 from prooftrace.repl.fusion import Thm
-from prooftrace.search import Search
+from prooftrace.search.search import Search
 
 from utils.config import Config
 

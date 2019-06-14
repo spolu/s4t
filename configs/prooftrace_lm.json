@@ -29,8 +29,8 @@
   "prooftrace_search_depth": 1024,
 
   "prooftrace_search_beam_beta_width": 8,
-  "prooftrace_search_beam_head_width": 1,
-  "prooftrace_search_beam_width": 1,
+  "prooftrace_search_beam_head_width": 8,
+  "prooftrace_search_beam_width": 8,
 
   "prooftrace_search_particle_filter_size": 16,
   "prooftrace_search_particle_filter_sample_size": 8,
