@@ -111,7 +111,6 @@ class Beam(Search):
 
     def step(
             self,
-            final: bool = False,
             offset: int = 0,
     ) -> typing.Tuple[
         bool, typing.Optional[ProofTraceActions], bool,
@@ -201,7 +200,4 @@ class Beam(Search):
         #         'summary': v[0].summary(offset),
         #     })
 
-        if final:
-            return True, self._ptras[0], False
-        else:
-            return False, self._ptras[0], False
+        return False, self._ptras[0], False

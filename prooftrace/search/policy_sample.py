@@ -29,7 +29,6 @@ class PolicySample(Search):
 
     def step(
             self,
-            final: bool = False,
             offset: int = 0,
     ) -> typing.Tuple[
         bool, typing.Optional[ProofTraceActions], bool,
@@ -104,7 +103,4 @@ class PolicySample(Search):
         if self._target.thm_string(True) == thm.thm_string(True):
             return True, self._ptra, True
 
-        if final:
-            return True, self._ptra, False
-        else:
-            return False, self._ptra, False
+        return False, self._ptra, False

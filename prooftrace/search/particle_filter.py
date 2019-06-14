@@ -39,7 +39,6 @@ class ParticleFilter(Search):
 
     def step(
             self,
-            final: bool = False,
             offset: int = 0,
     ) -> typing.Tuple[
         bool, typing.Optional[ProofTraceActions], bool,
@@ -146,7 +145,4 @@ class ParticleFilter(Search):
                 'cost': p['cost'] * s[2],
             })
 
-        if final:
-            return True, self._particles[0]['ptra'], False
-        else:
-            return False, self._particles[0]['ptra'], False
+        return False, self._particles[0]['ptra'], False

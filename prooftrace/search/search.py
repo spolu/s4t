@@ -24,7 +24,6 @@ class Search:
 
     def step(
             self,
-            final: bool = False,
             offset: int = 0,
     ) -> typing.Tuple[
         bool, typing.Optional[ProofTraceActions], bool,
