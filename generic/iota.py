@@ -205,9 +205,13 @@ class IOTAAck(IOTABase):
                         data[key] = param.grad.data
         data['info'] = info
 
-        now = datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f")
-        rnd = random.randint(0, 10e9)
-        p = self.atomic_save(data, "update_{}_{}".format(now, rnd))
+        p = self.atomic_save(
+            data,
+            "update_{}_{}".format(
+                datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f"),
+                random.randint(0, 10e9),
+            ),
+        )
 
         Log.out("{IOTA} UPDATE[NEW]", {'path': p})
 
@@ -245,7 +249,7 @@ class IOTACtl(IOTABase):
             infos.append(data['info'])
 
             os.remove(p)
-            Log.out("{IOTA} TEST[CONSUME]", {'path': p})
+            # Log.out("{IOTA} WRK[CONSUME]", {'path': p})
 
         return infos
 
@@ -268,6 +272,13 @@ class IOTAWrk(IOTAAck):
         data = {}
         data['info'] = info
 
-        now = datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f")
-        rnd = random.randint(0, 10e9)
-        self.atomic_save(data, "wrk_{}_{}_{}".format(self._prefix, now, rnd))
+        p = self.atomic_save(
+            data,
+            "wrk_{}_{}_{}".format(
+                self._prefix,
+                datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f"),
+                random.randint(0, 10e9),
+            ),
+        )
+
+        Log.out("{IOTA} WRK[NEW]", {'path': p})
