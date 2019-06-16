@@ -23,7 +23,7 @@
   "prooftrace_lm_action_coeff": 2.0,
 
   "prooftrace_lm_iota_sync_dir": null,
-  "prooftrace_lm_iota_min_update_count": 12,
+  "prooftrace_lm_iota_min_update_count": 40,
 
   "prooftrace_search_type": "beam",
   "prooftrace_search_fixed_gamma": 8,
