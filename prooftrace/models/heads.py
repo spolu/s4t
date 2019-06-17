@@ -60,10 +60,10 @@ class PH(nn.Module):
         #     nn.LogSoftmax(dim=1),
         # )
 
-        # self.left_ptr_heads = nn.Linear(
-        #     self.lstm_hidden_size,
-        #     self.lstm_hidden_size,
-        # )
+        self.left_ptr_heads = nn.Linear(
+            self.lstm_hidden_size,
+            self.lstm_hidden_size,
+        )
         # self.left_ptr_targets = nn.Linear(
         #     self.lstm_hidden_size,
         #     self.lstm_hidden_size,
@@ -81,10 +81,10 @@ class PH(nn.Module):
             ),
         )
 
-        # self.right_ptr_heads = nn.Linear(
-        #     self.lstm_hidden_size,
-        #     self.lstm_hidden_size,
-        # )
+        self.right_ptr_heads = nn.Linear(
+            self.lstm_hidden_size,
+            self.lstm_hidden_size,
+        )
         # self.right_ptr_targets = nn.Linear(
         #     self.lstm_hidden_size,
         #     self.lstm_hidden_size,
@@ -123,9 +123,9 @@ class PH(nn.Module):
         # rights = self.right_head(targets + heads)
 
         lefts = self.left_ptr_proj(
-            # self.left_ptr_heads(
-            #     heads
-            # ).unsqueeze(1).expand(hiddens.size()) +
+            self.left_ptr_heads(
+                heads
+            ).unsqueeze(1).expand(hiddens.size()) +
             # self.left_ptr_targets(
             #     targets
             # ).unsqueeze(1).expand(hiddens.size()) +
@@ -133,9 +133,9 @@ class PH(nn.Module):
         ).squeeze(2)
 
         rights = self.right_ptr_proj(
-            # self.right_ptr_heads(
-            #     heads
-            # ).unsqueeze(1).expand(hiddens.size()) +
+            self.right_ptr_heads(
+                heads
+            ).unsqueeze(1).expand(hiddens.size()) +
             # self.right_ptr_targets(
             #     targets
             # ).unsqueeze(1).expand(hiddens.size()) +
