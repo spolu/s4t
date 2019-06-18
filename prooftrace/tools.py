@@ -6,6 +6,7 @@ import os
 import random
 import re
 import sys
+import time
 import torch
 import typing
 
@@ -346,13 +347,27 @@ def search():
         depth = fixed_gamma * 4
 
         for i in range(depth):
+            step_start = time.time()
             done, ptra, proved = search.step(offset)
+            step_end = time.time()
+
+            Log.out('STEP', {
+                'i': i,
+                'done': done,
+                'proved': proved,
+                'time': "{:.2f}".format(step_end - step_start),
+            })
             if done:
                 if proved:
                     Log.out("DEMONSTRATED", {
                         'theorem': thm.thm_string(True),
                     })
                 break
+
+            if (step_end - step_start) > \
+                    config.get('prooftrace_search_step_timeout'):
+                break
+
         Log.out("FINISH", {
             'summary': ptra.summary(offset),
         })

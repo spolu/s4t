@@ -11,6 +11,7 @@ from prooftrace.repl.fusion import Thm
 from prooftrace.search.search import Search
 
 from utils.config import Config
+# from utils.log import Log
 
 
 class Head:
