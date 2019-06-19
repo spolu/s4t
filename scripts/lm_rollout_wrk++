@@ -1,0 +1,5 @@
+#!/bin/bash
+
+tmux -S ~/lm_rollout_wrk new-window -n "lm-rollout-wrk-$1-$2"
+tmux -S ~/lm_rollout_wrk send-keys "z3ta" C-m
+tmux -S ~/lm_rollout_wrk send-keys "prooftrace_lm_rollout_wrk_run configs/prooftrace_lm.json --sync_dir=~/tmp/iota/lm-$1 --rollout_dir=~/tmp/iota/lm-$1-rollouts --device=cuda:$2" C-m

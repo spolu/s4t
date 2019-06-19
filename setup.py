@@ -36,6 +36,9 @@ setup(
             'prooftrace_lm_syn_run=prooftrace.lm_iota:syn_run',
             'prooftrace_lm_ack_run=prooftrace.lm_iota:ack_run',
 
+            'prooftrace_lm_rollout_ctl_run=prooftrace.lm_rollout:ctl_run',
+            'prooftrace_lm_rollout_wrk_run=prooftrace.lm_rollout:wrk_run',
+
             'prooftrace_embeds_tsne_extract=prooftrace.embeds.tsne:extract',
             'prooftrace_embeds_viewer=prooftrace.embeds.viewer.viewer:run',
         ],

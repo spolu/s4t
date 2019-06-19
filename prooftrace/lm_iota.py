@@ -10,11 +10,10 @@ import torch.nn as nn
 import torch.optim as optim
 import typing
 
-from prooftrace.prooftrace import PREPARE_TOKENS, Action
-
 from generic.iota import IOTAAck, IOTASyn
 
 from prooftrace.models.model import Model
+from prooftrace.prooftrace import PREPARE_TOKENS, Action
 
 from tensorboardX import SummaryWriter
 
