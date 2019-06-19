@@ -1,5 +1,0 @@
-#!/bin/bash
-
-tmux -S ~/ack new-window -n "ack-search-$1-$2"
-tmux -S ~/ack send-keys "z3ta" C-m
-tmux -S ~/ack send-keys "prooftrace_search_ack_run configs/prooftrace_search.json --sync_dir=~/tmp/iota/search-$1 --rollout_dir=~/tmp/iota/search-$1-rollouts --device=cuda:$2" C-m
