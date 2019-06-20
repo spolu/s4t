@@ -140,7 +140,9 @@ class Beam(Search):
 
                 candidates.append((ptra, repl, action, p))
 
-        if len(candidates) == 0:
+        if len(candidates) == 0 or \
+                self._ptras[0].len() == \
+                self._config.get('prooftrace_sequence_length'):
             last_ptra = self._ptras[0]
 
             self._ptras = []
