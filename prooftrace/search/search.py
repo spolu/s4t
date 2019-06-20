@@ -41,6 +41,10 @@ class Search:
 
         index = len(actions)
 
+        assert index < self._config.get('prooftrace_sequence_length')
+
+        actions.append(Action.from_action('EXTRACT', None, None))
+
         empty = Action.from_action('EMPTY', None, None)
         while len(actions) < self._config.get('prooftrace_sequence_length'):
             actions.append(empty)
