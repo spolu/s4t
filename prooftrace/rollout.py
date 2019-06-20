@@ -8,12 +8,7 @@ import random
 import re
 import typing
 
-from prooftrace.prooftrace import ProofTraceActions, INV_PREPARE_TOKENS
-
-from prooftrace.models.model import Model
-from prooftrace.repl.repl import REPL
-from prooftrace.search.beam import Beam
-from prooftrace.search.particle_filter import ParticleFilter
+from prooftrace.prooftrace import ProofTraceActions
 
 from utils.config import Config
 from utils.log import Log
@@ -218,7 +213,6 @@ def read(
         'rdir': rdir,
         'positives': len(rollout._positives),
         'negatives': len(rollout._negatives),
-        'index': idx,
     })
 
     return (len(rollout._positives), len(rollout._negatives))
@@ -258,6 +252,7 @@ def inspect():
     rollout_dir = os.path.join(
         os.path.expanduser(config.get('prooftrace_rollout_dir')),
         config.get('prooftrace_dataset_size'),
+        'train_rollouts',
     )
 
     assert os.path.isdir(rollout_dir)
@@ -287,5 +282,3 @@ def inspect():
         'positives': positives,
         'negatives': negatives,
     })
-
-

@@ -550,7 +550,7 @@ def ack_run():
         )
     if args.rollout_dir is not None:
         config.override(
-            'prooftrace_lm_rollout_dir',
+            'prooftrace_rollout_dir',
             os.path.expanduser(args.rollout_dir),
         )
 
@@ -559,7 +559,7 @@ def ack_run():
 
     train_dataset = ProofTraceLMDataset(
         os.path.join(
-            os.path.expanduser(config.get('prooftrace_lm_rollout_dir')),
+            os.path.expanduser(config.get('prooftrace_rollout_dir')),
             config.get('prooftrace_dataset_size'),
             'train_rollouts',
         ),
@@ -567,7 +567,7 @@ def ack_run():
     )
     test_dataset = ProofTraceLMDataset(
         os.path.join(
-            os.path.expanduser(config.get('prooftrace_lm_rollout_dir')),
+            os.path.expanduser(config.get('prooftrace_rollout_dir')),
             config.get('prooftrace_dataset_size'),
             'test_rollouts',
         ),
