@@ -378,7 +378,8 @@ def search():
         Log.out("FINISH", {
             'summary': ptra.summary(offset),
         })
-        if config.get('prooftrace_search_type') == 'random':
+        if config.get('prooftrace_search_type') == 'random' \
+                and search.last_thm() is not None:
             Log.out("THEOREM", {
                 'theorem': search.last_thm().thm_string(False, True)
             })

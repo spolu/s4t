@@ -152,12 +152,13 @@ class Term(BVT):
         """
         def v_term(term, bounded=[]):
             assert term.token() == '__v'
+            if skip_type:
+                return term.left.token()
+
             typ = term.right.value.type_string()
             tm = '(' + term.left.token() + typ + ')'
 
-            if skip_type:
-                tm = term.left.token()
-            if not de_bruijn or skip_type:
+            if not de_bruijn:
                 return tm
 
             if tm in bounded:

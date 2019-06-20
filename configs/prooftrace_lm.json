@@ -42,7 +42,7 @@
   "prooftrace_search_mcts_roll_count": 64,
 
   "prooftrace_dataset_dir": "./data/prooftrace",
-  "prooftrace_dataset_size": "small",
+  "prooftrace_dataset_size": "medium",
 
   "tensorboard_log_dir": null
 }
