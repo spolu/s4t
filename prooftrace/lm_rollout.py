@@ -152,7 +152,7 @@ class WRK():
         })
 
         rollout = None
-        proven = False
+        proved = False
         ptra = None
 
         for i in range(depth):
@@ -166,15 +166,15 @@ class WRK():
                 'time': "{:.2f}".format(step_end - step_start),
             })
             if done:
-                if proven:
-                    rollout = Rollout(name, [ptra], [])
-                else:
-                    rollout = Rollout(name, [], [ptra])
                 break
             if (step_end - step_start) > 20:
                     # self._config.get('prooftrace_search_step_timeout'):
-                rollout = Rollout(name, [], [ptra])
                 break
+
+        if proved:
+            rollout = Rollout(name, [ptra], [])
+        else:
+            rollout = Rollout(name, [], [ptra])
 
         demo_length = ptra.action_len()
         demo_delta = ptra.action_len() - ground.action_len()
