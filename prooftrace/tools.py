@@ -18,6 +18,7 @@ from prooftrace.repl.repl import REPL
 from prooftrace.search.beam import Beam
 from prooftrace.search.particle_filter import ParticleFilter
 from prooftrace.search.policy_sample import PolicySample
+from prooftrace.search.random import Random
 
 from utils.config import Config
 from utils.log import Log
@@ -331,8 +332,9 @@ def search():
         Log.out("TARGET", {
             'name': ground.name(),
             'prepare_length': ground.prepare_len(),
-            'length': ground.action_len(),
+            'action_length': ground.action_len(),
             'summary': ground.summary(offset),
+            'theorem': target.thm_string(False, True),
         })
 
         search = None
@@ -342,25 +344,30 @@ def search():
             search = ParticleFilter(config, model, ptra, repl, target)
         if config.get('prooftrace_search_type') == 'policy_sample':
             search = PolicySample(config, model, ptra, repl, target)
+        if config.get('prooftrace_search_type') == 'random':
+            search = Random(config, model, ptra, repl, target)
         assert search is not None
 
-        depth = fixed_gamma * 4
+        depth = config.get('prooftrace_sequence_length') - ground.prepare_len()
+        depth = ground.action_len()
+        if fixed_gamma != 0 and 4 * fixed_gamma < depth:
+            depth = fixed_gamma * 4
 
         for i in range(depth):
             step_start = time.time()
             done, ptra, proved = search.step(offset)
             step_end = time.time()
 
-            Log.out('STEP', {
-                'i': i,
-                'done': done,
-                'proved': proved,
-                'time': "{:.2f}".format(step_end - step_start),
-            })
+            # Log.out('STEP', {
+            #     'i': i,
+            #     'done': done,
+            #     'proved': proved,
+            #     'time': "{:.2f}".format(step_end - step_start),
+            # })
             if done:
                 if proved:
                     Log.out("DEMONSTRATED", {
-                        'theorem': thm.thm_string(True),
+                        'theorem': target.thm_string(False, True),
                     })
                 break
 
@@ -371,3 +378,8 @@ def search():
         Log.out("FINISH", {
             'summary': ptra.summary(offset),
         })
+        if config.get('prooftrace_search_type') == 'random' \
+                and search.last_thm() is not None:
+            Log.out("THEOREM", {
+                'theorem': search.last_thm().thm_string(False, True)
+            })

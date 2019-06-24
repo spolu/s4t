@@ -146,22 +146,26 @@ class Term(BVT):
     def term_string(
             self,
             de_bruijn: bool = False,
+            skip_type: bool = False,
     ) -> str:
         """ `term_string` formats the Term BVT as a HOL Light term string
         """
         def v_term(term, bounded=[]):
             assert term.token() == '__v'
+            if skip_type:
+                return term.left.token()
+
             typ = term.right.value.type_string()
-            term = '(' + term.left.token() + typ + ')'
+            tm = '(' + term.left.token() + typ + ')'
 
             if not de_bruijn:
-                return term
+                return tm
 
-            if term in bounded:
+            if tm in bounded:
                 for i in reversed(range(len(bounded))):
-                    if term == bounded[i]:
+                    if tm == bounded[i]:
                         return '(b' + str(i) + typ + ')'
-            return term
+            return tm
 
         def dump(term, args, bounded):
             if term.token() == '__C':
@@ -184,8 +188,11 @@ class Term(BVT):
                 assert type(term.right.value) is Type
 
                 if len(args) == 0:
-                    return '((' + term.left.token() + ')' + \
-                        term.right.value.type_string() + ')'
+                    if skip_type:
+                        return '(' + term.left.token() + ')'
+                    else:
+                        return '((' + term.left.token() + ')' + \
+                            term.right.value.type_string() + ')'
                 else:
                     # This is an attempt at simplyfing terms as much as
                     # possible to make them readable.
@@ -197,8 +204,11 @@ class Term(BVT):
                             ' ' + args[1] + ')'
                         return tm
                     else:
-                        tm = '(((' + term.left.token() + ')' + \
-                            term.right.value.type_string() + ')'
+                        if skip_type:
+                            tm = '((' + term.left.token() + ')'
+                        else:
+                            tm = '(((' + term.left.token() + ')' + \
+                                term.right.value.type_string() + ')'
                         for a in args:
                             tm += ' ' + a
                         tm += ')'
