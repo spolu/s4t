@@ -25,7 +25,7 @@
   "prooftrace_lm_iota_sync_dir": null,
   "prooftrace_lm_iota_min_update_count": 12,
 
-  "prooftrace_search_type": "random",
+  "prooftrace_search_type": "beam",
   "prooftrace_search_fixed_gamma": 8,
   "prooftrace_search_step_timeout": 20.0,
 
@@ -42,7 +42,7 @@
   "prooftrace_search_mcts_roll_count": 64,
 
   "prooftrace_dataset_dir": "./data/prooftrace",
-  "prooftrace_dataset_size": "medium",
+  "prooftrace_dataset_size": "small",
 
   "tensorboard_log_dir": null
 }
