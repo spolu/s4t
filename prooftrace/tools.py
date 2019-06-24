@@ -367,7 +367,7 @@ def search():
             if done:
                 if proved:
                     Log.out("DEMONSTRATED", {
-                        'theorem': target.thm_string(True),
+                        'theorem': target.thm_string(False, True),
                     })
                 break
 
