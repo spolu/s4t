@@ -252,7 +252,7 @@ def search():
     dataset_dir = os.path.join(
         os.path.expanduser(config.get('prooftrace_dataset_dir')),
         config.get('prooftrace_dataset_size'),
-        'train_traces'
+        'test_traces'
     )
 
     assert os.path.isdir(dataset_dir)
@@ -350,7 +350,7 @@ def search():
 
         depth = config.get('prooftrace_sequence_length') - ground.prepare_len()
         depth = ground.action_len()
-        if fixed_gamma != 0 and 2 * fixed_gamma < depth:
+        if fixed_gamma != 0 and 4 * fixed_gamma < depth:
             depth = fixed_gamma * 4
 
         for i in range(depth):
