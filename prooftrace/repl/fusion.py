@@ -50,7 +50,7 @@ class Thm():
     ) -> str:
         return "{} |- {}".format(
             ", ".join(sorted([
-                h.term_string(de_bruijn) for h in self._hypotheses
+                h.term_string(de_bruijn, skip_type) for h in self._hypotheses
             ])),
             self._conclusion.term_string(de_bruijn, skip_type),
         )
