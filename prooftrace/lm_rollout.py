@@ -141,6 +141,7 @@ class WRK():
 
         depth = self._config.get('prooftrace_sequence_length') - \
             ground.prepare_len()
+
         if 2 * ground.action_len() < depth:
             depth = 2 * ground.action_len()
 

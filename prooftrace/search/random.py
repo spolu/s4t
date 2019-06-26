@@ -1,5 +1,6 @@
 import random
 import typing
+import torch
 
 from prooftrace.prooftrace import \
     ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, \
@@ -35,42 +36,50 @@ class Random(Search):
         self._repl = repl.copy()
         self._last_thm = None
 
-    def sample_term(
-            self,
-    ):
-        indices = [0] + [
+        self._term_indices = [0] + [
             i for i in range(self._ptra.len())
             if self._ptra.actions()[i].value == 7
         ]
-        return random.choice(indices)
+        self._subst_indices = [0] + [
+            i for i in range(self._ptra.len())
+            if self._ptra.actions()[i].value == 4
+        ]
+        self._subst_type_indices = [0] + [
+            i for i in range(self._ptra.len())
+            if self._ptra.actions()[i].value == 5
+        ]
+        self._premises_indices = [
+            i for i in range(1, self._ptra.len())
+            if self._ptra.actions()[i].value == 2
+        ]
+
+    def sample_term(
+            self,
+    ):
+        return random.choice(self._term_indices)
 
     def sample_theorem(
             self,
     ):
-        indices = [
-            i for i in range(1, self._ptra.len())
-            if self._ptra.actions()[i].value
-            in [2, 3] + list(NON_PREPARE_TOKENS.values())
-        ]
-        return random.choice(indices)
+        indices = self._premises_indices + \
+            list(range(self._ptra.prepare_len(), self._ptra.len()))
+        m = torch.distributions.Categorical(
+            torch.softmax(torch.tensor(
+                list(range(len(indices))),
+                dtype=torch.float,
+            ), 0),
+        )
+        return indices[m.sample().item()]
 
     def sample_subst(
             self,
     ):
-        indices = [0] + [
-            i for i in range(self._ptra.len())
-            if self._ptra.actions()[i].value == 4
-        ]
-        return random.choice(indices)
+        return random.choice(self._subst_indices)
 
     def sample_subst_type(
             self,
     ):
-        indices = [0] + [
-            i for i in range(self._ptra.len())
-            if self._ptra.actions()[i].value == 5
-        ]
-        return random.choice(indices)
+        return random.choice(self._subst_type_indices)
 
     def step(
             self,

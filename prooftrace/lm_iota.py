@@ -13,7 +13,7 @@ import typing
 from generic.iota import IOTAAck, IOTASyn
 
 from prooftrace.models.model import Model
-from prooftrace.prooftrace import PREPARE_TOKENS, Action
+from prooftrace.prooftrace import PREPARE_TOKENS, Action, ProofTraceActions
 
 from tensorboardX import SummaryWriter
 
@@ -51,8 +51,10 @@ class ProofTraceLMDataset(Dataset):
             self,
             rollout_dir: str,
             sequence_length: int,
+            augment: bool = False,
     ) -> None:
         self._sequence_length = sequence_length
+        self._augment = augment
 
         self._rdirs = []
 
@@ -72,6 +74,12 @@ class ProofTraceLMDataset(Dataset):
             self,
     ) -> int:
         return len(self._rdirs)
+
+    def augment(
+            self,
+            ptra: ProofTraceActions,
+    ) -> ProofTraceActions:
+        ptra = ptra.copy()
 
     def __getitem__(
             self,

@@ -348,10 +348,15 @@ def search():
             search = Random(config, model, ptra, repl, target)
         assert search is not None
 
-        depth = config.get('prooftrace_sequence_length') - ground.prepare_len()
-        depth = ground.action_len()
-        if fixed_gamma != 0 and 4 * fixed_gamma < depth:
-            depth = fixed_gamma * 4
+        depth = config.get('prooftrace_sequence_length') - \
+            ground.prepare_len()
+
+        if fixed_gamma != 0:
+            if 4 * fixed_gamma < depth:
+                depth = fixed_gamma * 4
+        else:
+            if 2 * ground.action_len() < depth:
+                depth = 2 * ground.action_len()
 
         for i in range(depth):
             step_start = time.time()
@@ -380,6 +385,6 @@ def search():
         })
         if config.get('prooftrace_search_type') == 'random' \
                 and search.last_thm() is not None:
-            Log.out("THEOREM", {
+            Log.out("GENERATED", {
                 'theorem': search.last_thm().thm_string(False, True)
             })
