@@ -92,8 +92,6 @@ class ProofTraceLMDataset(Dataset):
 
         Warning: the operation is destructive for the passed ProofTraceAction.
         """
-        Log.out('AUGMENT START')
-
         ptra = ProofTraceActions(
             'AUGMENT-{}-{}'.format(
                 datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f"),
@@ -123,7 +121,11 @@ class ProofTraceLMDataset(Dataset):
             action = None
             sampled = False
 
-            if random.random() < (1.0 / self._period):
+            skip = False
+            if (index - next_idx + ptra.len()) >= self._sequence_length:
+                skip = True
+
+            if not skip and random.random() < (1.0 / self._period):
                 action = sampler.sample(ptra, repl, 8)
                 # Log.out('AUGMENT SAMPLE')
 
@@ -156,6 +158,8 @@ class ProofTraceLMDataset(Dataset):
             # })
 
             ptra.append(action, argument)
+
+        import pdb; pdb.set_trace()
 
         return ptra
 
