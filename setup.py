@@ -28,7 +28,7 @@ setup(
             'prooftrace_ppo_syn_run=prooftrace.ppo_iota:syn_run',
             'prooftrace_ppo_ack_run=prooftrace.ppo_iota:ack_run',
 
-            'prooftrace_search=prooftrace.search:search',
+            'prooftrace_search=prooftrace.search.run:search',
 
             'prooftrace_rollout_bootstrap=prooftrace.rollout:bootstrap',
             'prooftrace_rollout_inspect=prooftrace.rollout:inspect',
