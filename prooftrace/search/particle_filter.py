@@ -40,6 +40,7 @@ class ParticleFilter(Search):
     def step(
             self,
             offset: int = 0,
+            conclusion: bool = False,
     ) -> typing.Tuple[
         bool, typing.Optional[ProofTraceActions], bool,
     ]:

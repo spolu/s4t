@@ -7,9 +7,8 @@ import random
 import re
 import time
 
-from prooftrace.prooftrace import INV_PREPARE_TOKENS, ProofTraceActions
-
 from prooftrace.models.model import Model
+from prooftrace.prooftrace import INV_PREPARE_TOKENS, ProofTraceActions
 from prooftrace.repl.repl import REPL
 from prooftrace.search.beam import Beam
 from prooftrace.search.particle_filter import ParticleFilter
@@ -103,7 +102,7 @@ def search():
             ground = pickle.load(f)
 
         ptra = ProofTraceActions(
-            'BEAM-{}-{}'.format(
+            'SEARCH-{}-{}'.format(
                 datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f"),
                 random.randint(0, 9999),
             ),
@@ -169,8 +168,13 @@ def search():
                 depth = 2 * ground.action_len()
 
         for i in range(depth):
+            if fixed_gamma != 0:
+                conclusion = (i >= fixed_gamma * 2)
+            else:
+                conclusion = (i >= ground.action_len())
+
             step_start = time.time()
-            done, ptra, proved = search.step(offset)
+            done, ptra, proved = search.step(offset, conclusion)
             step_end = time.time()
 
             # Log.out('STEP', {
