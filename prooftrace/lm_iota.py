@@ -122,7 +122,7 @@ class ProofTraceLMDataset(Dataset):
             sampled = False
 
             skip = False
-            if (index - next_idx + ptra.len()) >= self._sequence_length:
+            if (index + 1 - next_idx + ptra.len()) >= self._sequence_length:
                 skip = True
             if (index == next_idx):
                 skip = True
