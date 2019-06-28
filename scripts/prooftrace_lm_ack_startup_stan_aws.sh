@@ -3,7 +3,7 @@
 sshfs stan@ec2-18-222-144-196.us-east-2.compute.amazonaws.com:/home/stan/tmp/iota ~/tmp/iota
 
 cd ~/src/z3ta
-source /opt/anaconda3/bin/activate z3ta
+source ~/opt/miniconda3/bin/activate z3ta
 
 git pull origin master
 python setup.py develop
