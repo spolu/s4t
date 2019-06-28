@@ -17,6 +17,7 @@ from prooftrace.search.random import Random
 
 from utils.config import Config
 from utils.log import Log
+from utils.str2bool import str2bool
 
 
 def search():
@@ -39,6 +40,10 @@ def search():
         '--device',
         type=str, help="config override",
     )
+    parser.add_argument(
+        '--train',
+        type=str2bool, help="search training set",
+    )
 
     args = parser.parse_args()
 
@@ -58,11 +63,22 @@ def search():
             os.path.expanduser(args.load_dir),
         )
 
-    dataset_dir = os.path.join(
-        os.path.expanduser(config.get('prooftrace_dataset_dir')),
-        config.get('prooftrace_dataset_size'),
-        'test_traces'
-    )
+    train = False
+    if args.train is not None:
+        train = args.train
+
+    if train:
+        dataset_dir = os.path.join(
+            os.path.expanduser(config.get('prooftrace_dataset_dir')),
+            config.get('prooftrace_dataset_size'),
+            'train_traces'
+        )
+    else:
+        dataset_dir = os.path.join(
+            os.path.expanduser(config.get('prooftrace_dataset_dir')),
+            config.get('prooftrace_dataset_size'),
+            'test_traces'
+        )
 
     assert os.path.isdir(dataset_dir)
     files = [

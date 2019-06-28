@@ -141,7 +141,7 @@ def bootstrap():
     )
     parser.add_argument(
         '--test',
-        type=str2bool, help="config override",
+        type=str2bool, help="bootstrap test set",
     )
 
     args = parser.parse_args()
