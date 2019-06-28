@@ -14,8 +14,16 @@ tmux -S ~/lm_ack new-session -d -s lm_ack
 /home/stan/src/z3ta/scripts/lm_ack++ 1 1
 /home/stan/src/z3ta/scripts/lm_ack++ 1 2
 /home/stan/src/z3ta/scripts/lm_ack++ 1 3
+/home/stan/src/z3ta/scripts/lm_ack++ 1 4
+/home/stan/src/z3ta/scripts/lm_ack++ 1 5
+/home/stan/src/z3ta/scripts/lm_ack++ 1 6
+/home/stan/src/z3ta/scripts/lm_ack++ 1 7
 
 /home/stan/src/z3ta/scripts/lm_ack++ 1 0
 /home/stan/src/z3ta/scripts/lm_ack++ 1 1
 /home/stan/src/z3ta/scripts/lm_ack++ 1 2
 /home/stan/src/z3ta/scripts/lm_ack++ 1 3
+/home/stan/src/z3ta/scripts/lm_ack++ 1 4
+/home/stan/src/z3ta/scripts/lm_ack++ 1 5
+/home/stan/src/z3ta/scripts/lm_ack++ 1 6
+/home/stan/src/z3ta/scripts/lm_ack++ 1 7
