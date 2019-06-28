@@ -57,7 +57,7 @@ class ProofTraceLMDataset(Dataset):
             sequence_length: int,
             tokenizer: ProofTraceTokenizer,
             augment: str = 'none',
-            period: int = 2,
+            period: int = 5,
     ) -> None:
         self._sequence_length = sequence_length
         self._tokenizer = tokenizer
@@ -117,12 +117,14 @@ class ProofTraceLMDataset(Dataset):
 
         next_idx = ptra.len()
 
-        while next_idx != index:
+        while next_idx <= index:
             action = None
             sampled = False
 
             skip = False
             if (index - next_idx + ptra.len()) >= self._sequence_length:
+                skip = True
+            if (index == next_idx):
                 skip = True
 
             if not skip and random.random() < (1.0 / self._period):
@@ -159,9 +161,7 @@ class ProofTraceLMDataset(Dataset):
 
             ptra.append(action, argument)
 
-        import pdb; pdb.set_trace()
-
-        return ptra
+        return ptra, ptra.len()-1
 
     def __getitem__(
             self,
@@ -183,11 +183,10 @@ class ProofTraceLMDataset(Dataset):
             rollout = pickle.load(f)
 
         ptra = rollout.positive()
-
         index = random.randrange(ptra.prepare_len(), ptra.len())
 
-        # if self._augment == 'random':
-        ptra = self.random_augment(ptra, index)
+        if self._augment == 'random':
+            ptra, index = self.random_augment(ptra, index)
 
         assert index <= self._sequence_length
 
@@ -666,6 +665,8 @@ def ack_run():
         ),
         config.get('prooftrace_sequence_length'),
         tokenizer,
+        config.get('prooftrace_lm_iota_augment'),
+        config.get('prooftrace_lm_iota_augment_period'),
     )
     test_dataset = ProofTraceLMDataset(
         os.path.join(
@@ -675,6 +676,8 @@ def ack_run():
         ),
         config.get('prooftrace_sequence_length'),
         tokenizer,
+        config.get('prooftrace_lm_iota_augment'),
+        config.get('prooftrace_lm_iota_augment_period'),
     )
 
     ack = ACK(config, train_dataset, test_dataset)
