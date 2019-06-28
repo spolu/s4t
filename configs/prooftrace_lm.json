@@ -19,11 +19,11 @@
   "prooftrace_lstm_layer_count": 0,
 
   "prooftrace_lm_batch_size": 8,
-  "prooftrace_lm_learning_rate": 0.0001,
+  "prooftrace_lm_learning_rate": 0.00007,
   "prooftrace_lm_action_coeff": 2.0,
 
   "prooftrace_lm_iota_sync_dir": null,
-  "prooftrace_lm_iota_min_update_count": 12,
+  "prooftrace_lm_iota_min_update_count": 24,
   "prooftrace_lm_iota_augment": "random",
   "prooftrace_lm_iota_augment_period": 4,
 
