@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import gzip
 import os
 import pickle
@@ -13,7 +14,10 @@ import typing
 from generic.iota import IOTAAck, IOTASyn
 
 from prooftrace.models.model import Model
-from prooftrace.prooftrace import PREPARE_TOKENS, Action
+from prooftrace.prooftrace import PREPARE_TOKENS, INV_PREPARE_TOKENS, Action, \
+    ProofTraceActions, ProofTraceTokenizer
+from prooftrace.repl.repl import REPL
+from prooftrace.search.random import RandomSampler
 
 from tensorboardX import SummaryWriter
 
@@ -51,8 +55,14 @@ class ProofTraceLMDataset(Dataset):
             self,
             rollout_dir: str,
             sequence_length: int,
+            tokenizer: ProofTraceTokenizer,
+            augment: str = 'none',
+            period: int = 5,
     ) -> None:
         self._sequence_length = sequence_length
+        self._tokenizer = tokenizer
+        self._augment = augment
+        self._period = period
 
         self._rdirs = []
 
@@ -72,6 +82,86 @@ class ProofTraceLMDataset(Dataset):
             self,
     ) -> int:
         return len(self._rdirs)
+
+    def random_augment(
+            self,
+            ground: ProofTraceActions,
+            index: int,
+    ) -> ProofTraceActions:
+        """ Augments through random sampling the passed ProofTraceActions
+
+        Warning: the operation is destructive for the passed ProofTraceAction.
+        """
+        ptra = ProofTraceActions(
+            'AUGMENT-{}-{}'.format(
+                datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f"),
+                random.randint(0, 9999),
+            ),
+            [
+                ground.actions()[i] for i in range(ground.len())
+                if ground.actions()[i].value in INV_PREPARE_TOKENS
+            ],
+            [
+                ground.arguments()[i] for i in range(ground.len())
+                if ground.actions()[i].value in INV_PREPARE_TOKENS
+            ],
+        )
+        repl = REPL(self._tokenizer)
+        repl.prepare(ptra)
+
+        # repl.replay(ground)
+        # Log.out('DONE')
+        # return ground
+
+        sampler = RandomSampler(ptra)
+
+        next_idx = ptra.len()
+
+        while next_idx <= index:
+            action = None
+            sampled = False
+
+            skip = False
+            if (index + 1 - next_idx + ptra.len()) >= self._sequence_length:
+                skip = True
+            if (index == next_idx):
+                skip = True
+
+            if not skip and random.random() < (1.0 / self._period):
+                action = sampler.sample(ptra, repl, 8)
+                # Log.out('AUGMENT SAMPLE')
+
+            if action is None:
+                action = ground.actions()[next_idx]
+                # Log.out('AUGMENT READ', {
+                #     'next_idx': next_idx,
+                #     'action_index': action._index,
+                #     'action_hash': action.hash(),
+                #     'action_id': id(action),
+                # })
+            else:
+                sampled = True
+
+            thm = repl.apply(action)
+
+            if sampled:
+                argument = ptra.build_argument(
+                    thm.concl(), thm.hyp(), thm.index(),
+                )
+            else:
+                argument = ground.arguments()[next_idx]
+                argument._index = thm.index()
+                next_idx += 1
+
+            # Log.out('AUGMENT APPLY', {
+            #     'action_index': action._index,
+            #     'action_hash': action.hash(),
+            #     'action_id': id(action),
+            # })
+
+            ptra.append(action, argument)
+
+        return ptra, ptra.len()-1
 
     def __getitem__(
             self,
@@ -93,8 +183,10 @@ class ProofTraceLMDataset(Dataset):
             rollout = pickle.load(f)
 
         ptra = rollout.positive()
-
         index = random.randrange(ptra.prepare_len(), ptra.len())
+
+        if self._augment == 'random':
+            ptra, index = self.random_augment(ptra, index)
 
         assert index <= self._sequence_length
 
@@ -557,6 +649,14 @@ def ack_run():
     if config.get('device') != 'cpu':
         torch.cuda.set_device(torch.device(config.get('device')))
 
+    with gzip.open(
+            os.path.join(
+                os.path.expanduser(config.get('prooftrace_dataset_dir')),
+                config.get('prooftrace_dataset_size'),
+                'traces.tokenizer',
+            ), 'rb') as f:
+        tokenizer = pickle.load(f)
+
     train_dataset = ProofTraceLMDataset(
         os.path.join(
             os.path.expanduser(config.get('prooftrace_rollout_dir')),
@@ -564,6 +664,9 @@ def ack_run():
             'train_rollouts',
         ),
         config.get('prooftrace_sequence_length'),
+        tokenizer,
+        config.get('prooftrace_lm_iota_augment'),
+        config.get('prooftrace_lm_iota_augment_period'),
     )
     test_dataset = ProofTraceLMDataset(
         os.path.join(
@@ -572,6 +675,9 @@ def ack_run():
             'test_rollouts',
         ),
         config.get('prooftrace_sequence_length'),
+        tokenizer,
+        config.get('prooftrace_lm_iota_augment'),
+        config.get('prooftrace_lm_iota_augment_period'),
     )
 
     ack = ACK(config, train_dataset, test_dataset)

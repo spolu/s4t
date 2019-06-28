@@ -1,3 +1,4 @@
+import numpy
 import random
 import typing
 
@@ -18,6 +19,126 @@ NON_PREPARE_TOKENS = {
     for k, v in ACTION_TOKENS.items()
     if k not in PREPARE_TOKENS
 }
+CONCLUSION_TOKENS = {
+    'TRANS': 9,
+    'MK_COMB': 10,
+    'EQ_MP': 14,
+    'DEDUCT_ANTISYM_RULE': 15,
+    'INST': 16,
+    'INST_TYPE': 17,
+}
+
+
+class RandomSampler:
+    def __init__(
+            self,
+            ptra: ProofTraceActions,
+    ) -> None:
+        self._term_indices = [0] + [
+            i for i in range(ptra.len())
+            if ptra.actions()[i].value == 7
+        ]
+        self._subst_indices = [0] + [
+            i for i in range(ptra.len())
+            if ptra.actions()[i].value == 4
+        ]
+        self._subst_type_indices = [0] + [
+            i for i in range(ptra.len())
+            if ptra.actions()[i].value == 5
+        ]
+        self._premises_indices = [
+            i for i in range(1, ptra.len())
+            if ptra.actions()[i].value == 2
+        ]
+
+    def sample_term(
+            self,
+    ):
+        return random.choice(self._term_indices)
+
+    def sample_theorem(
+            self,
+            ptra: ProofTraceActions,
+    ):
+        indices = self._premises_indices + \
+            list(range(ptra.prepare_len(), ptra.len()))
+        probs = [
+            float(p) / sum(range(len(indices)))
+            for p in range(len(indices))
+        ]
+        return indices[
+            numpy.array(probs).cumsum().searchsorted(numpy.random.sample(1))[0]
+        ]
+
+    def sample_subst(
+            self,
+    ):
+        return random.choice(self._subst_indices)
+
+    def sample_subst_type(
+            self,
+    ):
+        return random.choice(self._subst_type_indices)
+
+    def sample(
+            self,
+            ptra: ProofTraceActions,
+            repl: REPL,
+            tries: int,
+            conclusion: bool = False,
+    ) -> Action:
+        for i in range(tries):
+            if not conclusion:
+                action = random.choice(list(NON_PREPARE_TOKENS.values()))
+            else:
+                action = random.choice(list(CONCLUSION_TOKENS.values()))
+
+            if INV_ACTION_TOKENS[action] == 'REFL':
+                left = self.sample_term()
+                right = 0
+            if INV_ACTION_TOKENS[action] == 'TRANS':
+                left = self.sample_theorem(ptra)
+                right = self.sample_theorem(ptra)
+            if INV_ACTION_TOKENS[action] == 'MK_COMB':
+                left = self.sample_theorem(ptra)
+                right = self.sample_theorem(ptra)
+            if INV_ACTION_TOKENS[action] == 'ABS':
+                left = self.sample_theorem(ptra)
+                right = self.sample_term()
+            if INV_ACTION_TOKENS[action] == 'BETA':
+                left = self.sample_term()
+                right = 0
+            if INV_ACTION_TOKENS[action] == 'ASSUME':
+                left = self.sample_term()
+                right = 0
+            if INV_ACTION_TOKENS[action] == 'EQ_MP':
+                left = self.sample_theorem(ptra)
+                right = self.sample_theorem(ptra)
+            if INV_ACTION_TOKENS[action] == 'DEDUCT_ANTISYM_RULE':
+                left = self.sample_theorem(ptra)
+                right = self.sample_theorem(ptra)
+            if INV_ACTION_TOKENS[action] == 'INST':
+                left = self.sample_theorem(ptra)
+                right = self.sample_subst()
+            if INV_ACTION_TOKENS[action] == 'INST_TYPE':
+                left = self.sample_theorem(ptra)
+                right = self.sample_subst_type()
+
+            a = Action.from_action(
+                INV_ACTION_TOKENS[action],
+                ptra.arguments()[left],
+                ptra.arguments()[right],
+            )
+
+            if ptra.seen(a):
+                continue
+
+            if not repl.valid(a):
+                continue
+
+            return a
+
+        return None
 
 
 class Random(Search):
@@ -35,102 +156,20 @@ class Random(Search):
         self._repl = repl.copy()
         self._last_thm = None
 
-    def sample_term(
-            self,
-    ):
-        indices = [0] + [
-            i for i in range(self._ptra.len())
-            if self._ptra.actions()[i].value == 7
-        ]
-        return random.choice(indices)
-
-    def sample_theorem(
-            self,
-    ):
-        indices = [
-            i for i in range(1, self._ptra.len())
-            if self._ptra.actions()[i].value
-            in [2, 3] + list(NON_PREPARE_TOKENS.values())
-        ]
-        return random.choice(indices)
-
-    def sample_subst(
-            self,
-    ):
-        indices = [0] + [
-            i for i in range(self._ptra.len())
-            if self._ptra.actions()[i].value == 4
-        ]
-        return random.choice(indices)
-
-    def sample_subst_type(
-            self,
-    ):
-        indices = [0] + [
-            i for i in range(self._ptra.len())
-            if self._ptra.actions()[i].value == 5
-        ]
-        return random.choice(indices)
+        self._sampler = RandomSampler(self._ptra)
 
     def step(
             self,
             offset: int = 0,
+            conclusion: bool = False,
     ) -> typing.Tuple[
         bool, typing.Optional[ProofTraceActions], bool,
     ]:
         index, actions, arguments = self.preprocess_ptra(self._ptra)
 
-        tries = 32
-        candidate = None
-
-        for i in range(tries):
-            action = random.choice(list(NON_PREPARE_TOKENS.values()))
-
-            if INV_ACTION_TOKENS[action] == 'REFL':
-                left = self.sample_term()
-                right = 0
-            if INV_ACTION_TOKENS[action] == 'TRANS':
-                left = self.sample_theorem()
-                right = self.sample_theorem()
-            if INV_ACTION_TOKENS[action] == 'MK_COMB':
-                left = self.sample_theorem()
-                right = self.sample_theorem()
-            if INV_ACTION_TOKENS[action] == 'ABS':
-                left = self.sample_theorem()
-                right = self.sample_term()
-            if INV_ACTION_TOKENS[action] == 'BETA':
-                left = self.sample_term()
-                right = 0
-            if INV_ACTION_TOKENS[action] == 'ASSUME':
-                left = self.sample_term()
-                right = 0
-            if INV_ACTION_TOKENS[action] == 'EQ_MP':
-                left = self.sample_theorem()
-                right = self.sample_theorem()
-            if INV_ACTION_TOKENS[action] == 'DEDUCT_ANTISYM_RULE':
-                left = self.sample_theorem()
-                right = self.sample_theorem()
-            if INV_ACTION_TOKENS[action] == 'INST':
-                left = self.sample_theorem()
-                right = self.sample_subst()
-            if INV_ACTION_TOKENS[action] == 'INST_TYPE':
-                left = self.sample_theorem()
-                right = self.sample_subst_type()
-
-            a = Action.from_action(
-                INV_ACTION_TOKENS[action],
-                self._ptra.arguments()[left],
-                self._ptra.arguments()[right],
-            )
-
-            if self._ptra.seen(a):
-                continue
-
-            if not self._repl.valid(a):
-                continue
-
-            candidate = a
-            break
+        candidate = self._sampler.sample(
+            self._ptra, self._repl, 32, conclusion
+        )
 
         if candidate is not None:
             thm = self._repl.apply(candidate)
