@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sshfs stan@ec2-13-58-204-144.us-east-2.compute.amazonaws.com
+sshfs -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no stan@ec2-13-58-204-144.us-east-2.compute.amazonaws.com:/home/stan/tmp/iota ~/tmp/iota
 
 cd ~/src/z3ta
 source ~/opt/miniconda3/bin/activate z3ta
