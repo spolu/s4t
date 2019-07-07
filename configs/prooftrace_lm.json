@@ -12,8 +12,8 @@
   "prooftrace_sequence_length": 1024,
 
   "prooftrace_transformer_hidden_size": 512,
-  "prooftrace_transformer_attention_head_count": 8,
-  "prooftrace_transformer_layer_count": 4,
+  "prooftrace_transformer_attention_head_count": 16,
+  "prooftrace_transformer_layer_count": 6,
 
   "prooftrace_lstm_hidden_size": 512,
   "prooftrace_lstm_layer_count": 0,
@@ -23,7 +23,7 @@
   "prooftrace_lm_action_coeff": 2.0,
 
   "prooftrace_lm_iota_sync_dir": null,
-  "prooftrace_lm_iota_min_update_count": 24,
+  "prooftrace_lm_iota_min_update_count": 8,
   "prooftrace_lm_iota_augment": "random",
   "prooftrace_lm_iota_augment_period": 4,
 
@@ -44,7 +44,7 @@
   "prooftrace_search_mcts_roll_count": 64,
 
   "prooftrace_dataset_dir": "./data/prooftrace",
-  "prooftrace_dataset_size": "small",
+  "prooftrace_dataset_size": "medium",
 
   "tensorboard_log_dir": null
 }
