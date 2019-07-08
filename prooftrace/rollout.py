@@ -199,13 +199,13 @@ def bootstrap():
         map_args.append([config, test, path, i])
 
     total_length = 0
-    STEP = 250
+    STEP = 1000
 
     for i in range(0, len(map_args), STEP):
         args = map_args[i:i+STEP]
 
         with concurrent.futures.ProcessPoolExecutor(
-                max_workers=16,
+                max_workers=48,
         ) as executor:
             for l in executor.map(translate, args):
                 total_length += l
