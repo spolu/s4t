@@ -199,52 +199,26 @@ def bootstrap():
         map_args.append([config, test, path, i])
 
     total_length = 0
+    STEP = 250
 
-    for i in range(0, len(map_args), 100):
-        args = map_args[i:i+250]
-
-        args_left = len(args)
-        args_iter = iter(args)
+    for i in range(0, len(map_args), STEP):
+        args = map_args[i:i+STEP]
 
         with concurrent.futures.ProcessPoolExecutor(
                 max_workers=16,
         ) as executor:
-            jobs = {}
-
-            while args_left:
-                for arg in args_iter:
-                    job = executor.submit(translate, arg)
-                    jobs[job] = arg
-                    if len(jobs) > 32:
-                        break
-
-                for job in concurrent.futures.as_completed(jobs):
-                    args_left -= 1
-
-                    total_length += job.result()
-
-                    del jobs[job]
-                    del job
-                    break
+            for l in executor.map(translate, args):
+                total_length += l
 
         Log.out('Checkpoint', {
             'i': i,
+            'len': len(map_args),
             'total_length': total_length,
         })
 
     # executor = concurrent.futures.ProcessPoolExecutor()
     # for l in executor.map(translate, map_args, chunksize=32):
     #     total_length += l
-
-    # for i in range(0, len(map_args), 100):
-    #     executor = concurrent.futures.ProcessPoolExecutor()
-    #     for l in executor.map(translate, map_args[i:i+100]):
-    #         total_length += l
-    #     Log.out('Checkpoint', {
-    #         'i': i,
-    #         'len': len(map_args),
-    #         'total_length': total_length,
-    #     })
 
     Log.out('Processed all profotraces', {
         'total_length': total_length,
