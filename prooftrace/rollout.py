@@ -123,6 +123,8 @@ def translate(
         'index': idx,
     })
 
+    return ptra.action_len()
+
 
 def bootstrap():
     parser = argparse.ArgumentParser(description="")
@@ -183,13 +185,33 @@ def bootstrap():
         if os.path.isfile(os.path.join(dataset_dir, f))
     ]
 
-    executor = concurrent.futures.ProcessPoolExecutor()
+    Log.out('Processing prooftraces', {
+        'count': len(files),
+    })
 
     map_args = []
     for i, path in enumerate(files):
         map_args.append([config, test, path, i])
 
-    executor.map(translate, map_args)
+    total_length = 0
+
+    # executor = concurrent.futures.ProcessPoolExecutor()
+    # for l in executor.map(translate, map_args):
+    #     total_length += l
+
+    for i in range(0, len(map_args), 100):
+        executor = concurrent.futures.ProcessPoolExecutor()
+        for l in executor.map(translate, map_args[i:i+100]):
+            total_length += l
+        Log.out('Checkpoint', {
+            'i': i,
+            'len': len(map_args),
+            'total_length': total_length,
+        })
+
+    Log.out('Processed all profotraces', {
+        'total_length': total_length,
+    })
 
 
 ###############################################################################
