@@ -234,7 +234,7 @@ class ACK:
             collate_fn=lm_collate,
         )
         self._test_loader = torch.utils.data.DataLoader(
-            train_dataset,
+            test_dataset,
             batch_size=self._config.get('prooftrace_lm_batch_size'),
             shuffle=True,
             collate_fn=lm_collate,
@@ -329,7 +329,7 @@ class ACK:
         rgt_loss_meter = Meter()
 
         with torch.no_grad():
-            for it, (idx, act, arg, trh) in enumerate(self._train_loader):
+            for it, (idx, act, arg, trh) in enumerate(self._test_loader):
                 prd_actions, prd_lefts, prd_rights = \
                     self._model.infer(idx, act, arg)
 
@@ -350,6 +350,9 @@ class ACK:
                 act_loss_meter.update(act_loss.item())
                 lft_loss_meter.update(lft_loss.item())
                 rgt_loss_meter.update(rgt_loss.item())
+
+                if it >= 9:
+                    break
 
         Log.out("PROOFTRACE LM ACK TEST", {
             'epoch': epoch,
@@ -684,7 +687,7 @@ def ack_run():
 
     epoch = 0
     while True:
-        if epoch % 4 == 0 and epoch > 0:
+        if epoch > 0:
             ack.test(epoch)
         ack.run_once(epoch)
         epoch += 1
