@@ -183,7 +183,10 @@ class ProofTraceLMDataset(Dataset):
             rollout = pickle.load(f)
 
         ptra = rollout.positive()
-        index = random.randrange(ptra.prepare_len(), ptra.len())
+        index = random.randrange(
+            ptra.prepare_len(),
+            min(ptra.len(), self._sequence_length),
+        )
 
         if self._augment == 'random':
             ptra, index = self.random_augment(ptra, index)
@@ -215,6 +218,7 @@ class ACK:
         self._config = config
 
         self._action_coeff = config.get('prooftrace_lm_action_coeff')
+        self._grad_norm_max = config.get('prooftrace_lm_grad_norm_max')
 
         self._device = torch.device(config.get('device'))
 
@@ -292,6 +296,13 @@ class ACK:
                 self._model.modules()[m].zero_grad()
 
             (self._action_coeff * act_loss + lft_loss + rgt_loss).backward()
+
+            if self._grad_norm_max > 0.0:
+                for m in self._model.modules():
+                    torch.nn.utils.clip_grad_norm_(
+                        self._model.modules()[m].parameters(),
+                        self._grad_norm_max,
+                    )
 
             info = {
                 'act_loss': act_loss.item(),
