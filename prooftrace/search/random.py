@@ -62,6 +62,12 @@ class RandomSampler:
     ):
         indices = self._premises_indices + \
             list(range(ptra.prepare_len(), ptra.len()))
+
+        # If we don't have any theorem to return (no premise, no action yet) we
+        # return an invalid position (1 which is the EMPTY action).
+        if len(indices) == 0:
+            return 1
+
         probs = [
             float(p) / sum(range(1, len(indices)+1))
             for p in range(1, len(indices)+1)
