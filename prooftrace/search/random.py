@@ -63,8 +63,8 @@ class RandomSampler:
         indices = self._premises_indices + \
             list(range(ptra.prepare_len(), ptra.len()))
         probs = [
-            float(p) / sum(range(len(indices)))
-            for p in range(len(indices))
+            float(p) / sum(range(1, len(indices)+1))
+            for p in range(1, len(indices)+1)
         ]
         return indices[
             numpy.array(probs).cumsum().searchsorted(numpy.random.sample(1))[0]
