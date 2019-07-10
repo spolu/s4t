@@ -29,9 +29,9 @@ class T(nn.Module):
         self.lstm_hidden_size = \
             config.get('prooftrace_lstm_hidden_size')
 
-        self.position_embedding = nn.Embedding(
-            self.sequence_length, self.hidden_size
-        )
+        # self.position_embedding = nn.Embedding(
+        #     self.sequence_length, self.hidden_size
+        # )
 
         torso = []
         if self.transformer_layer_count > 0:
@@ -75,16 +75,18 @@ class T(nn.Module):
             action_embeds,
             argument_embeds,
     ):
-        pos_embeds = torch.arange(
-            self.sequence_length, dtype=torch.long
-        ).to(self.device)
-        pos_embeds = pos_embeds.unsqueeze(0).expand(
-           action_embeds.size(0), self.sequence_length,
-        )
-        pos_embeds = self.position_embedding(pos_embeds)
+        # pos_embeds = torch.arange(
+        #     self.sequence_length, dtype=torch.long
+        # ).to(self.device)
+        # pos_embeds = pos_embeds.unsqueeze(0).expand(
+        #    action_embeds.size(0), self.sequence_length,
+        # )
+        # pos_embeds = self.position_embedding(pos_embeds)
 
-        hiddens = self.torso(action_embeds + argument_embeds + pos_embeds)
+        # hiddens = self.torso(action_embeds + argument_embeds + pos_embeds)
         # hiddens = self.torso(action_embeds + argument_embeds)
+
+        hiddens = self.torso(action_embeds + argument_embeds)
 
         if self.lstm_layer_count > 0:
             hiddens, _ = self.lstm(hiddens)
