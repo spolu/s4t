@@ -698,8 +698,6 @@ def ack_run():
 
     epoch = 0
     while True:
-        if epoch > 0:
-            ack.test(epoch)
         ack.run_once(epoch)
         epoch += 1
 
@@ -769,3 +767,89 @@ def syn_run():
     while True:
         syn.update()
         syn.run_once()
+
+
+def test():
+    parser = argparse.ArgumentParser(description="")
+
+    parser.add_argument(
+        'config_path',
+        type=str, help="path to the config file",
+    )
+    parser.add_argument(
+        '--tensorboard_log_dir',
+        type=str, help="config override",
+    )
+
+    parser.add_argument(
+        '--device',
+        type=str, help="config override",
+    )
+    parser.add_argument(
+        '--sync_dir',
+        type=str, help="config override",
+    )
+    parser.add_argument(
+        '--rollout_dir',
+        type=str, help="config override",
+    )
+
+    args = parser.parse_args()
+
+    config = Config.from_file(args.config_path)
+
+    if args.device is not None:
+        config.override('device', args.device)
+    if args.sync_dir is not None:
+        config.override(
+            'prooftrace_lm_iota_sync_dir',
+            os.path.expanduser(args.sync_dir),
+        )
+    if args.rollout_dir is not None:
+        config.override(
+            'prooftrace_rollout_dir',
+            os.path.expanduser(args.rollout_dir),
+        )
+
+    if args.tensorboard_log_dir is not None:
+        config.override(
+            'tensorboard_log_dir',
+            os.path.expanduser(args.tensorboard_log_dir),
+        )
+
+    if config.get('device') != 'cpu':
+        torch.cuda.set_device(torch.device(config.get('device')))
+
+    with gzip.open(
+            os.path.join(
+                os.path.expanduser(config.get('prooftrace_dataset_dir')),
+                config.get('prooftrace_dataset_size'),
+                'traces.tokenizer',
+            ), 'rb') as f:
+        tokenizer = pickle.load(f)
+
+    train_dataset = ProofTraceLMDataset(
+        os.path.join(
+            os.path.expanduser(config.get('prooftrace_rollout_dir')),
+            config.get('prooftrace_dataset_size'),
+            'train_rollouts',
+        ),
+        config.get('prooftrace_sequence_length'),
+        tokenizer,
+        config.get('prooftrace_lm_iota_augment'),
+        config.get('prooftrace_lm_iota_augment_period'),
+    )
+    test_dataset = ProofTraceLMDataset(
+        os.path.join(
+            os.path.expanduser(config.get('prooftrace_rollout_dir')),
+            config.get('prooftrace_dataset_size'),
+            'test_rollouts',
+        ),
+        config.get('prooftrace_sequence_length'),
+        tokenizer,
+        config.get('prooftrace_lm_iota_augment'),
+        config.get('prooftrace_lm_iota_augment_period'),
+    )
+
+    ack = ACK(config, train_dataset, test_dataset)
+    ack.test(int(time.time()))
