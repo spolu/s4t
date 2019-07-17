@@ -333,6 +333,8 @@ class ACK:
             self,
             epoch,
     ):
+        self._ack.fetch(self._device)
+
         self._model.eval()
 
         act_loss_meter = Meter()
