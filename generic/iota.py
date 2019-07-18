@@ -113,14 +113,6 @@ class IOTASyn(IOTABase):
 
         infos = []
 
-        for p in shallows:
-            with gzip.open(p, 'rb') as f:
-                data = torch.load(f, map_location=device)
-
-            infos.append(data['info'])
-
-            os.remove(p)
-
         if len(updates) < min_update_count:
             return infos
 
@@ -141,6 +133,14 @@ class IOTASyn(IOTABase):
 
             os.remove(p)
             # Log.out("{IOTA} UPDATE[CONSUME]", {'path': p})
+
+        for p in shallows:
+            with gzip.open(p, 'rb') as f:
+                data = torch.load(f, map_location=device)
+
+            infos.append(data['info'])
+
+            os.remove(p)
 
         return infos
 
