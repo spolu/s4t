@@ -109,14 +109,22 @@ class IOTASyn(IOTABase):
     ]:
         files = self.list_files()
         updates = [p for p in files if re.search(".*update_.*", p)]
+        shallows = [p for p in files if re.search(".*shallow_.*", p)]
 
         infos = []
+
+        for p in shallows:
+            with gzip.open(p, 'rb') as f:
+                data = torch.load(f, map_location=device)
+
+            infos.append(data['info'])
+
+            os.remove(p)
 
         if len(updates) < min_update_count:
             return infos
 
         for p in updates:
-
             with gzip.open(p, 'rb') as f:
                 data = torch.load(f, map_location=device)
 
@@ -193,25 +201,38 @@ class IOTAAck(IOTABase):
             hook: typing.Callable[
                 [str, str, torch.Tensor], torch.Tensor
             ] = None,
+            shallow: bool = False,
     ) -> None:
         data = {}
-        for m in self._modules:
-            for name, param in self._modules[m].named_parameters():
-                key = "grad_{}_{}".format(m, name)
-                if param.grad is not None:
-                    if hook is not None:
-                        data[key] = hook(m, name, param.grad.data)
-                    else:
-                        data[key] = param.grad.data
+
+        if not shallow:
+            for m in self._modules:
+                for name, param in self._modules[m].named_parameters():
+                    key = "grad_{}_{}".format(m, name)
+                    if param.grad is not None:
+                        if hook is not None:
+                            data[key] = hook(m, name, param.grad.data)
+                        else:
+                            data[key] = param.grad.data
+
         data['info'] = info
 
-        p = self.atomic_save(
-            data,
-            "update_{}_{}".format(
-                datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f"),
-                random.randint(0, 10e9),
-            ),
-        )
+        if not shallow:
+            p = self.atomic_save(
+                data,
+                "update_{}_{}".format(
+                    datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f"),
+                    random.randint(0, 10e9),
+                ),
+            )
+        else:
+            p = self.atomic_save(
+                data,
+                "shallow_{}_{}".format(
+                    datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f"),
+                    random.randint(0, 10e9),
+                ),
+            )
 
         Log.out("{IOTA} UPDATE[NEW]", {'path': p})
 
