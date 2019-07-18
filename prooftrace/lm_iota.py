@@ -569,9 +569,12 @@ class SYN:
         test_rgt_loss_meter = Meter()
 
         for info in infos:
-            act_loss_meter.update(info['act_loss'])
-            lft_loss_meter.update(info['lft_loss'])
-            rgt_loss_meter.update(info['rgt_loss'])
+            if 'act_loss' in info:
+                act_loss_meter.update(info['act_loss'])
+            if 'lft_loss' in info:
+                lft_loss_meter.update(info['lft_loss'])
+            if 'rgt_loss' in info:
+                rgt_loss_meter.update(info['rgt_loss'])
             if 'test_act_loss' in info:
                 test_act_loss_meter.update(info['test_act_loss'])
             if 'test_lft_loss' in info:
