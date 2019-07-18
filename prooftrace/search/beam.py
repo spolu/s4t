@@ -5,7 +5,7 @@ from prooftrace.prooftrace import \
     ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, \
     Action, ProofTraceActions
 
-from prooftrace.models.model import Model
+from prooftrace.models.model import LModel
 from prooftrace.repl.repl import REPL
 from prooftrace.repl.fusion import Thm
 from prooftrace.search.search import Search
@@ -86,7 +86,7 @@ class Beam(Search):
     def __init__(
             self,
             config: Config,
-            model: Model,
+            model: LModel,
             ptra: ProofTraceActions,
             repl: REPL,
             target: Thm,

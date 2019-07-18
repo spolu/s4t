@@ -10,7 +10,7 @@ import torch
 
 from generic.iota import IOTACtl, IOTAWrk
 
-from prooftrace.models.model import Model
+from prooftrace.models.model import LModel
 from prooftrace.prooftrace import ProofTraceActions, INV_PREPARE_TOKENS
 from prooftrace.rollout import Rollout
 from prooftrace.search.beam import Beam
@@ -35,7 +35,7 @@ class WRK():
 
         self._device = torch.device(config.get('device'))
 
-        self._model = Model(config)
+        self._model = LModel(config)
 
         self._rollout_dir = os.path.join(
             os.path.expanduser(config.get('prooftrace_rollout_dir')),

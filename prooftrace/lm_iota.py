@@ -13,7 +13,7 @@ import typing
 
 from generic.iota import IOTAAck, IOTASyn
 
-from prooftrace.models.model import Model
+from prooftrace.models.model import LModel
 from prooftrace.prooftrace import PREPARE_TOKENS, INV_PREPARE_TOKENS, Action, \
     ProofTraceActions, ProofTraceTokenizer
 from prooftrace.repl.repl import REPL
@@ -222,7 +222,7 @@ class ACK:
 
         self._device = torch.device(config.get('device'))
 
-        self._model = Model(config)
+        self._model = LModel(config)
         self._ack = IOTAAck(
             config.get('prooftrace_lm_iota_sync_dir'),
             self._model.modules(),
@@ -406,7 +406,7 @@ class SYN:
                 self._config.get('tensorboard_log_dir'),
             )
 
-        self._model = Model(config)
+        self._model = LModel(config)
 
         Log.out(
             "SYN Initializing", {
