@@ -13,7 +13,7 @@ import typing
 
 from generic.iota import IOTAAck, IOTASyn
 
-from prooftrace.models.model import Model
+from prooftrace.models.model import LModel
 from prooftrace.prooftrace import PREPARE_TOKENS, INV_PREPARE_TOKENS, Action, \
     ProofTraceActions, ProofTraceTokenizer
 from prooftrace.repl.repl import REPL
@@ -213,7 +213,6 @@ class ACK:
             self,
             config: Config,
             train_dataset: ProofTraceLMDataset,
-            test_dataset: ProofTraceLMDataset,
     ):
         self._config = config
 
@@ -222,23 +221,16 @@ class ACK:
 
         self._device = torch.device(config.get('device'))
 
-        self._model = Model(config)
+        self._model = LModel(config)
         self._ack = IOTAAck(
             config.get('prooftrace_lm_iota_sync_dir'),
             self._model.modules(),
         )
 
         self._nll_loss = nn.NLLLoss()
-        self._mse_loss = nn.MSELoss()
 
         self._train_loader = torch.utils.data.DataLoader(
             train_dataset,
-            batch_size=self._config.get('prooftrace_lm_batch_size'),
-            shuffle=True,
-            collate_fn=lm_collate,
-        )
-        self._test_loader = torch.utils.data.DataLoader(
-            test_dataset,
             batch_size=self._config.get('prooftrace_lm_batch_size'),
             shuffle=True,
             collate_fn=lm_collate,
@@ -249,7 +241,6 @@ class ACK:
         })
 
         self._train_batch = 0
-        self._test_info = None
 
     def update(
             self,
@@ -309,9 +300,6 @@ class ACK:
                 'lft_loss': lft_loss.item(),
                 'rgt_loss': rgt_loss.item(),
             }
-            if self._test_info is not None:
-                info.update(self._test_info)
-                self._test_info = None
 
             self._ack.push(info, None)
 
@@ -329,20 +317,51 @@ class ACK:
             'epoch': epoch,
         })
 
-    def test(
+
+class TST:
+    def __init__(
+            self,
+            config: Config,
+            test_dataset: ProofTraceLMDataset,
+    ):
+        self._config = config
+
+        self._device = torch.device(config.get('device'))
+
+        self._model = LModel(config)
+        self._ack = IOTAAck(
+            config.get('prooftrace_lm_iota_sync_dir'),
+            self._model.modules(),
+        )
+
+        self._nll_loss = nn.NLLLoss()
+
+        self._test_loader = torch.utils.data.DataLoader(
+            test_dataset,
+            batch_size=self._config.get('prooftrace_lm_batch_size'),
+            shuffle=True,
+            collate_fn=lm_collate,
+        )
+
+        Log.out('TST initialization', {
+            "batch_size": self._config.get('prooftrace_lm_batch_size'),
+        })
+
+        self._train_batch = 0
+
+    def run_once(
             self,
             epoch,
     ):
-        self._ack.fetch(self._device)
-
-        self._model.eval()
-
         act_loss_meter = Meter()
         lft_loss_meter = Meter()
         rgt_loss_meter = Meter()
 
         with torch.no_grad():
             for it, (idx, act, arg, trh) in enumerate(self._test_loader):
+                self._ack.fetch(self._device, blocking=False)
+                self._model.eval()
+
                 prd_actions, prd_lefts, prd_rights = \
                     self._model.infer(idx, act, arg)
 
@@ -364,21 +383,26 @@ class ACK:
                 lft_loss_meter.update(lft_loss.item())
                 rgt_loss_meter.update(rgt_loss.item())
 
-                if it >= 9:
-                    break
+                info = {
+                    'test_act_loss': act_loss_meter.avg,
+                    'test_lft_loss': lft_loss_meter.avg,
+                    'test_rgt_loss': rgt_loss_meter.avg,
+                }
 
-        Log.out("PROOFTRACE LM ACK TEST", {
+                self._ack.push(info, None, True)
+
+                Log.out("PROOFTRACE LM ACK TEST", {
+                    'epoch': epoch,
+                    'act_loss_avg': "{:.4f}".format(act_loss.item()),
+                    'lft_loss_avg': "{:.4f}".format(lft_loss.item()),
+                    'rgt_loss_avg': "{:.4f}".format(rgt_loss.item()),
+                })
+
+                self._train_batch += 1
+
+        Log.out("EPOCH DONE", {
             'epoch': epoch,
-            'act_loss_avg': "{:.4f}".format(act_loss.item()),
-            'lft_loss_avg': "{:.4f}".format(lft_loss.item()),
-            'rgt_loss_avg': "{:.4f}".format(rgt_loss.item()),
         })
-
-        self._test_info = {
-            'test_act_loss': act_loss_meter.avg,
-            'test_lft_loss': lft_loss_meter.avg,
-            'test_rgt_loss': rgt_loss_meter.avg,
-        }
 
 
 class SYN:
@@ -406,7 +430,7 @@ class SYN:
                 self._config.get('tensorboard_log_dir'),
             )
 
-        self._model = Model(config)
+        self._model = LModel(config)
 
         Log.out(
             "SYN Initializing", {
@@ -684,6 +708,73 @@ def ack_run():
         config.get('prooftrace_lm_iota_augment'),
         config.get('prooftrace_lm_iota_augment_period'),
     )
+
+    ack = ACK(config, train_dataset)
+
+    epoch = 0
+    while True:
+        ack.run_once(epoch)
+        epoch += 1
+
+
+def tst_run():
+    parser = argparse.ArgumentParser(description="")
+
+    parser.add_argument(
+        'config_path',
+        type=str, help="path to the config file",
+    )
+    parser.add_argument(
+        '--dataset_size',
+        type=str, help="config override",
+    )
+
+    parser.add_argument(
+        '--device',
+        type=str, help="config override",
+    )
+    parser.add_argument(
+        '--sync_dir',
+        type=str, help="config override",
+    )
+    parser.add_argument(
+        '--rollout_dir',
+        type=str, help="config override",
+    )
+
+    args = parser.parse_args()
+
+    config = Config.from_file(args.config_path)
+
+    if args.device is not None:
+        config.override('device', args.device)
+    if args.dataset_size is not None:
+        config.override(
+            'prooftrace_dataset_size',
+            args.dataset_size,
+        )
+    if args.sync_dir is not None:
+        config.override(
+            'prooftrace_lm_iota_sync_dir',
+            os.path.expanduser(args.sync_dir),
+        )
+    if args.rollout_dir is not None:
+        config.override(
+            'prooftrace_rollout_dir',
+            os.path.expanduser(args.rollout_dir),
+        )
+
+    if config.get('device') != 'cpu':
+        torch.cuda.set_device(torch.device(config.get('device')))
+
+    with gzip.open(
+            os.path.join(
+                os.path.expanduser(config.get('prooftrace_dataset_dir')),
+                config.get('prooftrace_dataset_size'),
+                'traces.tokenizer',
+            ), 'rb') as f:
+        tokenizer = pickle.load(f)
+
     test_dataset = ProofTraceLMDataset(
         os.path.join(
             os.path.expanduser(config.get('prooftrace_rollout_dir')),
@@ -696,11 +787,11 @@ def ack_run():
         config.get('prooftrace_lm_iota_augment_period'),
     )
 
-    ack = ACK(config, train_dataset, test_dataset)
+    tst = TST(config, test_dataset)
 
     epoch = 0
     while True:
-        ack.run_once(epoch)
+        tst.run_once(epoch)
         epoch += 1
 
 
@@ -769,89 +860,3 @@ def syn_run():
     while True:
         syn.update()
         syn.run_once()
-
-
-def test():
-    parser = argparse.ArgumentParser(description="")
-
-    parser.add_argument(
-        'config_path',
-        type=str, help="path to the config file",
-    )
-    parser.add_argument(
-        '--tensorboard_log_dir',
-        type=str, help="config override",
-    )
-
-    parser.add_argument(
-        '--device',
-        type=str, help="config override",
-    )
-    parser.add_argument(
-        '--sync_dir',
-        type=str, help="config override",
-    )
-    parser.add_argument(
-        '--rollout_dir',
-        type=str, help="config override",
-    )
-
-    args = parser.parse_args()
-
-    config = Config.from_file(args.config_path)
-
-    if args.device is not None:
-        config.override('device', args.device)
-    if args.sync_dir is not None:
-        config.override(
-            'prooftrace_lm_iota_sync_dir',
-            os.path.expanduser(args.sync_dir),
-        )
-    if args.rollout_dir is not None:
-        config.override(
-            'prooftrace_rollout_dir',
-            os.path.expanduser(args.rollout_dir),
-        )
-
-    if args.tensorboard_log_dir is not None:
-        config.override(
-            'tensorboard_log_dir',
-            os.path.expanduser(args.tensorboard_log_dir),
-        )
-
-    if config.get('device') != 'cpu':
-        torch.cuda.set_device(torch.device(config.get('device')))
-
-    with gzip.open(
-            os.path.join(
-                os.path.expanduser(config.get('prooftrace_dataset_dir')),
-                config.get('prooftrace_dataset_size'),
-                'traces.tokenizer',
-            ), 'rb') as f:
-        tokenizer = pickle.load(f)
-
-    train_dataset = ProofTraceLMDataset(
-        os.path.join(
-            os.path.expanduser(config.get('prooftrace_rollout_dir')),
-            config.get('prooftrace_dataset_size'),
-            'train_rollouts',
-        ),
-        config.get('prooftrace_sequence_length'),
-        tokenizer,
-        config.get('prooftrace_lm_iota_augment'),
-        config.get('prooftrace_lm_iota_augment_period'),
-    )
-    test_dataset = ProofTraceLMDataset(
-        os.path.join(
-            os.path.expanduser(config.get('prooftrace_rollout_dir')),
-            config.get('prooftrace_dataset_size'),
-            'test_rollouts',
-        ),
-        config.get('prooftrace_sequence_length'),
-        tokenizer,
-        config.get('prooftrace_lm_iota_augment'),
-        config.get('prooftrace_lm_iota_augment_period'),
-    )
-
-    ack = ACK(config, train_dataset, test_dataset)
-    ack.test(int(time.time()))

@@ -1,6 +1,6 @@
 {
   "device": "cuda:0",
-  "config_update_path": "configs/run.json",
+  "config_update_path": "configs/run_lm.json",
 
   "prooftrace_load_dir": null,
   "prooftrace_save_dir": null,

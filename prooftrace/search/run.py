@@ -7,7 +7,7 @@ import random
 import re
 import time
 
-from prooftrace.models.model import Model
+from prooftrace.models.model import LModel
 from prooftrace.prooftrace import INV_PREPARE_TOKENS, ProofTraceActions
 from prooftrace.repl.repl import REPL
 from prooftrace.search.beam import Beam
@@ -108,7 +108,7 @@ def search():
             'cases': len(cases),
         })
 
-    model = Model(config).load()
+    model = LModel(config).load()
 
     cases = sorted(cases, key=lambda c: c[1])
 
