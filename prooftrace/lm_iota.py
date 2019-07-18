@@ -391,7 +391,7 @@ class TST:
 
                 self._ack.push(info, None, True)
 
-                Log.out("PROOFTRACE LM ACK TEST", {
+                Log.out("PROOFTRACE LM TST RUN", {
                     'epoch': epoch,
                     'act_loss_avg': "{:.4f}".format(act_loss.item()),
                     'lft_loss_avg': "{:.4f}".format(lft_loss.item()),
