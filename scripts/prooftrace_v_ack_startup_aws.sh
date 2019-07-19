@@ -14,7 +14,7 @@ tmux -S ~/v_ack new-session -d -s v_ack
 /home/stan/src/z3ta/scripts/v_ack++ 1 1
 /home/stan/src/z3ta/scripts/v_ack++ 1 2
 /home/stan/src/z3ta/scripts/v_ack++ 1 3
-/home/stan/src/z3ta/scripts/vack++ 1 4
+/home/stan/src/z3ta/scripts/v_ack++ 1 4
 /home/stan/src/z3ta/scripts/v_ack++ 1 5
 /home/stan/src/z3ta/scripts/v_ack++ 1 6
 /home/stan/src/z3ta/scripts/v_ack++ 1 7
