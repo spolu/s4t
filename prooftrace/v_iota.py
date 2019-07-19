@@ -150,7 +150,9 @@ class TST:
                 self._model.eval()
 
                 prd_values = self._model.infer(idx, act, arg)
-                values = torch.tensor(val, dtype=torch.float).to(self._device)
+                values = torch.tensor(
+                    val, dtype=torch.float
+                ).unsqueeze(-1).to(self._device)
 
                 val_loss = self._mse_loss(prd_values, values)
 
