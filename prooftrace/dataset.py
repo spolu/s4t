@@ -28,14 +28,16 @@ def lm_collate(
     actions = []
     arguments = []
     truths = []
+    values = []
 
-    for (idx, act, arg, trh) in batch:
+    for (idx, act, arg, trh, val) in batch:
         indices.append(idx)
         actions.append(act)
         arguments.append(arg)
         truths.append(trh)
+        values.append(val)
 
-    return (indices, actions, arguments, truths)
+    return (indices, actions, arguments, truths, values)
 
 
 class ProofTraceLMDataset(Dataset):
@@ -185,6 +187,11 @@ class ProofTraceLMDataset(Dataset):
         actions = ptra.actions()[:index]
         arguments = ptra.arguments()[:index]
 
+        assert ptra.action_len() > 0
+        assert index >= ptra.prepare_len()
+
+        value = float(index - ptra.prepare_len()) / ptra.action_len()
+
         actions.append(Action.from_action('EXTRACT', None, None))
 
         empty = Action.from_action('EMPTY', None, None)
@@ -193,4 +200,4 @@ class ProofTraceLMDataset(Dataset):
         while len(arguments) < self._sequence_length:
             arguments.append(empty)
 
-        return (index, actions, arguments, truth)
+        return (index, actions, arguments, truth, value)

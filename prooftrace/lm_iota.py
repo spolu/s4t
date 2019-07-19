@@ -71,7 +71,7 @@ class ACK:
             self,
             epoch,
     ):
-        for it, (idx, act, arg, trh) in enumerate(self._train_loader):
+        for it, (idx, act, arg, trh, _) in enumerate(self._train_loader):
             info = self._ack.fetch(self._device)
             if info is not None:
                 self.update(info['config'])
@@ -170,7 +170,7 @@ class TST:
         rgt_loss_meter = Meter()
 
         with torch.no_grad():
-            for it, (idx, act, arg, trh) in enumerate(self._test_loader):
+            for it, (idx, act, arg, trh, _) in enumerate(self._test_loader):
                 self._ack.fetch(self._device, blocking=False)
                 self._model.eval()
 
