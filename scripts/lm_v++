@@ -1,0 +1,5 @@
+#!/bin/bash
+
+tmux -S ~/v_ack new-window -n "v-ack-$1-$2"
+tmux -S ~/v_ack send-keys "z3ta" C-m
+tmux -S ~/v_ack send-keys "prooftrace_v_ack_run configs/prooftrace_v.json --sync_dir=~/tmp/iota/v-$1 --rollout_dir=~/tmp/iota/lm-$1-rollouts --device=cuda:$2" C-m
