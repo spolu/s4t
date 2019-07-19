@@ -10,8 +10,7 @@ import torch.optim as optim
 from generic.iota import IOTAAck, IOTASyn
 
 from prooftrace.dataset import ProofTraceLMDataset, lm_collate
-from prooftrace.models.model import LModel
-from prooftrace.prooftrace import PREPARE_TOKENS
+from prooftrace.models.model import VModel
 
 from tensorboardX import SummaryWriter
 
@@ -28,28 +27,27 @@ class ACK:
     ):
         self._config = config
 
-        self._action_coeff = config.get('prooftrace_lm_action_coeff')
-        self._grad_norm_max = config.get('prooftrace_lm_grad_norm_max')
+        self._grad_norm_max = config.get('prooftrace_v_grad_norm_max')
 
         self._device = torch.device(config.get('device'))
 
-        self._model = LModel(config)
+        self._model = VModel(config)
         self._ack = IOTAAck(
-            config.get('prooftrace_lm_iota_sync_dir'),
+            config.get('prooftrace_v_iota_sync_dir'),
             self._model.modules(),
         )
 
-        self._nll_loss = nn.NLLLoss()
+        self._mse_loss = nn.MSELoss()
 
         self._train_loader = torch.utils.data.DataLoader(
             train_dataset,
-            batch_size=self._config.get('prooftrace_lm_batch_size'),
+            batch_size=self._config.get('prooftrace_v_batch_size'),
             shuffle=True,
             collate_fn=lm_collate,
         )
 
         Log.out('ACK initialization', {
-            "batch_size": self._config.get('prooftrace_lm_batch_size'),
+            "batch_size": self._config.get('prooftrace_v_batch_size'),
         })
 
         self._train_batch = 0
@@ -60,45 +58,28 @@ class ACK:
     ) -> None:
         self._config = config
 
-        coeff = self._config.get('prooftrace_lm_action_coeff')
-        if coeff != self._action_coeff:
-            self._action_coeff = coeff
-            Log.out("Updated", {
-                "prooftrace_lm_action_coeff": coeff,
-            })
-
     def run_once(
             self,
             epoch,
     ):
-        for it, (idx, act, arg, trh, _) in enumerate(self._train_loader):
+        for it, (idx, act, arg, trh, val) in enumerate(self._train_loader):
             info = self._ack.fetch(self._device)
             if info is not None:
                 self.update(info['config'])
             self._model.train()
 
-            prd_actions, prd_lefts, prd_rights = \
-                self._model.infer(idx, act, arg)
+            prd_values = self._model.infer(idx, act, arg)
+            values = torch.tensor(
+                val, dtype=torch.float
+            ).unsqueeze(-1).to(self._device)
 
-            actions = torch.tensor([
-                trh[i].value - len(PREPARE_TOKENS) for i in range(len(trh))
-            ], dtype=torch.int64).to(self._device)
-            lefts = torch.tensor([
-                arg[i].index(trh[i].left) for i in range(len(trh))
-            ], dtype=torch.int64).to(self._device)
-            rights = torch.tensor([
-                arg[i].index(trh[i].right) for i in range(len(trh))
-            ], dtype=torch.int64).to(self._device)
-
-            act_loss = self._nll_loss(prd_actions, actions)
-            lft_loss = self._nll_loss(prd_lefts, lefts)
-            rgt_loss = self._nll_loss(prd_rights, rights)
+            val_loss = self._mse_loss(prd_values, values)
 
             # Backward pass.
             for m in self._model.modules():
                 self._model.modules()[m].zero_grad()
 
-            (self._action_coeff * act_loss + lft_loss + rgt_loss).backward()
+            val_loss.backward()
 
             if self._grad_norm_max > 0.0:
                 for m in self._model.modules():
@@ -108,19 +89,15 @@ class ACK:
                     )
 
             info = {
-                'act_loss': act_loss.item(),
-                'lft_loss': lft_loss.item(),
-                'rgt_loss': rgt_loss.item(),
+                'val_loss': val_loss.item(),
             }
 
             self._ack.push(info, None)
 
-            Log.out("PROOFTRACE LM ACK RUN", {
+            Log.out("PROOFTRACE V ACK RUN", {
                 'epoch': epoch,
                 'train_batch': self._train_batch,
-                'act_loss_avg': "{:.4f}".format(act_loss.item()),
-                'lft_loss_avg': "{:.4f}".format(lft_loss.item()),
-                'rgt_loss_avg': "{:.4f}".format(rgt_loss.item()),
+                'val_loss_avg': "{:.4f}".format(val_loss.item()),
             })
 
             self._train_batch += 1
@@ -140,23 +117,23 @@ class TST:
 
         self._device = torch.device(config.get('device'))
 
-        self._model = LModel(config)
+        self._model = VModel(config)
         self._ack = IOTAAck(
-            config.get('prooftrace_lm_iota_sync_dir'),
+            config.get('prooftrace_v_iota_sync_dir'),
             self._model.modules(),
         )
 
-        self._nll_loss = nn.NLLLoss()
+        self._mse_loss = nn.MSELoss()
 
         self._test_loader = torch.utils.data.DataLoader(
             test_dataset,
-            batch_size=self._config.get('prooftrace_lm_batch_size'),
+            batch_size=self._config.get('prooftrace_v_batch_size'),
             shuffle=True,
             collate_fn=lm_collate,
         )
 
         Log.out('TST initialization', {
-            "batch_size": self._config.get('prooftrace_lm_batch_size'),
+            "batch_size": self._config.get('prooftrace_v_batch_size'),
         })
 
         self._train_batch = 0
@@ -165,49 +142,29 @@ class TST:
             self,
             epoch,
     ):
-        act_loss_meter = Meter()
-        lft_loss_meter = Meter()
-        rgt_loss_meter = Meter()
+        val_loss_meter = Meter()
 
         with torch.no_grad():
-            for it, (idx, act, arg, trh, _) in enumerate(self._test_loader):
+            for it, (idx, act, arg, trh, val) in enumerate(self._test_loader):
                 self._ack.fetch(self._device, blocking=False)
                 self._model.eval()
 
-                prd_actions, prd_lefts, prd_rights = \
-                    self._model.infer(idx, act, arg)
+                prd_values = self._model.infer(idx, act, arg)
+                values = torch.tensor(val, dtype=torch.float).to(self._device)
 
-                actions = torch.tensor([
-                    trh[i].value - len(PREPARE_TOKENS) for i in range(len(trh))
-                ], dtype=torch.int64).to(self._device)
-                lefts = torch.tensor([
-                    arg[i].index(trh[i].left) for i in range(len(trh))
-                ], dtype=torch.int64).to(self._device)
-                rights = torch.tensor([
-                    arg[i].index(trh[i].right) for i in range(len(trh))
-                ], dtype=torch.int64).to(self._device)
+                val_loss = self._mse_loss(prd_values, values)
 
-                act_loss = self._nll_loss(prd_actions, actions)
-                lft_loss = self._nll_loss(prd_lefts, lefts)
-                rgt_loss = self._nll_loss(prd_rights, rights)
-
-                act_loss_meter.update(act_loss.item())
-                lft_loss_meter.update(lft_loss.item())
-                rgt_loss_meter.update(rgt_loss.item())
+                val_loss_meter.update(val_loss.item())
 
                 info = {
-                    'test_act_loss': act_loss_meter.avg,
-                    'test_lft_loss': lft_loss_meter.avg,
-                    'test_rgt_loss': rgt_loss_meter.avg,
+                    'test_val_loss': val_loss_meter.avg,
                 }
 
                 self._ack.push(info, None, True)
 
-                Log.out("PROOFTRACE LM TST RUN", {
+                Log.out("PROOFTRACE V TST RUN", {
                     'epoch': epoch,
-                    'act_loss_avg': "{:.4f}".format(act_loss.item()),
-                    'lft_loss_avg': "{:.4f}".format(lft_loss.item()),
-                    'rgt_loss_avg': "{:.4f}".format(rgt_loss.item()),
+                    'val_loss_avg': "{:.4f}".format(val_loss.item()),
                 })
 
                 self._train_batch += 1
@@ -224,9 +181,9 @@ class SYN:
     ):
         self._config = config
 
-        self._learning_rate = config.get('prooftrace_lm_learning_rate')
+        self._learning_rate = config.get('prooftrace_v_learning_rate')
         self._min_update_count = \
-            config.get('prooftrace_lm_iota_min_update_count')
+            config.get('prooftrace_v_iota_min_update_count')
 
         self._device = torch.device(config.get('device'))
 
@@ -242,29 +199,29 @@ class SYN:
                 self._config.get('tensorboard_log_dir'),
             )
 
-        self._model = LModel(config)
+        self._model = VModel(config)
 
         Log.out(
             "SYN Initializing", {
-                'parameters_count_pE':
-                self._model.modules()['pE'].parameters_count(),
-                'parameters_count_pT':
-                self._model.modules()['pT'].parameters_count(),
-                'parameters_count_pH':
-                self._model.modules()['pH'].parameters_count(),
+                'parameters_count_vE':
+                self._model.modules()['vE'].parameters_count(),
+                'parameters_count_vT':
+                self._model.modules()['vT'].parameters_count(),
+                'parameters_count_vH':
+                self._model.modules()['vH'].parameters_count(),
             },
         )
 
         self._syn = IOTASyn(
-            config.get('prooftrace_lm_iota_sync_dir'),
+            config.get('prooftrace_v_iota_sync_dir'),
             self._model.modules(),
         )
 
-        self._policy_optimizer = optim.Adam(
+        self._value_optimizer = optim.Adam(
             [
-                {'params': self._model.modules()['pE'].parameters()},
-                {'params': self._model.modules()['pT'].parameters()},
-                {'params': self._model.modules()['pH'].parameters()},
+                {'params': self._model.modules()['vE'].parameters()},
+                {'params': self._model.modules()['vT'].parameters()},
+                {'params': self._model.modules()['vH'].parameters()},
             ],
             lr=self._learning_rate,
         )
@@ -285,9 +242,9 @@ class SYN:
             self._model.load()
 
             if training and os.path.isfile(self._load_dir + "/optimizer.pt"):
-                self._policy_optimizer.load_state_dict(
+                self._value_optimizer.load_state_dict(
                     torch.load(
-                        self._load_dir + "/policy_optimizer.pt",
+                        self._load_dir + "/value_optimizer.pt",
                         map_location=self._device,
                     ),
                 )
@@ -308,8 +265,8 @@ class SYN:
             self._model.save()
 
             torch.save(
-                self._policy_optimizer.state_dict(),
-                self._save_dir + "/policy_optimizer.pt",
+                self._value_optimizer.state_dict(),
+                self._save_dir + "/value_optimizer.pt",
             )
 
     def update(
@@ -317,33 +274,32 @@ class SYN:
     ) -> None:
         update = self._config.update()
         if update:
-            if 'prooftrace_lm_learning_rate' in update:
-                lr = self._config.get('prooftrace_lm_learning_rate')
+            if 'prooftrace_v_learning_rate' in update:
+                lr = self._config.get('prooftrace_v_learning_rate')
                 if lr != self._learning_rate:
                     self._learning_rate = lr
-                    for group in self._policy_optimizer.param_groups:
+                    for group in self._value_optimizer.param_groups:
                         group['lr'] = lr
                     Log.out("Updated", {
-                        "prooftrace_lm_learning_rate": lr,
+                        "prooftrace_v_learning_rate": lr,
                     })
-            if 'prooftrace_lm_iota_min_update_count' in update:
+            if 'prooftrace_v_iota_min_update_count' in update:
                 cnt = \
-                    self._config.get('prooftrace_lm_iota_min_update_count')
+                    self._config.get('prooftrace_v_iota_min_update_count')
                 if cnt != self._min_update_count:
                     self._min_update_count = cnt
                     Log.out("Updated", {
-                        "prooftrace_lm_iota_min_update_count": cnt,
+                        "prooftrace_v_iota_min_update_count": cnt,
                     })
 
             if self._tb_writer is not None:
                 for k in update:
                     if k in [
-                            'prooftrace_lm_learning_rate',
-                            'prooftrace_lm_iota_min_update_count',
-                            'prooftrace_lm_action_coeff',
+                            'prooftrace_v_learning_rate',
+                            'prooftrace_v_iota_min_update_count',
                     ]:
                         self._tb_writer.add_scalar(
-                            "prooftrace_lm_train_run/{}".format(k),
+                            "prooftrace_v_train_run/{}".format(k),
                             update[k], self._epoch,
                         )
 
@@ -355,7 +311,7 @@ class SYN:
 
         run_start = time.time()
 
-        self._policy_optimizer.zero_grad()
+        self._value_optimizer.zero_grad()
 
         infos = self._syn.reduce(self._device, self._min_update_count)
 
@@ -363,7 +319,7 @@ class SYN:
             time.sleep(1)
             return
 
-        self._policy_optimizer.step()
+        self._value_optimizer.step()
 
         self._syn.broadcast({'config': self._config})
 
@@ -373,79 +329,42 @@ class SYN:
             update_delta = 0.0
         self._last_update = time.time()
 
-        act_loss_meter = Meter()
-        lft_loss_meter = Meter()
-        rgt_loss_meter = Meter()
-        test_act_loss_meter = Meter()
-        test_lft_loss_meter = Meter()
-        test_rgt_loss_meter = Meter()
+        val_loss_meter = Meter()
+        test_val_loss_meter = Meter()
 
         for info in infos:
-            if 'act_loss' in info:
-                act_loss_meter.update(info['act_loss'])
-            if 'lft_loss' in info:
-                lft_loss_meter.update(info['lft_loss'])
-            if 'rgt_loss' in info:
-                rgt_loss_meter.update(info['rgt_loss'])
-            if 'test_act_loss' in info:
-                test_act_loss_meter.update(info['test_act_loss'])
-            if 'test_lft_loss' in info:
-                test_lft_loss_meter.update(info['test_lft_loss'])
-            if 'test_rgt_loss' in info:
-                test_rgt_loss_meter.update(info['test_rgt_loss'])
+            if 'val_loss' in info:
+                val_loss_meter.update(info['val_loss'])
+            if 'test_val_loss' in info:
+                test_val_loss_meter.update(info['test_val_loss'])
 
         Log.out("PROOFTRACE BEAM SYN RUN", {
             'epoch': self._epoch,
             'run_time': "{:.2f}".format(time.time() - run_start),
             'update_count': len(infos),
             'update_delta': "{:.2f}".format(update_delta),
-            'act_loss': "{:.4f}".format(act_loss_meter.avg or 0.0),
-            'lft_loss': "{:.4f}".format(lft_loss_meter.avg or 0.0),
-            'rgt_loss': "{:.4f}".format(rgt_loss_meter.avg or 0.0),
-            'test_act_loss': "{:.4f}".format(test_act_loss_meter.avg or 0.0),
-            'test_lft_loss': "{:.4f}".format(test_lft_loss_meter.avg or 0.0),
-            'test_rgt_loss': "{:.4f}".format(test_rgt_loss_meter.avg or 0.0),
+            'val_loss': "{:.4f}".format(val_loss_meter.avg or 0.0),
+            'test_val_loss': "{:.4f}".format(test_val_loss_meter.avg or 0.0),
         })
 
         if self._tb_writer is not None:
             self._tb_writer.add_scalar(
-                "prooftrace_lm_train/update_delta",
+                "prooftrace_v_train/update_delta",
                 update_delta, self._epoch,
             )
             self._tb_writer.add_scalar(
-                "prooftrace_lm_train/update_count",
+                "prooftrace_v_train/update_count",
                 len(infos), self._epoch,
             )
-            if act_loss_meter.avg is not None:
+            if val_loss_meter.avg is not None:
                 self._tb_writer.add_scalar(
-                    "prooftrace_lm_train/act_loss",
-                    act_loss_meter.avg, self._epoch,
+                    "prooftrace_v_train/val_loss",
+                    val_loss_meter.avg, self._epoch,
                 )
-            if lft_loss_meter.avg is not None:
+            if test_val_loss_meter.avg is not None:
                 self._tb_writer.add_scalar(
-                    "prooftrace_lm_train/lft_loss",
-                    lft_loss_meter.avg, self._epoch,
-                )
-            if rgt_loss_meter.avg is not None:
-                self._tb_writer.add_scalar(
-                    "prooftrace_lm_train/rgt_loss",
-                    rgt_loss_meter.avg, self._epoch,
-                )
-
-            if test_act_loss_meter.avg is not None:
-                self._tb_writer.add_scalar(
-                    "prooftrace_lm_test/act_loss",
-                    test_act_loss_meter.avg, self._epoch,
-                )
-            if test_lft_loss_meter.avg is not None:
-                self._tb_writer.add_scalar(
-                    "prooftrace_lm_test/lft_loss",
-                    test_lft_loss_meter.avg, self._epoch,
-                )
-            if test_rgt_loss_meter.avg is not None:
-                self._tb_writer.add_scalar(
-                    "prooftrace_lm_test/rgt_loss",
-                    test_rgt_loss_meter.avg, self._epoch,
+                    "prooftrace_v_test/val_loss",
+                    test_val_loss_meter.avg, self._epoch,
                 )
 
         self._epoch += 1
@@ -492,7 +411,7 @@ def ack_run():
         )
     if args.sync_dir is not None:
         config.override(
-            'prooftrace_lm_iota_sync_dir',
+            'prooftrace_v_iota_sync_dir',
             os.path.expanduser(args.sync_dir),
         )
     if args.rollout_dir is not None:
@@ -520,8 +439,8 @@ def ack_run():
         ),
         config.get('prooftrace_sequence_length'),
         tokenizer,
-        config.get('prooftrace_lm_iota_augment'),
-        config.get('prooftrace_lm_iota_augment_period'),
+        config.get('prooftrace_v_iota_augment'),
+        config.get('prooftrace_v_iota_augment_period'),
     )
 
     ack = ACK(config, train_dataset)
@@ -570,7 +489,7 @@ def tst_run():
         )
     if args.sync_dir is not None:
         config.override(
-            'prooftrace_lm_iota_sync_dir',
+            'prooftrace_v_iota_sync_dir',
             os.path.expanduser(args.sync_dir),
         )
     if args.rollout_dir is not None:
@@ -598,8 +517,8 @@ def tst_run():
         ),
         config.get('prooftrace_sequence_length'),
         tokenizer,
-        config.get('prooftrace_lm_iota_augment'),
-        config.get('prooftrace_lm_iota_augment_period'),
+        config.get('prooftrace_v_iota_augment'),
+        config.get('prooftrace_v_iota_augment_period'),
     )
 
     tst = TST(config, test_dataset)
@@ -647,7 +566,7 @@ def syn_run():
         config.override('device', args.device)
     if args.sync_dir is not None:
         config.override(
-            'prooftrace_lm_iota_sync_dir',
+            'prooftrace_v_iota_sync_dir',
             os.path.expanduser(args.sync_dir),
         )
 

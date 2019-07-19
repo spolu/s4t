@@ -229,4 +229,4 @@ class VModel:
             action_embeds[i][0].unsqueeze(0) for i in range(len(idx))
         ], dim=0)
 
-        return self._modules['vH'](heads, hiddens, targets)
+        return self._modules['vH'](heads, targets)

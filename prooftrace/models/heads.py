@@ -185,8 +185,8 @@ class VH(nn.Module):
             heads,
             targets,
     ):
-        residuals = self.adapter(targets) + heads
+        # residuals = self.adapter(targets) + heads
 
-        value = self.value_head(residuals)
+        value = self.value_head(heads)
 
         return value
