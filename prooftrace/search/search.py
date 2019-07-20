@@ -2,7 +2,6 @@ import typing
 
 from prooftrace.prooftrace import ProofTraceActions, Action
 
-from prooftrace.models.model import LModel
 from prooftrace.repl.fusion import Thm
 from prooftrace.repl.repl import REPL
 
@@ -13,13 +12,11 @@ class Search:
     def __init__(
             self,
             config: Config,
-            model: LModel,
             ptra: ProofTraceActions,
             repl: REPL,
             target: Thm,
     ) -> None:
         self._config = config
-        self._model = model
         self._target = target
 
     def step(

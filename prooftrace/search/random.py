@@ -6,7 +6,6 @@ from prooftrace.prooftrace import \
     ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, \
     Action, ProofTraceActions
 
-from prooftrace.models.model import LModel
 from prooftrace.repl.repl import REPL
 from prooftrace.repl.fusion import Thm
 from prooftrace.search.search import Search
@@ -151,12 +150,11 @@ class Random(Search):
     def __init__(
             self,
             config: Config,
-            model: LModel,
             ptra: ProofTraceActions,
             repl: REPL,
             target: Thm,
     ) -> None:
-        super(Random, self).__init__(config, model, ptra, repl, target)
+        super(Random, self).__init__(config, ptra, repl, target)
 
         self._ptra = ptra.copy()
         self._repl = repl.copy()

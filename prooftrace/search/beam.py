@@ -86,18 +86,20 @@ class Beam(Search):
     def __init__(
             self,
             config: Config,
-            model: LModel,
+            l_model: LModel,
             ptra: ProofTraceActions,
             repl: REPL,
             target: Thm,
     ) -> None:
-        super(Beam, self).__init__(config, model, ptra, repl, target)
+        super(Beam, self).__init__(config, ptra, repl, target)
+
+        self._l_model = l_model
 
         index, actions, arguments = self.preprocess_ptra(ptra)
 
         with torch.no_grad():
             prd_actions, prd_lefts, prd_rights = \
-                self._model.infer([index], [actions], [arguments])
+                self._l_model.infer([index], [actions], [arguments])
 
         self._ptras = [ptra.copy()]
         self._repls = [repl.copy()]
@@ -174,7 +176,7 @@ class Beam(Search):
 
         with torch.no_grad():
             prd_actions, prd_lefts, prd_rights = \
-                self._model.infer(idx, act, arg)
+                self._l_model.infer(idx, act, arg)
 
         next_heads = []
         for i in range(len(candidates)):

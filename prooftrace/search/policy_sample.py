@@ -17,12 +17,14 @@ class PolicySample(Search):
     def __init__(
             self,
             config: Config,
-            model: LModel,
+            l_model: LModel,
             ptra: ProofTraceActions,
             repl: REPL,
             target: Thm,
     ) -> None:
-        super(PolicySample, self).__init__(config, model, ptra, repl, target)
+        super(PolicySample, self).__init__(config, ptra, repl, target)
+
+        self._l_model = l_model
 
         self._ptra = ptra.copy()
         self._repl = repl.copy()
@@ -42,7 +44,7 @@ class PolicySample(Search):
 
         with torch.no_grad():
             prd_actions, prd_lefts, prd_rights = \
-                self._model.infer(idx, act, arg)
+                self._l_model.infer(idx, act, arg)
 
         beta_width = \
             self._config.get('prooftrace_search_policy_sample_beta_width')

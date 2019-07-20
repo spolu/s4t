@@ -14,7 +14,6 @@ from prooftrace.models.model import LModel
 from prooftrace.prooftrace import ProofTraceActions, INV_PREPARE_TOKENS
 from prooftrace.rollout import Rollout
 from prooftrace.search.beam import Beam
-from prooftrace.search.particle_filter import ParticleFilter
 from prooftrace.search.policy_sample import PolicySample
 
 from prooftrace.repl.repl import REPL
@@ -127,10 +126,6 @@ class WRK():
         search = None
         if self._config.get('prooftrace_search_type') == 'beam':
             search = Beam(
-                self._config, self._model, ptra, repl, target,
-            )
-        if self._config.get('prooftrace_search_type') == 'particle_filter':
-            search = ParticleFilter(
                 self._config, self._model, ptra, repl, target,
             )
         if self._config.get('prooftrace_search_type') == 'policy_sample':

@@ -7,7 +7,7 @@ import random
 import re
 import time
 
-from prooftrace.models.model import LModel
+from prooftrace.models.model import LModel, VModel
 from prooftrace.prooftrace import INV_PREPARE_TOKENS, ProofTraceActions
 from prooftrace.repl.repl import REPL
 from prooftrace.search.beam import Beam
@@ -108,7 +108,8 @@ def search():
             'cases': len(cases),
         })
 
-    model = LModel(config).load()
+    l_model = LModel(config).load()
+    v_model = VModel(config).load()
 
     cases = sorted(cases, key=lambda c: c[1])
 
@@ -164,13 +165,13 @@ def search():
 
         search = None
         if config.get('prooftrace_search_type') == 'beam':
-            search = Beam(config, model, ptra, repl, target)
+            search = Beam(config, l_model, ptra, repl, target)
         if config.get('prooftrace_search_type') == 'particle_filter':
-            search = ParticleFilter(config, model, ptra, repl, target)
+            search = ParticleFilter(
+                config, l_model, v_model, ptra, repl, target,
+            )
         if config.get('prooftrace_search_type') == 'policy_sample':
-            search = PolicySample(config, model, ptra, repl, target)
-        if config.get('prooftrace_search_type') == 'random':
-            search = Random(config, model, ptra, repl, target)
+            search = PolicySample(config, l_model, ptra, repl, target)
         assert search is not None
 
         depth = config.get('prooftrace_sequence_length') - \

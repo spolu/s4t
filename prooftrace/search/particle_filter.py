@@ -7,7 +7,7 @@ from prooftrace.prooftrace import \
     PREPARE_TOKENS, INV_ACTION_TOKENS, \
     Action, ProofTraceActions
 
-from prooftrace.models.model import LModel
+from prooftrace.models.model import LModel, VModel
 from prooftrace.repl.repl import REPL
 from prooftrace.repl.fusion import Thm
 from prooftrace.search.search import Search
@@ -19,12 +19,16 @@ class ParticleFilter(Search):
     def __init__(
             self,
             config: Config,
-            model: LModel,
+            l_model: LModel,
+            v_model: VModel,
             ptra: ProofTraceActions,
             repl: REPL,
             target: Thm,
     ) -> None:
-        super(ParticleFilter, self).__init__(config, model, ptra, repl, target)
+        super(ParticleFilter, self).__init__(config, ptra, repl, target)
+
+        self._l_model = l_model
+        self._v_model = v_model
 
         self._filter_size = \
             config.get('prooftrace_search_particle_filter_size')
@@ -34,7 +38,6 @@ class ParticleFilter(Search):
         self._particles = [{
             'ptra': ptra.copy(),
             'repl': repl.copy(),
-            'cost': 1.0,
         } for _ in range(self._filter_size)]
 
     def step(
@@ -57,7 +60,7 @@ class ParticleFilter(Search):
 
         with torch.no_grad():
             prd_actions, prd_lefts, prd_rights = \
-                self._model.infer(idx, act, arg)
+                self._l_model.infer(idx, act, arg)
 
         m_actions = D.Categorical(logits=prd_actions)
         m_lefts = D.Categorical(logits=prd_lefts)
@@ -93,57 +96,58 @@ class ParticleFilter(Search):
                 h = p['ptra'].actions()[-1].hash() + a.hash()
 
                 if h not in samples:
-                    # print(
-                    #     str(len(PREPARE_TOKENS) + action) +
-                    #     " " + str(left) +
-                    #     " " + str(right)
-                    # )
-                    samples[h] = (
-                        p, a,
-                        torch.exp(prd_actions[i][action]).item() *
-                        torch.exp(prd_lefts[i][left]).item() *
-                        torch.exp(prd_rights[i][right]).item()
-                    )
+                    repl = p['repl'].copy()
+                    ptra = p['ptra'].copy()
 
-        # Resampling based on cost
+                    thm = repl.apply(action)
+                    action._index = thm.index()
+                    argument = ptra.build_argument(
+                        thm.concl(), thm.hyp(), thm.index(),
+                    )
+                    ptra.append(action, argument)
+
+                    if self._target.thm_string(True) == thm.thm_string(True):
+                        return True, ptra, True
+
+                    samples[h] = {
+                        'repl': repl,
+                        'ptra': ptra,
+                    }
+
+                    if len(samples) >= self._sample_size:
+                        break
+
+                if len(samples) >= self._sample_size:
+                    break
+
+        # Resampling based on value
         samples = list(samples.values())
 
         if len(samples) == 0:
             return True, self._particles[0]['ptra'], False
 
-        costs = F.log_softmax(
-            torch.tensor(
-                [s[0]['cost'] * s[2] for s in samples]
-            ),
-            dim=0
-        )
+        idx = []
+        act = []
+        arg = []
+
+        for p in samples:
+            index, actions, arguments = self.preprocess_ptra(p['ptra'])
+
+            idx += [index]
+            act += [actions]
+            arg += [arguments]
+
+        with torch.no_grad():
+            prd_values = \
+                self._v_model.infer(idx, act, arg)
+
+        costs = F.log_softmax(prd_values)
 
         m = D.Categorical(logits=costs)
         indices = m.sample((self._filter_size,)).numpy()
         self._particles = []
 
         for idx in indices:
-            s = samples[idx]
-            p = s[0]
-            action = s[1]
-
-            repl = p['repl'].copy()
-            ptra = p['ptra'].copy()
-
-            thm = repl.apply(action)
-            action._index = thm.index()
-            argument = ptra.build_argument(
-                thm.concl(), thm.hyp(), thm.index(),
-            )
-            ptra.append(action, argument)
-
-            if self._target.thm_string(True) == thm.thm_string(True):
-                return True, ptra, True
-
-            self._particles.append({
-                'ptra': ptra,
-                'repl': repl,
-                'cost': p['cost'] * s[2],
-            })
+            self._particles.append(samples[idx])
 
         return False, self._particles[0]['ptra'], False
