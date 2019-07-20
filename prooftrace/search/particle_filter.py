@@ -68,6 +68,8 @@ class ParticleFilter(Search):
 
         samples = {}
 
+        print("PARTICLES {}".format(len(self._particles)))
+
         for s in range(self._sample_size):
             actions = m_actions.sample()
             lefts = m_lefts.sample()
@@ -77,6 +79,8 @@ class ParticleFilter(Search):
                 action = actions[i].item()
                 left = lefts[i].item()
                 right = rights[i].item()
+
+                # print("TRY {} {} {}".format(action, left, right))
 
                 if left >= p['ptra'].len() or right >= p['ptra'].len():
                     continue
@@ -101,6 +105,7 @@ class ParticleFilter(Search):
 
                     thm = repl.apply(a)
                     a._index = thm.index()
+
                     argument = ptra.build_argument(
                         thm.concl(), thm.hyp(), thm.index(),
                     )
@@ -122,7 +127,9 @@ class ParticleFilter(Search):
 
         # Resampling based on value
         samples = list(samples.values())
+        # import pdb; pdb.set_trace();
 
+        print("SAMPLES LEN {}".format(len(samples)))
         if len(samples) == 0:
             return True, self._particles[0]['ptra'], False
 
@@ -141,7 +148,7 @@ class ParticleFilter(Search):
             prd_values = \
                 self._v_model.infer(idx, act, arg)
 
-        costs = F.log_softmax(prd_values)
+        costs = F.log_softmax(prd_values, dim=1)
 
         m = D.Categorical(logits=costs)
         indices = m.sample((self._filter_size,)).cpu().numpy()

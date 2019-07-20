@@ -194,12 +194,12 @@ def search():
             done, ptra, proved = search.step(offset, conclusion)
             step_end = time.time()
 
-            # Log.out('STEP', {
-            #     'i': i,
-            #     'done': done,
-            #     'proved': proved,
-            #     'time': "{:.2f}".format(step_end - step_start),
-            # })
+            Log.out('STEP', {
+                'i': i,
+                'done': done,
+                'proved': proved,
+                'time': "{:.2f}".format(step_end - step_start),
+            })
             if done:
                 if proved:
                     Log.out("DEMONSTRATED", {
