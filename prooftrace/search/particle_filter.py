@@ -99,12 +99,12 @@ class ParticleFilter(Search):
                     repl = p['repl'].copy()
                     ptra = p['ptra'].copy()
 
-                    thm = repl.apply(action)
-                    action._index = thm.index()
+                    thm = repl.apply(a)
+                    a._index = thm.index()
                     argument = ptra.build_argument(
                         thm.concl(), thm.hyp(), thm.index(),
                     )
-                    ptra.append(action, argument)
+                    ptra.append(a, argument)
 
                     if self._target.thm_string(True) == thm.thm_string(True):
                         return True, ptra, True
@@ -144,10 +144,10 @@ class ParticleFilter(Search):
         costs = F.log_softmax(prd_values)
 
         m = D.Categorical(logits=costs)
-        indices = m.sample((self._filter_size,)).numpy()
+        indices = m.sample((self._filter_size,)).cpu().numpy()
         self._particles = []
 
         for idx in indices:
-            self._particles.append(samples[idx])
+            self._particles.append(samples[idx[0]])
 
         return False, self._particles[0]['ptra'], False
