@@ -80,7 +80,7 @@ class ParticleFilter(Search):
                 left = lefts[i].item()
                 right = rights[i].item()
 
-                # print("TRY {} {} {}".format(action, left, right))
+                # print("TRY {} {} {}  {} {} {}".format(len(PREPARE_TOKENS) + action, left, right, torch.exp(prd_actions)[i][action], torch.exp(prd_lefts)[i][left], torch.exp(prd_rights)[i][right]))
 
                 if left >= p['ptra'].len() or right >= p['ptra'].len():
                     continue
