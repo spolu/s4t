@@ -190,16 +190,16 @@ class ParticleFilter(Search):
                                     thm.thm_string(True):
                                 return True, ptra, True
 
-                            print(
-                                "STORE {} {} {}  {} {} {}".format(
-                                    len(PREPARE_TOKENS) + action,
-                                    left,
-                                    right,
-                                    torch.exp(prd_actions)[i][action],
-                                    torch.exp(prd_lefts)[i][left],
-                                    torch.exp(prd_rights)[i][right],
-                                ),
-                            )
+                            # print(
+                            #     "STORE {} {} {}  {} {} {}".format(
+                            #         len(PREPARE_TOKENS) + action,
+                            #         left,
+                            #         right,
+                            #         torch.exp(prd_actions)[i][action],
+                            #         torch.exp(prd_lefts)[i][left],
+                            #         torch.exp(prd_rights)[i][right],
+                            #     ),
+                            # )
 
                             samples[h] = {
                                 'repl': repl,
@@ -219,7 +219,7 @@ class ParticleFilter(Search):
         samples = list(samples.values())
         # import pdb; pdb.set_trace();
 
-        print("SAMPLES LEN {}".format(len(samples)))
+        # print("SAMPLES LEN {}".format(len(samples)))
 
         if len(samples) == 0:
             return True, self._particles[0]['ptra'], False
@@ -239,12 +239,14 @@ class ParticleFilter(Search):
             prd_values = \
                 self._v_model.infer(idx, act, arg)
 
-        # costs = F.log_softmax(prd_values, dim=0)
-        costs = F.softmax((prd_values.squeeze(1)-prd_values.mean()) / (prd_values.std() + 1e-7), dim=0)
-        # import pdb; pdb.set_trace()
+        costs = F.softmax(
+            (prd_values.squeeze(1)-prd_values.mean()) /
+            (prd_values.std() + 1e-7),
+            dim=0,
+        )
 
-        for i, p in enumerate(samples):
-            print("COST {} {}".format(costs[i].item(), prd_values[i].item()))
+        # for i, p in enumerate(samples):
+        #     print("COST {} {}".format(costs[i].item(), prd_values[i].item()))
 
         m = D.Categorical(logits=costs)
         indices = m.sample((self._filter_size,)).cpu().numpy()
