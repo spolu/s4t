@@ -53,9 +53,9 @@ class ParticleFilter(Search):
             beta_width,
             len(ACTION_TOKENS) - len(PREPARE_TOKENS),
         )
-        top_actions = torch.exp(self._prd_actions.cpu()).topk(a_count)
-        top_lefts = torch.exp(self._prd_lefts.cpu()).topk(beta_width)
-        top_rights = torch.exp(self._prd_rights.cpu()).topk(beta_width)
+        top_actions = torch.exp(prd_actions.cpu()).topk(a_count)
+        top_lefts = torch.exp(prd_lefts.cpu()).topk(beta_width)
+        top_rights = torch.exp(prd_rights.cpu()).topk(beta_width)
 
         for ia in range(a_count):
             for il in range(beta_width):
