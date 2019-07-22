@@ -61,20 +61,9 @@ class ParticleFilter(Search):
             for il in range(beta_width):
                 for ir in range(beta_width):
                     for i, p in enumerate(self._particles):
-                        action = top_actions[i][ia].item()
-                        left = top_lefts[i][il].item()
-                        right = top_rights[i][ir].item()
-
-                        print(
-                            "TRY {} {} {}  {} {} {}".format(
-                                len(PREPARE_TOKENS) + action,
-                                left,
-                                right,
-                                torch.exp(prd_actions)[i][action],
-                                torch.exp(prd_lefts)[i][left],
-                                torch.exp(prd_rights)[i][right],
-                            ),
-                        )
+                        action = top_actions[1][i][ia].item()
+                        left = top_lefts[1][i][il].item()
+                        right = top_rights[1][i][ir].item()
 
                         if left >= p['ptra'].len() or right >= p['ptra'].len():
                             continue
@@ -109,16 +98,21 @@ class ParticleFilter(Search):
                                     thm.thm_string(True):
                                 return True, ptra, True
 
+                            print(
+                                "STORE {} {} {}  {} {} {}".format(
+                                    len(PREPARE_TOKENS) + action,
+                                    left,
+                                    right,
+                                    torch.exp(prd_actions)[i][action],
+                                    torch.exp(prd_lefts)[i][left],
+                                    torch.exp(prd_rights)[i][right],
+                                ),
+                            )
+
                             samples[h] = {
                                 'repl': repl,
                                 'ptra': ptra,
                             }
-
-                            if len(samples) >= self._sample_size:
-                                break
-
-                        if len(samples) >= self._sample_size:
-                            break
 
         # Resampling based on value
         samples = list(samples.values())
@@ -233,7 +227,79 @@ class ParticleFilter(Search):
         print("PARTICLES LEN {}".format(len(self._particles)))
 
         # samples = self.sample(prd_actions, prd_lefts, prd_rights)
-        samples = self.topk(prd_actions, prd_lefts, prd_rights, 3)
+        # samples = self.topk(prd_actions, prd_lefts, prd_rights, 3)
+
+        beta_width = 5
+        samples = {}
+
+        a_count = min(
+            beta_width,
+            len(ACTION_TOKENS) - len(PREPARE_TOKENS),
+        )
+        top_actions = torch.exp(prd_actions.cpu()).topk(a_count)
+        top_lefts = torch.exp(prd_lefts.cpu()).topk(beta_width)
+        top_rights = torch.exp(prd_rights.cpu()).topk(beta_width)
+
+        for ia in range(a_count):
+            for il in range(beta_width):
+                for ir in range(beta_width):
+                    for i, p in enumerate(self._particles):
+                        action = top_actions[1][i][ia].item()
+                        left = top_lefts[1][i][il].item()
+                        right = top_rights[1][i][ir].item()
+
+                        if left >= p['ptra'].len() or right >= p['ptra'].len():
+                            continue
+
+                        a = Action.from_action(
+                            INV_ACTION_TOKENS[action + len(PREPARE_TOKENS)],
+                            p['ptra'].arguments()[left],
+                            p['ptra'].arguments()[right],
+                        )
+
+                        if p['ptra'].seen(a):
+                            continue
+
+                        if not p['repl'].valid(a):
+                            continue
+
+                        h = p['ptra'].actions()[-1].hash() + a.hash()
+
+                        if h not in samples:
+                            repl = p['repl'].copy()
+                            ptra = p['ptra'].copy()
+
+                            thm = repl.apply(a)
+                            a._index = thm.index()
+
+                            argument = ptra.build_argument(
+                                thm.concl(), thm.hyp(), thm.index(),
+                            )
+                            ptra.append(a, argument)
+
+                            if self._target.thm_string(True) == \
+                                    thm.thm_string(True):
+                                return True, ptra, True
+
+                            print(
+                                "STORE {} {} {}  {} {} {}".format(
+                                    len(PREPARE_TOKENS) + action,
+                                    left,
+                                    right,
+                                    torch.exp(prd_actions)[i][action],
+                                    torch.exp(prd_lefts)[i][left],
+                                    torch.exp(prd_rights)[i][right],
+                                ),
+                            )
+
+                            samples[h] = {
+                                'repl': repl,
+                                'ptra': ptra,
+                            }
+
+        # Resampling based on value
+        samples = list(samples.values())
+        # import pdb; pdb.set_trace();
 
         print("SAMPLES LEN {}".format(len(samples)))
 
