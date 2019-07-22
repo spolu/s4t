@@ -178,8 +178,8 @@ def search():
             ground.prepare_len()
 
         if fixed_gamma != 0:
-            if 4 * fixed_gamma < depth:
-                depth = fixed_gamma * 4
+            if 2 * fixed_gamma < depth:
+                depth = fixed_gamma * 2
         else:
             if 2 * ground.action_len() < depth:
                 depth = 2 * ground.action_len()
@@ -199,6 +199,7 @@ def search():
                 'done': done,
                 'proved': proved,
                 'time': "{:.2f}".format(step_end - step_start),
+                'summary': ptra.summary(offset),
             })
             if done:
                 if proved:

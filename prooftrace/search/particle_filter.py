@@ -239,13 +239,18 @@ class ParticleFilter(Search):
             prd_values = \
                 self._v_model.infer(idx, act, arg)
 
-        costs = F.log_softmax(prd_values, dim=1)
+        # costs = F.log_softmax(prd_values, dim=0)
+        costs = F.softmax((prd_values.squeeze(1)-prd_values.mean()) / (prd_values.std() + 1e-7), dim=0)
+        # import pdb; pdb.set_trace()
+
+        for i, p in enumerate(samples):
+            print("COST {} {}".format(costs[i].item(), prd_values[i].item()))
 
         m = D.Categorical(logits=costs)
         indices = m.sample((self._filter_size,)).cpu().numpy()
         self._particles = []
 
         for idx in indices:
-            self._particles.append(samples[idx[0]])
+            self._particles.append(samples[idx])
 
         return False, self._particles[0]['ptra'], False
