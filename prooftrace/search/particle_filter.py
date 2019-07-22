@@ -4,7 +4,7 @@ import torch.distributions as D
 import torch.nn.functional as F
 
 from prooftrace.prooftrace import \
-    PREPARE_TOKENS, INV_ACTION_TOKENS, \
+    ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, \
     Action, ProofTraceActions
 
 from prooftrace.models.model import LModel, VModel
@@ -40,35 +40,103 @@ class ParticleFilter(Search):
             'repl': repl.copy(),
         } for _ in range(self._filter_size)]
 
-    def step(
+    def topk(
             self,
-            offset: int = 0,
-            conclusion: bool = False,
-    ) -> typing.Tuple[
-        bool, typing.Optional[ProofTraceActions], bool,
-    ]:
-        idx = []
-        act = []
-        arg = []
+            prd_actions: torch.Tensor,
+            prd_lefts: torch.Tensor,
+            prd_rights: torch.Tensor,
+            beta_width: int,
+    ):
+        samples = {}
 
-        for p in self._particles:
-            index, actions, arguments = self.preprocess_ptra(p['ptra'])
+        a_count = min(
+            beta_width,
+            len(ACTION_TOKENS) - len(PREPARE_TOKENS),
+        )
+        top_actions = torch.exp(self._prd_actions.cpu()).topk(a_count)
+        top_lefts = torch.exp(self._prd_lefts.cpu()).topk(beta_width)
+        top_rights = torch.exp(self._prd_rights.cpu()).topk(beta_width)
 
-            idx += [index]
-            act += [actions]
-            arg += [arguments]
+        for ia in range(a_count):
+            for il in range(beta_width):
+                for ir in range(beta_width):
+                    for i, p in enumerate(self._particles):
+                        action = top_actions[i][ia].item()
+                        left = top_lefts[i][il].item()
+                        right = top_rights[i][ir].item()
 
-        with torch.no_grad():
-            prd_actions, prd_lefts, prd_rights = \
-                self._l_model.infer(idx, act, arg)
+                        print(
+                            "TRY {} {} {}  {} {} {}".format(
+                                len(PREPARE_TOKENS) + action,
+                                left,
+                                right,
+                                torch.exp(prd_actions)[i][action],
+                                torch.exp(prd_lefts)[i][left],
+                                torch.exp(prd_rights)[i][right],
+                            ),
+                        )
 
+                        if left >= p['ptra'].len() or right >= p['ptra'].len():
+                            continue
+
+                        a = Action.from_action(
+                            INV_ACTION_TOKENS[action + len(PREPARE_TOKENS)],
+                            p['ptra'].arguments()[left],
+                            p['ptra'].arguments()[right],
+                        )
+
+                        if p['ptra'].seen(a):
+                            continue
+
+                        if not p['repl'].valid(a):
+                            continue
+
+                        h = p['ptra'].actions()[-1].hash() + a.hash()
+
+                        if h not in samples:
+                            repl = p['repl'].copy()
+                            ptra = p['ptra'].copy()
+
+                            thm = repl.apply(a)
+                            a._index = thm.index()
+
+                            argument = ptra.build_argument(
+                                thm.concl(), thm.hyp(), thm.index(),
+                            )
+                            ptra.append(a, argument)
+
+                            if self._target.thm_string(True) == \
+                                    thm.thm_string(True):
+                                return True, ptra, True
+
+                            samples[h] = {
+                                'repl': repl,
+                                'ptra': ptra,
+                            }
+
+                            if len(samples) >= self._sample_size:
+                                break
+
+                        if len(samples) >= self._sample_size:
+                            break
+
+        # Resampling based on value
+        samples = list(samples.values())
+        # import pdb; pdb.set_trace();
+
+        return samples
+
+    def sample(
+            self,
+            prd_actions: torch.Tensor,
+            prd_lefts: torch.Tensor,
+            prd_rights: torch.Tensor,
+    ):
         m_actions = D.Categorical(logits=prd_actions)
         m_lefts = D.Categorical(logits=prd_lefts)
         m_rights = D.Categorical(logits=prd_rights)
 
         samples = {}
-
-        print("PARTICLES {}".format(len(self._particles)))
 
         for s in range(self._sample_size):
             actions = m_actions.sample()
@@ -80,7 +148,16 @@ class ParticleFilter(Search):
                 left = lefts[i].item()
                 right = rights[i].item()
 
-                # print("TRY {} {} {}  {} {} {}".format(len(PREPARE_TOKENS) + action, left, right, torch.exp(prd_actions)[i][action], torch.exp(prd_lefts)[i][left], torch.exp(prd_rights)[i][right]))
+                # print(
+                #     "TRY {} {} {}  {} {} {}".format(
+                #         len(PREPARE_TOKENS) + action,
+                #         left,
+                #         right,
+                #         torch.exp(prd_actions)[i][action],
+                #         torch.exp(prd_lefts)[i][left],
+                #         torch.exp(prd_rights)[i][right],
+                #     ),
+                # )
 
                 if left >= p['ptra'].len() or right >= p['ptra'].len():
                     continue
@@ -129,7 +206,37 @@ class ParticleFilter(Search):
         samples = list(samples.values())
         # import pdb; pdb.set_trace();
 
+        return samples
+
+    def step(
+            self,
+            offset: int = 0,
+            conclusion: bool = False,
+    ) -> typing.Tuple[
+        bool, typing.Optional[ProofTraceActions], bool,
+    ]:
+        idx = []
+        act = []
+        arg = []
+
+        for p in self._particles:
+            index, actions, arguments = self.preprocess_ptra(p['ptra'])
+
+            idx += [index]
+            act += [actions]
+            arg += [arguments]
+
+        with torch.no_grad():
+            prd_actions, prd_lefts, prd_rights = \
+                self._l_model.infer(idx, act, arg)
+
+        print("PARTICLES LEN {}".format(len(self._particles)))
+
+        # samples = self.sample(prd_actions, prd_lefts, prd_rights)
+        samples = self.topk(prd_actions, prd_lefts, prd_rights, 3)
+
         print("SAMPLES LEN {}".format(len(samples)))
+
         if len(samples) == 0:
             return True, self._particles[0]['ptra'], False
 
