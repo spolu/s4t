@@ -168,7 +168,7 @@ def search():
         if config.get('prooftrace_search_type') == 'beam':
             search = Beam(config, l_model, ptra, repl, target)
         if config.get('prooftrace_search_type') == 'mcts':
-            search = MCTS(config, l_model, ptra, repl, target)
+            search = MCTS(config, l_model, v_model, ptra, repl, target)
         if config.get('prooftrace_search_type') == 'particle_filter':
             search = ParticleFilter(
                 config, l_model, v_model, ptra, repl, target,
