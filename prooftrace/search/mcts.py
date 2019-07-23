@@ -256,40 +256,35 @@ class MCTS(Search):
     ) -> typing.Tuple[
         bool, typing.Optional[ProofTraceActions], bool,
     ]:
-        node = self._tree
-        self._step += 1
-        tree_total = 0
+        for i in range(self._roll_count):
+            node = self._tree
+            self._step += 1
 
-        while node is not None and node._expanded is True:
-            child, total = node.select(offset)
-            if node._parent is None:
-                tree_total = total
-            if child is None:
-                return True, node._ptra, False
-            node.update_visit()
-            node = child
+            while node is not None and node._expanded is True:
+                child, total = node.select(offset)
+                if child is None:
+                    return True, node._ptra, False
+                node.update_visit()
+                node = child
 
-        if node is not None:
-            value, proved, ptra = node.expand(
-                self._beta_width,
-                self._sequence_length,
-                offset,
-                self._l_model,
-                self._v_model,
-                self._target,
-                self._step,
-            )
-            if proved:
-                return True, ptra, True
+            if node is not None:
+                value, proved, ptra = node.expand(
+                    self._beta_width,
+                    self._sequence_length,
+                    offset,
+                    self._l_model,
+                    self._v_model,
+                    self._target,
+                    self._step,
+                )
+                if proved:
+                    return True, ptra, True
 
-            while node is not None:
-                node.update_value(value)
-                node = node._parent
-        else:
-            assert False
+                while node is not None:
+                    node.update_value(value)
+                    node = node._parent
+            else:
+                assert False
 
-        if tree_total > self._roll_count:
-            self._tree = self._tree.next(offset, self._step)
-            self._tree._parent = None
-
-        return False, ptra, False
+        self._tree = self._tree.next(offset, self._step)
+        self._tree._parent = None
