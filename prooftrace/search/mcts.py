@@ -1,6 +1,7 @@
 import math
 import torch
 import typing
+import torch.nn.functional as F
 
 from prooftrace.prooftrace import \
     ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, \
@@ -15,7 +16,7 @@ from utils.config import Config
 from utils.log import Log
 
 
-C_PUCT = 1.0
+C_PUCT = 5.0
 
 
 class Node:
@@ -94,7 +95,7 @@ class Node:
         top_lefts = torch.exp(prd_lefts[0].cpu()).topk(beta_width)
         top_rights = torch.exp(prd_rights[0].cpu()).topk(beta_width)
 
-        value = prd_values[0].item() * 2.0 - 1.0
+        value = prd_values[0].item() / self._ptra.action_len()
 
         candidates = []
 
@@ -136,6 +137,8 @@ class Node:
                         a
                     ))
 
+        candidates = sorted(candidates, key=lambda c: c[0], reverse=True)[0:8]
+
         for p, action in candidates:
             repl = self._repl.copy()
             ptra = self._ptra.copy()
@@ -154,6 +157,7 @@ class Node:
                     'summary': ptra.summary(offset),
                 })
                 return value, True, ptra
+
 
             self._children.append(Node(
                 self,
@@ -178,13 +182,27 @@ class Node:
         for n in self._children:
             total += n._N
 
-        scores = []
-        for n in self._children:
-            score = n._Q + C_PUCT * n._P * math.sqrt(total) / (1 + n._N)
-            scores.append(score)
+        probs = torch.tensor([n._P for n in self._children])
+        probs = (probs - probs.mean()) / (probs.std() + 1e-9)
+        probs = F.softmax(probs, dim=0)
 
-        # if self._parent is None:
-        #     import pdb; pdb.set_trace()
+        scores = []
+        for i, n in enumerate(self._children):
+            score = n._Q + C_PUCT * probs[i] * math.sqrt(total) / (1 + n._N)
+            scores.append(score)
+            # if self._parent is None:
+            #     Log.out("SELECT", {
+            #         'q': "{:.5f}".format(n._Q),
+            #         'score': "{:.6f}".format(
+            #           n._Q + C_PUCT * n._P * math.sqrt(total) / (1 + n._N),
+            #         ),
+            #         'P': "{:.8f}".format(n._P),
+            #         'p': "{:.3f}".format(probs[i]),
+            #         'n': "{:.3f}".format(n._N),
+            #         'total': "{:.3f}".format(total),
+            #         # 'summary': n._ptra.summary(offset),
+            #     })
+
         m = max(scores)
         for i in range(len(scores)):
             if scores[i] == m:
@@ -204,16 +222,6 @@ class Node:
         max_roll = 0
         child = None
         for n in self._children:
-            # Log.out("SELECT", {
-            #     'q': "{:.3f}".format(n._Q),
-            #     'score': "{:.3f}".format(
-            #       n._Q + C_PUCT * n._P * math.sqrt(total) / (1 + n._N),
-            #     ),
-            #     'p': "{:.3f}".format(n._P),
-            #     'n': "{:.3f}".format(n._N),
-            #     'total': "{:.3f}".format(total),
-            #     'summary': n._ptra.summary(offset),
-            # })
             if n._N > max_roll:
                 max_roll = n._N
                 child = n
@@ -249,7 +257,6 @@ class MCTS(Search):
         self._sequence_length = config.get('prooftrace_sequence_length')
 
         self._tree = Node(None, 1.0, repl, ptra, target)
-        self._step = 0
 
     def step(
             self,
@@ -258,9 +265,11 @@ class MCTS(Search):
     ) -> typing.Tuple[
         bool, typing.Optional[ProofTraceActions], bool,
     ]:
+        step = 0
+
         for i in range(self._roll_count):
             node = self._tree
-            self._step += 1
+            step += 1
 
             while node is not None and node._expanded is True:
                 child, total = node.select(offset)
@@ -278,7 +287,7 @@ class MCTS(Search):
                     self._l_model,
                     self._v_model,
                     self._target,
-                    self._step,
+                    step,
                 )
                 if proved:
                     return True, ptra, True
@@ -287,9 +296,7 @@ class MCTS(Search):
                     node.update_value(value)
                     node = node._parent
 
-        ptra = self._tree._ptra
-
-        self._tree = self._tree.next(offset, self._step)
+        self._tree = self._tree.next(offset, step)
         self._tree._parent = None
 
-        return False, ptra, False
+        return False, self._tree._ptra, False

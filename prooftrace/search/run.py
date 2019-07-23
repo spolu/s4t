@@ -211,9 +211,9 @@ def search():
                     })
                 break
 
-            if (step_end - step_start) > \
-                    config.get('prooftrace_search_step_timeout'):
-                break
+            # if (step_end - step_start) > \
+            #         config.get('prooftrace_search_step_timeout'):
+            #     break
 
         Log.out("FINISH", {
             'summary': ptra.summary(offset),

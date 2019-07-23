@@ -28,7 +28,7 @@
   "prooftrace_lm_iota_augment": "none",
   "prooftrace_lm_iota_augment_period": 4,
 
-  "prooftrace_search_type": "beam",
+  "prooftrace_search_type": "mcts",
   "prooftrace_search_fixed_gamma": 8,
   "prooftrace_search_step_timeout": 20.0,
 
@@ -38,7 +38,7 @@
 
   "prooftrace_search_policy_sample_beta_width": 8,
 
-  "prooftrace_search_mcts_beta_width": 8,
+  "prooftrace_search_mcts_beta_width": 16,
   "prooftrace_search_mcts_roll_count": 64,
 
   "prooftrace_dataset_dir": "./data/prooftrace",
