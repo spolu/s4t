@@ -6,7 +6,7 @@ from prooftrace.prooftrace import \
     ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, \
     Action, ProofTraceActions
 
-from prooftrace.models.model import Model
+from prooftrace.models.model import LModel, VModel
 from prooftrace.repl.repl import REPL
 from prooftrace.repl.fusion import Thm
 from prooftrace.search import Search
@@ -62,7 +62,8 @@ class Node:
             beta_width: int,
             sequence_length: int,
             offset: int,
-            model: Model,
+            l_model: LModel,
+            v_model: VModel,
             target: Thm,
             step: int,
     ) -> typing.Tuple[
@@ -80,8 +81,10 @@ class Node:
             arguments.append(empty)
 
         with torch.no_grad():
-            prd_actions, prd_lefts, prd_rights, prd_values = \
-                model.infer([index], [actions], [arguments])
+            prd_actions, prd_lefts, prd_rights = \
+                l_model.infer([index], [actions], [arguments])
+            prd_values = \
+                v_model.infer([index], [actions], [arguments])
 
         a_count = min(
             beta_width,
@@ -90,6 +93,7 @@ class Node:
         top_actions = torch.exp(prd_actions[0].cpu()).topk(a_count)
         top_lefts = torch.exp(prd_lefts[0].cpu()).topk(beta_width)
         top_rights = torch.exp(prd_rights[0].cpu()).topk(beta_width)
+
         value = prd_values[0].item() * 2.0 - 1.0
 
         candidates = []
@@ -202,9 +206,7 @@ class Node:
         for n in self._children:
             # Log.out("SELECT", {
             #     'q': "{:.3f}".format(n._Q),
-            #     'score': "{:.3f}".format(
-            #        n._Q + C_PUCT * n._P * math.sqrt(total) / (1 + n._N)
-            #     ),
+            #     'score': "{:.3f}".format(n._Q + C_PUCT * n._P * math.sqrt(total) / (1 + n._N)),
             #     'p': "{:.3f}".format(n._P),
             #     'n': "{:.3f}".format(n._N),
             #     'total': "{:.3f}".format(total),
@@ -229,25 +231,28 @@ class MCTS(Search):
     def __init__(
             self,
             config: Config,
-            model: Model,
+            l_model: LModel,
+            v_model: VModel,
             ptra: ProofTraceActions,
             repl: REPL,
             target: Thm,
     ) -> None:
-        super(MCTS, self).__init__(config, model, ptra, repl, target)
+        super(MCTS, self).__init__(config, ptra, repl, target)
+
+        self._l_model = l_model
+        self._v_model = v_model
 
         self._beta_width = config.get('prooftrace_search_mcts_beta_width')
         self._roll_count = config.get('prooftrace_search_mcts_roll_count')
         self._sequence_length = config.get('prooftrace_sequence_length')
 
         self._tree = Node(None, 1.0, repl, ptra, target)
-
         self._step = 0
 
     def step(
             self,
-            final: bool = False,
             offset: int = 0,
+            conclusion: bool = False,
     ) -> typing.Tuple[
         bool, typing.Optional[ProofTraceActions], bool,
     ]:
@@ -269,7 +274,8 @@ class MCTS(Search):
                 self._beta_width,
                 self._sequence_length,
                 offset,
-                self._model,
+                self._l_model,
+                self._v_model,
                 self._target,
                 self._step,
             )
@@ -286,7 +292,4 @@ class MCTS(Search):
             self._tree = self._tree.next(offset, self._step)
             self._tree._parent = None
 
-        if final:
-            return True, ptra, False
-        else:
-            return False, ptra, False
+        return False, ptra, False

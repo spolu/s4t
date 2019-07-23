@@ -11,9 +11,10 @@ from prooftrace.models.model import LModel, VModel
 from prooftrace.prooftrace import INV_PREPARE_TOKENS, ProofTraceActions
 from prooftrace.repl.repl import REPL
 from prooftrace.search.beam import Beam
+from prooftrace.search.mcts import MCTS
 from prooftrace.search.particle_filter import ParticleFilter
 from prooftrace.search.policy_sample import PolicySample
-from prooftrace.search.random import Random
+# from prooftrace.search.random import Random
 
 from utils.config import Config
 from utils.log import Log
@@ -166,6 +167,8 @@ def search():
         search = None
         if config.get('prooftrace_search_type') == 'beam':
             search = Beam(config, l_model, ptra, repl, target)
+        if config.get('prooftrace_search_type') == 'mcts':
+            search = MCTS(config, l_model, ptra, repl, target)
         if config.get('prooftrace_search_type') == 'particle_filter':
             search = ParticleFilter(
                 config, l_model, v_model, ptra, repl, target,

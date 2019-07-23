@@ -38,7 +38,7 @@
 
   "prooftrace_search_policy_sample_beta_width": 8,
 
-  "prooftrace_search_mcts_beta_width": 4,
+  "prooftrace_search_mcts_beta_width": 8,
   "prooftrace_search_mcts_roll_count": 64,
 
   "prooftrace_dataset_dir": "./data/prooftrace",
