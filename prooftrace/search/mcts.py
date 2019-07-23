@@ -206,7 +206,9 @@ class Node:
         for n in self._children:
             # Log.out("SELECT", {
             #     'q': "{:.3f}".format(n._Q),
-            #     'score': "{:.3f}".format(n._Q + C_PUCT * n._P * math.sqrt(total) / (1 + n._N)),
+            #     'score': "{:.3f}".format(
+            #       n._Q + C_PUCT * n._P * math.sqrt(total) / (1 + n._N),
+            #     ),
             #     'p': "{:.3f}".format(n._P),
             #     'n': "{:.3f}".format(n._N),
             #     'total': "{:.3f}".format(total),
@@ -286,5 +288,9 @@ class MCTS(Search):
             else:
                 assert False
 
+        ptra = self._tree._ptra
+
         self._tree = self._tree.next(offset, self._step)
         self._tree._parent = None
+
+        return False, ptra, False
