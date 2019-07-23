@@ -9,7 +9,7 @@ from prooftrace.prooftrace import \
 from prooftrace.models.model import LModel, VModel
 from prooftrace.repl.repl import REPL
 from prooftrace.repl.fusion import Thm
-from prooftrace.search import Search
+from prooftrace.search.search import Search
 
 from utils.config import Config
 from utils.log import Log
