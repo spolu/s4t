@@ -265,7 +265,8 @@ class MCTS(Search):
             while node is not None and node._expanded is True:
                 child, total = node.select(offset)
                 if child is None:
-                    return True, node._ptra, False
+                    break
+                    # return True, node._ptra, False
                 node.update_visit()
                 node = child
 
@@ -285,8 +286,6 @@ class MCTS(Search):
                 while node is not None:
                     node.update_value(value)
                     node = node._parent
-            else:
-                assert False
 
         ptra = self._tree._ptra
 
