@@ -108,13 +108,13 @@ class TreeLSTMEmbedder:
             self,
     ):
         if self._load_dir:
-            if os.path.isfile(self._load_dir + "/model_E.pt"):
+            if os.path.isfile(self._load_dir + "/model_pE.pt"):
                 Log.out('Loading E', {
                     'load_dir': self._load_dir,
                 })
                 self._model_E.load_state_dict(
                     torch.load(
-                        self._load_dir + "/model_E.pt",
+                        self._load_dir + "/model_pE.pt",
                         map_location=self._device,
                     ),
                 )
@@ -235,9 +235,9 @@ def extract():
     )
     embed_dataset(test_dataset_dir)
 
-    train_dataset_dir = os.path.join(
-        os.path.expanduser(config.get('prooftrace_dataset_dir')),
-        config.get('prooftrace_dataset_size'),
-        "train_traces",
-    )
-    embed_dataset(train_dataset_dir)
+    # train_dataset_dir = os.path.join(
+    #     os.path.expanduser(config.get('prooftrace_dataset_dir')),
+    #     config.get('prooftrace_dataset_size'),
+    #     "train_traces",
+    # )
+    # embed_dataset(train_dataset_dir)
