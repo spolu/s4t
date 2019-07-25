@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+from generic.gelu import GeLU
 from generic.transformer import TransformerBlock
 
 
@@ -40,8 +41,10 @@ class T(nn.Module):
         torso = []
 
         if config.get("prooftrace_torso_type") == "transformer":
-            self.adapter_in = nn.Linear(
-                self.hidden_size, self.transformer_hidden_size,
+            self.adapter_in = nn.Sequential(
+                nn.Linear(self.hidden_size, self.transformer_hidden_size),
+                GeLU(),
+                nn.LayerNorm(self.transformer_hidden_size),
             )
 
             for _ in range(self.transformer_layer_count):
@@ -61,8 +64,10 @@ class T(nn.Module):
             )
 
         if config.get("prooftrace_torso_type") == "lstm":
-            self.adapter_in = nn.Linear(
-                self.hidden_size, self.lstm_hidden_size,
+            self.adapter_in = nn.Sequential(
+                nn.Linear(self.hidden_size, self.lstm_hidden_size),
+                GeLU(),
+                nn.LayerNorm(self.lstm_hidden_size),
             )
             self.lstm = nn.LSTM(
                 self.lstm_hidden_size, self.lstm_hidden_size,

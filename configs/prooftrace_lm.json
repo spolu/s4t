@@ -20,7 +20,7 @@
   "prooftrace_lstm_hidden_size": 1024,
   "prooftrace_lstm_layer_count": 2,
 
-  "prooftrace_universal_transformer_steps": 768,
+  "prooftrace_universal_transformer_max_steps": 16,
 
   "prooftrace_head_hidden_size": 1024,
 
