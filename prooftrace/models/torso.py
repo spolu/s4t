@@ -24,20 +24,25 @@ class T(nn.Module):
             config.get('prooftrace_transformer_layer_count')
         self.transformer_hidden_size = \
             config.get('prooftrace_transformer_hidden_size')
+
         self.lstm_layer_count = \
             config.get('prooftrace_transformer_layer_count')
         self.lstm_hidden_size = \
             config.get('prooftrace_lstm_hidden_size')
+
+        self.head_hidden_size = \
+            config.get('prooftrace_head_hidden_size')
 
         # self.position_embedding = nn.Embedding(
         #     self.sequence_length, self.hidden_size
         # )
 
         torso = []
-        if self.transformer_layer_count > 0:
-            torso += [
-                nn.Linear(self.hidden_size, self.transformer_hidden_size),
-            ]
+
+        if config.get("prooftrace_torso_type") == "transformer":
+            self.adapter_in = nn.Linear(
+                self.hidden_size, self.transformer_hidden_size,
+            )
 
             for _ in range(self.transformer_layer_count):
                 torso += [
@@ -49,21 +54,26 @@ class T(nn.Module):
                     ),
                 ]
 
-            torso += [
-                nn.Linear(self.transformer_hidden_size, self.lstm_hidden_size),
-            ]
-        else:
-            torso += [
-                nn.Linear(self.hidden_size, self.lstm_hidden_size),
-            ]
+            self.torso = nn.Sequential(*torso)
 
-        self.torso = nn.Sequential(*torso)
+            self.adapter_out = nn.Linear(
+                self.transformer_hidden_size, self.head_hidden_size,
+            )
 
-        if self.lstm_layer_count > 0:
+        if config.get("prooftrace_torso_type") == "lstm":
+            self.adapter_in = nn.Linear(
+                self.hidden_size, self.lstm_hidden_size,
+            )
             self.lstm = nn.LSTM(
                 self.lstm_hidden_size, self.lstm_hidden_size,
                 num_layers=self.lstm_layer_count, batch_first=True,
             )
+            self.adapter_out = nn.Linear(
+                self.lstm_hidden_size, self.head_hidden_size,
+            )
+
+        if config.get("prooftrace_torso_type") == "universal_transformer":
+                pass
 
     def parameters_count(
             self,
@@ -84,11 +94,15 @@ class T(nn.Module):
         # pos_embeds = self.position_embedding(pos_embeds)
 
         # hiddens = self.torso(action_embeds + argument_embeds + pos_embeds)
-        # hiddens = self.torso(action_embeds + argument_embeds)
 
-        hiddens = self.torso(action_embeds + argument_embeds)
+        hiddens = self.adapter_in(action_embeds + argument_embeds)
 
-        if self.lstm_layer_count > 0:
+        if self._config.get("prooftrace_torso_type") == "transformer":
+            hiddens = self.torso(action_embeds + argument_embeds)
+
+        if self._config.get("prooftrace_torso_type") == "lstm":
             hiddens, _ = self.lstm(hiddens)
+
+        hiddens = self.adapter_out(hiddens)
 
         return hiddens
