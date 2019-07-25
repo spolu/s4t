@@ -17,6 +17,10 @@ class ACT(nn.Module):
         self.max_steps = max_steps
         self.threshold = threshold
 
+        self.step_embedding = nn.Embedding(
+            self.max_steps, self.hidden_size
+        )
+
         self.p = nn.Linear(self.hidden_size, 1)
         self.p.bias.data.fill_(1)
 
@@ -35,13 +39,26 @@ class ACT(nn.Module):
 
         state = inputs
 
-        while ((p < self.threshold) & (n < self.max_steps)).byte().any():
-            # inputs = inputs + time_enc[:, :inputs.shape[1], :].type_as(inputs.data)
+        step = 0
+        while (
+                ((p < self.threshold) & (n < self.max_steps)).byte().any() and
+                step < self.max_steps
+        ):
             p = torch.sigmoid(self.p(state)).squeeze(-1)
 
             running = (p <= self.threshold).float()
             n = n + running
 
-            state = fn(state) * running + state * (1 - running)
+            step_embeds = (torch.zeros(
+                state.size(0), state.size(1),
+            ) + step).long().to(self.device)
+            step_embeds = self.step_embedding(step_embeds)
+
+            running = running.unsqueeze(-1)
+            state = fn(state + step_embeds) * running + state * (1 - running)
+
+            import pdb; pdb.set_trace()
+
+            step += 1
 
         return state
