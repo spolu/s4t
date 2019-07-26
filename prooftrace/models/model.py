@@ -10,6 +10,7 @@ from prooftrace.models.heads import PH, VH
 from prooftrace.models.torso import T
 
 from utils.config import Config
+from utils.log import Log
 
 
 class LModel:
@@ -46,6 +47,10 @@ class LModel:
 
         if load_dir:
             if os.path.isfile(load_dir + "/model_pE.pt"):
+                Log.out(
+                    "Loading pE", {
+                        'load_dir': self._load_dir,
+                    })
                 self._modules['pE'].load_state_dict(
                     torch.load(
                         load_dir + "/model_pE.pt",
@@ -53,6 +58,10 @@ class LModel:
                     ),
                 )
             if os.path.isfile(load_dir + "/model_pT.pt"):
+                Log.out(
+                    "Loading pT", {
+                        'load_dir': self._load_dir,
+                    })
                 self._modules['pT'].load_state_dict(
                     torch.load(
                         load_dir + "/model_pT.pt",
@@ -60,6 +69,10 @@ class LModel:
                     ),
                 )
             if os.path.isfile(load_dir + "/model_pH.pt"):
+                Log.out(
+                    "Loading pH", {
+                        'load_dir': self._load_dir,
+                    })
                 self._modules['pH'].load_state_dict(
                     torch.load(
                         load_dir + "/model_pH.pt",

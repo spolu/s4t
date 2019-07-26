@@ -278,7 +278,7 @@ class SYN:
 
         if self._load_dir:
             Log.out(
-                "Loading prooftrace search models", {
+                "Loading prooftrace models", {
                     'load_dir': self._load_dir,
                 })
 
@@ -301,7 +301,7 @@ class SYN:
     ):
         if self._save_dir:
             Log.out(
-                "Saving prooftrace search models", {
+                "Saving prooftrace models", {
                     'save_dir': self._save_dir,
                 })
 
@@ -394,7 +394,7 @@ class SYN:
             if 'test_rgt_loss' in info:
                 test_rgt_loss_meter.update(info['test_rgt_loss'])
 
-        Log.out("PROOFTRACE BEAM SYN RUN", {
+        Log.out("PROOFTRACE SYN RUN", {
             'epoch': self._epoch,
             'run_time': "{:.2f}".format(time.time() - run_start),
             'update_count': len(infos),
