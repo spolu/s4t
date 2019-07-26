@@ -21,11 +21,11 @@
   "prooftrace_lstm_layer_count": 2,
 
   "prooftrace_universal_transformer_act": false,
-  "prooftrace_universal_transformer_steps": 16,
+  "prooftrace_universal_transformer_steps": 4,
 
   "prooftrace_head_hidden_size": 1024,
 
-  "prooftrace_lm_batch_size": 4,
+  "prooftrace_lm_batch_size": 16,
   "prooftrace_lm_learning_rate": 0.00005,
   "prooftrace_lm_action_coeff": 2.0,
   "prooftrace_lm_grad_norm_max": 1.0,
