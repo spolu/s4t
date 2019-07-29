@@ -25,8 +25,8 @@
 
   "prooftrace_head_hidden_size": 1024,
 
-  "prooftrace_lm_batch_size": 12,
-  "prooftrace_lm_learning_rate": 0.00007,
+  "prooftrace_lm_batch_size": 16,
+  "prooftrace_lm_learning_rate": 0.00002,
   "prooftrace_lm_action_coeff": 2.0,
   "prooftrace_lm_grad_norm_max": 1.0,
 
