@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from generic.act import ACT
-from generic.gelu import GeLU
+# from generic.gelu import GeLU
 from generic.transformer import TransformerBlock
 
 
@@ -50,11 +50,8 @@ class T(nn.Module):
         torso = []
 
         if self.torso_type == "transformer":
-            self.adapter_in = nn.Sequential(
-                nn.Linear(self.hidden_size, self.transformer_hidden_size),
-                GeLU(),
-                nn.LayerNorm(self.transformer_hidden_size),
-            )
+            self.adapter_in = \
+                nn.Linear(self.hidden_size, self.transformer_hidden_size)
 
             for _ in range(self.transformer_layer_count):
                 torso += [
@@ -73,11 +70,8 @@ class T(nn.Module):
             )
 
         if self.torso_type == "universal_transformer":
-            self.adapter_in = nn.Sequential(
-                nn.Linear(self.hidden_size, self.transformer_hidden_size),
-                GeLU(),
-                nn.LayerNorm(self.transformer_hidden_size),
-            )
+            self.adapter_in = \
+                nn.Linear(self.hidden_size, self.transformer_hidden_size)
             self.inner_transformer = TransformerBlock(
                 self.sequence_length,
                 self.transformer_hidden_size,
@@ -101,11 +95,8 @@ class T(nn.Module):
                 )
 
         if self.torso_type == "lstm":
-            self.adapter_in = nn.Sequential(
-                nn.Linear(self.hidden_size, self.lstm_hidden_size),
-                GeLU(),
-                nn.LayerNorm(self.lstm_hidden_size),
-            )
+            self.adapter_in = \
+                nn.Linear(self.hidden_size, self.lstm_hidden_size)
             self.lstm = nn.LSTM(
                 self.lstm_hidden_size, self.lstm_hidden_size,
                 num_layers=self.lstm_layer_count, batch_first=True,
