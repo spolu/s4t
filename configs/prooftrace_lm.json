@@ -8,17 +8,17 @@
 
   "prooftrace_type_token_count": 70,
   "prooftrace_term_token_count": 1125,
-  "prooftrace_hidden_size": 256,
+  "prooftrace_hidden_size": 64,
   "prooftrace_sequence_length": 1024,
 
-  "prooftrace_torso_type": "transformer",
+  "prooftrace_torso_type": "lstm",
 
   "prooftrace_transformer_hidden_size": 512,
   "prooftrace_transformer_attention_head_count": 8,
   "prooftrace_transformer_layer_count": 4,
 
-  "prooftrace_lstm_hidden_size": 1024,
-  "prooftrace_lstm_layer_count": 2,
+  "prooftrace_lstm_hidden_size": 512,
+  "prooftrace_lstm_layer_count": 1,
 
   "prooftrace_universal_transformer_act": false,
   "prooftrace_universal_transformer_steps": 4,
