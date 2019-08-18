@@ -4,7 +4,7 @@ import typing
 
 from prooftrace.prooftrace import \
     Term, Type, Action, \
-    ACTION_TOKENS
+    PROOFTRACE_TOKENS
 
 from generic.tree_lstm import BinaryTreeLSTM
 
@@ -165,7 +165,7 @@ class E(nn.Module):
         self.term_embedder = TermEmbedder(config)
 
         self.action_token_embedder = nn.Embedding(
-            len(ACTION_TOKENS), self.hidden_size,
+            len(PROOFTRACE_TOKENS), self.hidden_size,
         )
 
         self.tree_lstm = BinaryTreeLSTM(self.hidden_size)
@@ -243,11 +243,11 @@ class E(nn.Module):
 
         tokens_embeds = self.action_token_embedder(
             torch.tensor(
-                list(ACTION_TOKENS.values()),
+                list(PROOFTRACE_TOKENS.values()),
                 dtype=torch.int64
             ).to(self.device),
         )
-        for i, tk in enumerate(list(ACTION_TOKENS.values())):
+        for i, tk in enumerate(list(PROOFTRACE_TOKENS.values())):
             cache[tk] = tokens_embeds[i].unsqueeze(0)
 
         def embedder(values):

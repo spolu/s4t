@@ -24,39 +24,56 @@ TEST_FILTER = [
     'PAIR_EXISTS_THM',
 ]
 
-ACTION_TOKENS = {
-    'EMPTY': 0,
-    'EXTRACT': 1,
-    'THEOREM': 2,
-    'HYPOTHESIS': 3,
-    'SUBST': 4,
-    'SUBST_TYPE': 5,
-    'SUBST_PAIR': 6,
-    'TERM': 7,
-    'REFL': 8,
-    'TRANS': 9,
-    'MK_COMB': 10,
-    'ABS': 11,
-    'BETA': 12,
-    'ASSUME': 13,
-    'EQ_MP': 14,
-    'DEDUCT_ANTISYM_RULE': 15,
-    'INST': 16,
-    'INST_TYPE': 17,
-}
+
+""" ProofTrace structure
+
+    actions:        arguments:
+    ------------    ------------
+
+    EMPTY           EMPTY
+    TARGET          EMPTY
+    [SUBST]         [SUBST]
+    [SUBST_TYPE]    [SUBST_TYPE]
+    [TERM]          [TERM]
+    [PREMISE]       [THEOREM]
+    START           EMPTY
+
+    [...]           [THEOREM]
+    QED             EMPTY
+    [EMPTY]         [EMPTY]
+"""
+
 PREPARE_TOKENS = {
     'EMPTY': 0,
-    'EXTRACT': 1,
-    'THEOREM': 2,
-    'HYPOTHESIS': 3,
-    'SUBST': 4,
-    'SUBST_TYPE': 5,
-    'SUBST_PAIR': 6,
-    'TERM': 7,
+    'TARGET': 1,
+    'HYPOTHESIS': 2,
+    'SUBST': 3,
+    'SUBST_TYPE': 4,
+    'SUBST_PAIR': 5,
+    'TERM': 6,
+    'PREMISE': 7,
+    'START': 8,
+}
+
+PROOFTRACE_TOKENS = {
+    **PREPARE_TOKENS,
+    'THEOREM': 9,
+    'REFL': 10,
+    'TRANS': 11,
+    'MK_COMB': 12,
+    'ABS': 13,
+    'BETA': 14,
+    'ASSUME': 15,
+    'EQ_MP': 16,
+    'DEDUCT_ANTISYM_RULE': 17,
+    'INST': 18,
+    'INST_TYPE': 19,
+    'QED': 20,
+    'EXTRACT': 21,
 }
 
 
-INV_ACTION_TOKENS = {v: k for k, v in ACTION_TOKENS.items()}
+INV_PROOFTRACE_TOKENS = {v: k for k, v in PROOFTRACE_TOKENS.items()}
 INV_PREPARE_TOKENS = {v: k for k, v in PREPARE_TOKENS.items()}
 
 
@@ -248,7 +265,8 @@ class Action(BVT):
             self,
     ):
         # Compute a hash that is not order dependent for HYPOTHESIS.
-        if self.value == ACTION_TOKENS['HYPOTHESIS'] and self._hash is None:
+        if self.value == PROOFTRACE_TOKENS['HYPOTHESIS'] and \
+                self._hash is None:
             hashes = [b'HYPOTHESIS']
 
             def walk(h):
@@ -286,7 +304,7 @@ class Action(BVT):
     def __iter__(
             self,
     ):
-        yield 'type', INV_ACTION_TOKENS[self.value]
+        yield 'type', INV_PROOFTRACE_TOKENS[self.value]
         yield 'hash', base64.b64encode(self.hash()).decode('utf-8')
 
         if self.left is not None and self.left.value != 0:
@@ -331,13 +349,14 @@ class Action(BVT):
                 else:
                     return [] + subst_type(a.right)
 
-        if INV_ACTION_TOKENS[self.value] == 'SUBST':
+        if INV_PROOFTRACE_TOKENS[self.value] == 'SUBST':
             yield 'subst', subst(self)
-        if INV_ACTION_TOKENS[self.value] == 'SUBST_TYPE':
+        if INV_PROOFTRACE_TOKENS[self.value] == 'SUBST_TYPE':
             yield 'subst_type', subst_type(self)
-        if INV_ACTION_TOKENS[self.value] == 'TERM':
+        if INV_PROOFTRACE_TOKENS[self.value] == 'TERM':
             yield 'term', term(self.left)
-        if INV_ACTION_TOKENS[self.value] == 'THEOREM':
+        if INV_PROOFTRACE_TOKENS[self.value] in \
+                ['THEOREM', 'TARGET', 'PREMISE']:
             yield 'hyp', hypothesis(self.left)
             yield 'ccl', term(self.right)
 
@@ -350,7 +369,7 @@ class Action(BVT):
             right: BVT,
             origin: int = None,
     ):
-        value = ACTION_TOKENS[action]
+        value = PROOFTRACE_TOKENS[action]
         return Action(value, left, right, origin)
 
     @staticmethod
@@ -1020,7 +1039,7 @@ class ProofTrace():
 
         # Start by recording the target theorem (TARGET action).
         target = Action.from_action(
-            'THEOREM',
+            'TARGET',
             build_hypothesis(self._target['hy']),
             Action.from_term(t.term(self._target['cc'])),
         )
@@ -1070,7 +1089,7 @@ class ProofTrace():
             p = self._premises[idx]
 
             action = Action.from_action(
-                'THEOREM',
+                'PREMISE',
                 build_hypothesis(p['hy']),
                 Action.from_term(t.term(p['cc'])),
                 idx,

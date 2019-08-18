@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from prooftrace.prooftrace import ACTION_TOKENS, PREPARE_TOKENS
+from prooftrace.prooftrace import PROOFTRACE_TOKENS, PREPARE_TOKENS
 
 from generic.gelu import GeLU
 
@@ -33,7 +33,7 @@ class PH(nn.Module):
             nn.LayerNorm(self.head_hidden_size),
             nn.Linear(
                 self.head_hidden_size,
-                len(ACTION_TOKENS) - len(PREPARE_TOKENS)
+                len(PROOFTRACE_TOKENS) - len(PREPARE_TOKENS)
             ),
             nn.LogSoftmax(dim=1),
         )

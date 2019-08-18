@@ -10,7 +10,7 @@ import torch
 import typing
 
 from prooftrace.prooftrace import \
-    ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, INV_PREPARE_TOKENS, \
+    PROOFTRACE_TOKENS, PREPARE_TOKENS, INV_PROOFTRACE_TOKENS, INV_PREPARE_TOKENS, \
     Action, ProofTraceActions, TypeException
 
 from prooftrace.repl.fusion import FusionException
@@ -175,7 +175,7 @@ class Env:
                     self._run.seen(a.left) and \
                     self._run.seen(a.right):
                 assert 0 <= a.value - len(PREPARE_TOKENS)
-                assert a.value < len(ACTION_TOKENS)
+                assert a.value < len(PROOFTRACE_TOKENS)
                 actions = torch.tensor([[
                     a.value - len(PREPARE_TOKENS),
                     self._run.hashes()[a.left.hash()],
@@ -207,7 +207,7 @@ class Env:
                 for ir in range(beta_width):
                     action = top_actions[1][ia].item()
                     assert action >= 0
-                    assert action < len(ACTION_TOKENS) - len(PREPARE_TOKENS)
+                    assert action < len(PROOFTRACE_TOKENS) - len(PREPARE_TOKENS)
                     left = top_lefts[1][il].item()
                     right = top_rights[1][ir].item()
                     prob = top_actions[0][ia].item() * \
@@ -219,7 +219,7 @@ class Env:
                         continue
 
                     a = Action.from_action(
-                        INV_ACTION_TOKENS[action + len(PREPARE_TOKENS)],
+                        INV_PROOFTRACE_TOKENS[action + len(PREPARE_TOKENS)],
                         self._run.arguments()[left],
                         self._run.arguments()[right],
                     )
@@ -319,7 +319,7 @@ class Env:
             })
 
         action = Action.from_action(
-            INV_ACTION_TOKENS[action[0] + len(PREPARE_TOKENS)],
+            INV_PROOFTRACE_TOKENS[action[0] + len(PREPARE_TOKENS)],
             self._run.arguments()[action[1]],
             self._run.arguments()[action[2]],
         )
@@ -550,7 +550,7 @@ def test():
         )
 
     # sequence_size = config.get('prooftrace_sequence_length')
-    # action_size = len(ACTION_TOKENS) - len(PREPARE_TOKENS)
+    # action_size = len(PROOFTRACE_TOKENS) - len(PREPARE_TOKENS)
 
     # prd_actions = torch.rand(action_size)
     # prd_lefts = torch.rand(sequence_size)

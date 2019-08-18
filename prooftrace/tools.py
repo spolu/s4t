@@ -7,7 +7,7 @@ import sys
 import torch
 import typing
 
-from prooftrace.prooftrace import ACTION_TOKENS, ProofTraceActions
+from prooftrace.prooftrace import PROOFTRACE_TOKENS, ProofTraceActions
 
 from utils.config import Config
 from utils.log import Log
@@ -127,7 +127,7 @@ def dump():
             print(dump)
     elif args.action == 'premises':
         for i, a in enumerate(ptra.actions()):
-            if a.value == ACTION_TOKENS['THEOREM'] and i > 0:
+            if a.value == PROOFTRACE_TOKENS['THEOREM'] and i > 0:
                 dump = dict(a)
                 path = search_path(config, "{}_".format(dump['index']))
                 print(

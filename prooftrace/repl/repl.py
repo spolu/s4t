@@ -5,7 +5,7 @@ import pickle
 import re
 
 from prooftrace.prooftrace import \
-    ACTION_TOKENS, INV_ACTION_TOKENS, INV_PREPARE_TOKENS, \
+    PROOFTRACE_TOKENS, INV_PROOFTRACE_TOKENS, INV_PREPARE_TOKENS, \
     ProofTraceTokenizer, Action, ProofTraceActions, TypeException
 
 from prooftrace.repl.fusion import Fusion, Thm, FusionException
@@ -31,7 +31,7 @@ class REPL():
     ):
         if hyp is None:
             return []
-        if INV_ACTION_TOKENS[hyp.value] == 'HYPOTHESIS':
+        if INV_PROOFTRACE_TOKENS[hyp.value] == 'HYPOTHESIS':
             return [hyp.left.value] + self.build_hypothesis(hyp.right)
         raise REPLException()
 
@@ -50,7 +50,7 @@ class REPL():
             action: Action,
             fake: bool = False,
     ) -> Thm:
-        action_token = INV_ACTION_TOKENS[action.value]
+        action_token = INV_PROOFTRACE_TOKENS[action.value]
 
         thm = None
 
@@ -62,9 +62,9 @@ class REPL():
             )
             thm = self._fusion.PREMISE(thm, fake)
         elif action_token == 'REFL':
-            if action.left.value != ACTION_TOKENS['TERM']:
+            if action.left.value != PROOFTRACE_TOKENS['TERM']:
                 raise REPLException
-            if action.right.value != ACTION_TOKENS['EMPTY']:
+            if action.right.value != PROOFTRACE_TOKENS['EMPTY']:
                 raise REPLException
             thm = self._fusion.REFL(
                 action.left.left.value,
@@ -83,7 +83,7 @@ class REPL():
                 fake,
             )
         elif action_token == 'ABS':
-            if action.right.value != ACTION_TOKENS['TERM']:
+            if action.right.value != PROOFTRACE_TOKENS['TERM']:
                 raise REPLException
             thm = self._fusion.ABS(
                 action.left.index(),
@@ -91,18 +91,18 @@ class REPL():
                 fake,
             )
         elif action_token == 'BETA':
-            if action.left.value != ACTION_TOKENS['TERM']:
+            if action.left.value != PROOFTRACE_TOKENS['TERM']:
                 raise REPLException
-            if action.right.value != ACTION_TOKENS['EMPTY']:
+            if action.right.value != PROOFTRACE_TOKENS['EMPTY']:
                 raise REPLException
             thm = self._fusion.BETA(
                 action.left.left.value,
                 fake,
             )
         elif action_token == 'ASSUME':
-            if action.left.value != ACTION_TOKENS['TERM']:
+            if action.left.value != PROOFTRACE_TOKENS['TERM']:
                 raise REPLException
-            if action.right.value != ACTION_TOKENS['EMPTY']:
+            if action.right.value != PROOFTRACE_TOKENS['EMPTY']:
                 raise REPLException
             thm = self._fusion.ASSUME(
                 action.left.left.value,
@@ -124,19 +124,19 @@ class REPL():
             def build_subst(subst):
                 if subst is None:
                     return []
-                if INV_ACTION_TOKENS[subst.value] == 'SUBST_PAIR':
+                if INV_PROOFTRACE_TOKENS[subst.value] == 'SUBST_PAIR':
                     return [[
                         subst.left.value,
                         subst.right.value,
                     ]]
-                if INV_ACTION_TOKENS[subst.value] == 'SUBST':
+                if INV_PROOFTRACE_TOKENS[subst.value] == 'SUBST':
                     return (
                         build_subst(subst.left) +
                         build_subst(subst.right)
                     )
                 raise REPLException()
 
-            if action.right.value != ACTION_TOKENS['SUBST']:
+            if action.right.value != PROOFTRACE_TOKENS['SUBST']:
                 raise REPLException
 
             thm = self._fusion.INST(
@@ -148,19 +148,19 @@ class REPL():
             def build_subst_type(subst_type):
                 if subst_type is None:
                     return []
-                if INV_ACTION_TOKENS[subst_type.value] == 'SUBST_PAIR':
+                if INV_PROOFTRACE_TOKENS[subst_type.value] == 'SUBST_PAIR':
                     return [[
                         subst_type.left.value,
                         subst_type.right.value,
                     ]]
-                if INV_ACTION_TOKENS[subst_type.value] == 'SUBST_TYPE':
+                if INV_PROOFTRACE_TOKENS[subst_type.value] == 'SUBST_TYPE':
                     return (
                         build_subst_type(subst_type.left) +
                         build_subst_type(subst_type.right)
                     )
                 raise REPLException()
 
-            if action.right.value != ACTION_TOKENS['SUBST_TYPE']:
+            if action.right.value != PROOFTRACE_TOKENS['SUBST_TYPE']:
                 raise REPLException
 
             thm = self._fusion.INST_TYPE(
@@ -219,7 +219,7 @@ class REPL():
                     self.build_hypothesis(ptra.actions()[0].left),
                     ptra.actions()[0].right.value,
                 )
-            if i > 0 and a.value == ACTION_TOKENS['THEOREM']:
+            if i > 0 and a.value == PROOFTRACE_TOKENS['THEOREM']:
                 self.apply(a)
 
         return target

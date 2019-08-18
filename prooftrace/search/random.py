@@ -3,7 +3,7 @@ import random
 import typing
 
 from prooftrace.prooftrace import \
-    ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, \
+    PROOFTRACE_TOKENS, PREPARE_TOKENS, INV_PROOFTRACE_TOKENS, \
     Action, ProofTraceActions
 
 from prooftrace.repl.repl import REPL
@@ -15,7 +15,7 @@ from utils.config import Config
 
 NON_PREPARE_TOKENS = {
     k: v
-    for k, v in ACTION_TOKENS.items()
+    for k, v in PROOFTRACE_TOKENS.items()
     if k not in PREPARE_TOKENS
 }
 CONCLUSION_TOKENS = {
@@ -98,39 +98,39 @@ class RandomSampler:
             else:
                 action = random.choice(list(CONCLUSION_TOKENS.values()))
 
-            if INV_ACTION_TOKENS[action] == 'REFL':
+            if INV_PROOFTRACE_TOKENS[action] == 'REFL':
                 left = self.sample_term()
                 right = 0
-            if INV_ACTION_TOKENS[action] == 'TRANS':
+            if INV_PROOFTRACE_TOKENS[action] == 'TRANS':
                 left = self.sample_theorem(ptra)
                 right = self.sample_theorem(ptra)
-            if INV_ACTION_TOKENS[action] == 'MK_COMB':
+            if INV_PROOFTRACE_TOKENS[action] == 'MK_COMB':
                 left = self.sample_theorem(ptra)
                 right = self.sample_theorem(ptra)
-            if INV_ACTION_TOKENS[action] == 'ABS':
+            if INV_PROOFTRACE_TOKENS[action] == 'ABS':
                 left = self.sample_theorem(ptra)
                 right = self.sample_term()
-            if INV_ACTION_TOKENS[action] == 'BETA':
+            if INV_PROOFTRACE_TOKENS[action] == 'BETA':
                 left = self.sample_term()
                 right = 0
-            if INV_ACTION_TOKENS[action] == 'ASSUME':
+            if INV_PROOFTRACE_TOKENS[action] == 'ASSUME':
                 left = self.sample_term()
                 right = 0
-            if INV_ACTION_TOKENS[action] == 'EQ_MP':
+            if INV_PROOFTRACE_TOKENS[action] == 'EQ_MP':
                 left = self.sample_theorem(ptra)
                 right = self.sample_theorem(ptra)
-            if INV_ACTION_TOKENS[action] == 'DEDUCT_ANTISYM_RULE':
+            if INV_PROOFTRACE_TOKENS[action] == 'DEDUCT_ANTISYM_RULE':
                 left = self.sample_theorem(ptra)
                 right = self.sample_theorem(ptra)
-            if INV_ACTION_TOKENS[action] == 'INST':
+            if INV_PROOFTRACE_TOKENS[action] == 'INST':
                 left = self.sample_theorem(ptra)
                 right = self.sample_subst()
-            if INV_ACTION_TOKENS[action] == 'INST_TYPE':
+            if INV_PROOFTRACE_TOKENS[action] == 'INST_TYPE':
                 left = self.sample_theorem(ptra)
                 right = self.sample_subst_type()
 
             a = Action.from_action(
-                INV_ACTION_TOKENS[action],
+                INV_PROOFTRACE_TOKENS[action],
                 ptra.arguments()[left],
                 ptra.arguments()[right],
             )

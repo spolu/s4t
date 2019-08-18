@@ -9,7 +9,7 @@ import typing
 import re
 
 from prooftrace.prooftrace import \
-    INV_ACTION_TOKENS, ProofTraceActions, Action
+    INV_PROOFTRACE_TOKENS, ProofTraceActions, Action
 
 from prooftrace.models.embedder import E
 
@@ -43,7 +43,7 @@ class Embed():
     def action(
             self,
     ) -> str:
-        return INV_ACTION_TOKENS[self._action]
+        return INV_PROOFTRACE_TOKENS[self._action]
 
     def __iter__(
             self,

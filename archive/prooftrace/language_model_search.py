@@ -9,7 +9,7 @@ import torch
 import typing
 
 from prooftrace.prooftrace import \
-    ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, INV_PREPARE_TOKENS, \
+    PROOFTRACE_TOKENS, PREPARE_TOKENS, INV_PROOFTRACE_TOKENS, INV_PREPARE_TOKENS, \
     Action, ProofTraceActions, ProofTraceTokenizer
 
 from prooftrace.models.embedder import E
@@ -163,7 +163,7 @@ class Node:
 
         a_count = min(
             self._beta_width,
-            len(ACTION_TOKENS) - len(PREPARE_TOKENS),
+            len(PROOFTRACE_TOKENS) - len(PREPARE_TOKENS),
         )
         top_actions = torch.exp(prd_actions).topk(a_count)
         top_lefts = torch.exp(prd_lefts).topk(self._beta_width)
@@ -183,7 +183,7 @@ class Node:
                         continue
 
                     a = Action.from_action(
-                        INV_ACTION_TOKENS[action + len(PREPARE_TOKENS)],
+                        INV_PROOFTRACE_TOKENS[action + len(PREPARE_TOKENS)],
                         self._ptra.actions()[left],
                         self._ptra.actions()[right],
                     )

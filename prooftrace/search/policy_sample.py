@@ -2,7 +2,7 @@ import torch
 import typing
 
 from prooftrace.prooftrace import \
-    ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, \
+    PROOFTRACE_TOKENS, PREPARE_TOKENS, INV_PROOFTRACE_TOKENS, \
     Action, ProofTraceActions
 
 from prooftrace.models.model import LModel
@@ -51,7 +51,7 @@ class PolicySample(Search):
 
         a_count = min(
             beta_width,
-            len(ACTION_TOKENS) - len(PREPARE_TOKENS),
+            len(PROOFTRACE_TOKENS) - len(PREPARE_TOKENS),
         )
         top_actions = torch.exp(prd_actions[0].cpu()).topk(a_count)
         top_lefts = torch.exp(prd_lefts[0].cpu()).topk(beta_width)
@@ -71,7 +71,7 @@ class PolicySample(Search):
                         continue
 
                     a = Action.from_action(
-                        INV_ACTION_TOKENS[action + len(PREPARE_TOKENS)],
+                        INV_PROOFTRACE_TOKENS[action + len(PREPARE_TOKENS)],
                         self._ptra.arguments()[left],
                         self._ptra.arguments()[right],
                     )
