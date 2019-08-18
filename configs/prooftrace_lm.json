@@ -6,6 +6,8 @@
   "prooftrace_save_dir": null,
   "prooftrace_rollout_dir": null,
 
+  "prooftrace_max_demo_length": 1024,
+
   "prooftrace_type_token_count": 70,
   "prooftrace_term_token_count": 1125,
   "prooftrace_hidden_size": 64,
