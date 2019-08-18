@@ -55,26 +55,31 @@ PREPARE_TOKENS = {
     'START': 8,
 }
 
+ACTION_TOKENS = {
+    'REFL': 9,
+    'TRANS': 10,
+    'MK_COMB': 11,
+    'ABS': 12,
+    'BETA': 13,
+    'ASSUME': 14,
+    'EQ_MP': 15,
+    'DEDUCT_ANTISYM_RULE': 16,
+    'INST': 17,
+    'INST_TYPE': 18,
+}
+
 PROOFTRACE_TOKENS = {
     **PREPARE_TOKENS,
-    'THEOREM': 9,
-    'REFL': 10,
-    'TRANS': 11,
-    'MK_COMB': 12,
-    'ABS': 13,
-    'BETA': 14,
-    'ASSUME': 15,
-    'EQ_MP': 16,
-    'DEDUCT_ANTISYM_RULE': 17,
-    'INST': 18,
-    'INST_TYPE': 19,
+    **ACTION_TOKENS,
+    'THEOREM': 19,
     'QED': 20,
     'EXTRACT': 21,
 }
 
 
-INV_PROOFTRACE_TOKENS = {v: k for k, v in PROOFTRACE_TOKENS.items()}
 INV_PREPARE_TOKENS = {v: k for k, v in PREPARE_TOKENS.items()}
+INV_ACTION_TOKENS = {v: k for k, v in ACTION_TOKENS.items()}
+INV_PROOFTRACE_TOKENS = {v: k for k, v in PROOFTRACE_TOKENS.items()}
 
 
 class TypeException(Exception):

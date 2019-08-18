@@ -5,7 +5,7 @@ import pickle
 import re
 
 from prooftrace.prooftrace import \
-    PROOFTRACE_TOKENS, INV_PROOFTRACE_TOKENS, INV_PREPARE_TOKENS, \
+    PROOFTRACE_TOKENS, INV_PROOFTRACE_TOKENS, INV_ACTION_TOKENS, \
     ProofTraceTokenizer, Action, ProofTraceActions, TypeException
 
 from prooftrace.repl.fusion import Fusion, Thm, FusionException
@@ -54,7 +54,7 @@ class REPL():
 
         thm = None
 
-        if action_token == 'THEOREM':
+        if action_token == 'PREMISE':
             thm = Thm(
                 action.index(),
                 self.build_hypothesis(action.left),
@@ -190,7 +190,7 @@ class REPL():
                     self.build_hypothesis(a.left),
                     a.right.value,
                 )
-            if a.value not in INV_PREPARE_TOKENS:
+            if a.value in INV_ACTION_TOKENS:
                 index = self.apply(a).index()
                 ptra.actions()[i]._index = index
                 ptra.arguments()[i]._index = index
@@ -203,7 +203,7 @@ class REPL():
                 # assert self._fusion._theorems[index].thm_string() == \
                 #     ground.thm_string()
 
-        last = self._fusion._theorems[ptra.actions()[-1].index()]
+        last = self._fusion._theorems[ptra.actions()[-2].index()]
         assert last.thm_string() == target.thm_string()
 
         return last
@@ -213,13 +213,13 @@ class REPL():
             ptra: ProofTraceActions,
     ) -> Thm:
         for i, a in enumerate(ptra.actions()):
-            if i == 0:
+            if a.value == PROOFTRACE_TOKENS['TARGET']:
                 target = Thm(
-                    ptra.actions()[0].index(),
-                    self.build_hypothesis(ptra.actions()[0].left),
-                    ptra.actions()[0].right.value,
+                    ptra.actions()[i].index(),
+                    self.build_hypothesis(ptra.actions()[i].left),
+                    ptra.actions()[i].right.value,
                 )
-            if i > 0 and a.value == PROOFTRACE_TOKENS['THEOREM']:
+            if a.value == PROOFTRACE_TOKENS['PREMISE']:
                 self.apply(a)
 
         return target
