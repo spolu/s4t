@@ -977,7 +977,8 @@ class ProofTrace():
         ProofTraceActions are composed of two sequences, an `actions` sequence
         which are Action passed as input to our models and an `arguments`
         sequence which are Actions representing theorems of previous actions
-        and used as "argument" to later actions.
+        and used as "argument" to later actions (optionally passed to our
+        models as well).
         """
         actions = []
         arguments = []
@@ -1094,12 +1095,23 @@ class ProofTrace():
                 Action.from_term(t.term(p['cc'])),
                 idx,
             )
-            theorem = action
+            theorem = Action.from_action(
+                'THEOREM',
+                build_hypothesis(p['hy']),
+                Action.from_term(t.term(p['cc'])),
+                idx,
+            )
 
             cache['indices'][idx] = theorem
 
             actions.append(action)
             arguments.append(theorem)
+
+        start = Action.from_action('START', None, None)
+        qed = Action.from_action('QED', None, None)
+
+        actions += [start]
+        arguments += [empty]
 
         for idx in self._sequence:
             step = self._steps[idx]
@@ -1198,6 +1210,9 @@ class ProofTrace():
 
             actions.append(action)
             arguments.append(theorem)
+
+        actions += [qed]
+        arguments += [empty]
 
         return ProofTraceActions(
             self.name(),
