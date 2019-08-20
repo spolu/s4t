@@ -1112,8 +1112,8 @@ class ProofTrace():
             actions.append(action)
             arguments.append(theorem)
 
-        start = Action.from_action('START', None, None)
-        qed = Action.from_action('QED', None, None)
+        start = Action.from_action('START', empty, empty)
+        qed = Action.from_action('QED', empty, empty)
 
         actions += [start]
         arguments += [empty]
