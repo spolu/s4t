@@ -13,7 +13,7 @@
   "prooftrace_hidden_size": 64,
   "prooftrace_sequence_length": 1024,
 
-  "prooftrace_torso_type": "lstm",
+  "prooftrace_torso_type": "transformer",
 
   "prooftrace_transformer_hidden_size": 512,
   "prooftrace_transformer_attention_head_count": 8,
@@ -27,7 +27,7 @@
 
   "prooftrace_head_hidden_size": 512,
 
-  "prooftrace_lm_batch_size": 64,
+  "prooftrace_lm_batch_size": 8,
   "prooftrace_lm_learning_rate": 0.00005,
   "prooftrace_lm_action_coeff": 2.0,
   "prooftrace_lm_grad_norm_max": 1.0,
