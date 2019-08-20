@@ -1647,7 +1647,7 @@ def extract():
         shutil.rmtree(traces_path_test)
     os.mkdir(traces_path_test)
 
-    executor = concurrent.futures.ProcessPoolExecutor()
+    executor = concurrent.futures.ProcessPoolExecutor(max_workers=8)
 
     map_args = []
     for i, tr in enumerate(traces):
