@@ -1647,14 +1647,14 @@ def extract():
         shutil.rmtree(traces_path_test)
     os.mkdir(traces_path_test)
 
-    executor = concurrent.futures.ProcessPoolExecutor(max_workers=16)
+    executor = concurrent.futures.ProcessPoolExecutor(max_workers=8)
 
     map_args = []
     for i, tr in enumerate(traces):
         map_args.append([config, tokenizer, tr, i, len(traces)])
 
     trace_lengths = [
-        l for l in executor.map(dump_trace, map_args, chunksize=32)
+        l for l in executor.map(dump_trace, map_args, chunksize=8)
     ]
 
     Log.histogram(
