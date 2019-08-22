@@ -441,8 +441,6 @@ def ack_run():
         ),
         config.get('prooftrace_sequence_length'),
         tokenizer,
-        config.get('prooftrace_v_iota_augment'),
-        config.get('prooftrace_v_iota_augment_period'),
     )
 
     ack = ACK(config, train_dataset)
@@ -519,8 +517,6 @@ def tst_run():
         ),
         config.get('prooftrace_sequence_length'),
         tokenizer,
-        config.get('prooftrace_v_iota_augment'),
-        config.get('prooftrace_v_iota_augment_period'),
     )
 
     tst = TST(config, test_dataset)

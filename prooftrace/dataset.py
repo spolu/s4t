@@ -1,4 +1,3 @@
-import datetime
 import gzip
 import os
 import pickle
@@ -6,10 +5,7 @@ import random
 import re
 import typing
 
-from prooftrace.repl.repl import REPL
-from prooftrace.prooftrace import INV_PREPARE_TOKENS, Action, \
-    ProofTraceActions, ProofTraceTokenizer
-from prooftrace.search.random import RandomSampler
+from prooftrace.prooftrace import PREPARE_TOKENS, Action, ProofTraceTokenizer
 
 from torch.utils.data import Dataset
 
@@ -46,13 +42,9 @@ class ProofTraceLMDataset(Dataset):
             rollout_dir: str,
             sequence_length: int,
             tokenizer: ProofTraceTokenizer,
-            augment: str = 'none',
-            period: int = 5,
     ) -> None:
         self._sequence_length = sequence_length
         self._tokenizer = tokenizer
-        self._augment = augment
-        self._period = period
 
         self._rdirs = []
 
@@ -73,86 +65,6 @@ class ProofTraceLMDataset(Dataset):
     ) -> int:
         return len(self._rdirs)
 
-    def random_augment(
-            self,
-            ground: ProofTraceActions,
-            index: int,
-    ) -> ProofTraceActions:
-        """ Augments through random sampling the passed ProofTraceActions
-
-        Warning: the operation is destructive for the passed ProofTraceAction.
-        """
-        ptra = ProofTraceActions(
-            'AUGMENT-{}-{}'.format(
-                datetime.datetime.now().strftime("%Y%m%d_%H%M_%S.%f"),
-                random.randint(0, 9999),
-            ),
-            [
-                ground.actions()[i] for i in range(ground.len())
-                if ground.actions()[i].value in INV_PREPARE_TOKENS
-            ],
-            [
-                ground.arguments()[i] for i in range(ground.len())
-                if ground.actions()[i].value in INV_PREPARE_TOKENS
-            ],
-        )
-        repl = REPL(self._tokenizer)
-        repl.prepare(ptra)
-
-        # repl.replay(ground)
-        # Log.out('DONE')
-        # return ground
-
-        sampler = RandomSampler(ptra)
-
-        next_idx = ptra.len()
-
-        while next_idx <= index:
-            action = None
-            sampled = False
-
-            skip = False
-            if (index + 1 - next_idx + ptra.len()) >= self._sequence_length:
-                skip = True
-            if (index == next_idx):
-                skip = True
-
-            if not skip and random.random() < (1.0 / self._period):
-                action = sampler.sample(ptra, repl, 8)
-                # Log.out('AUGMENT SAMPLE')
-
-            if action is None:
-                action = ground.actions()[next_idx]
-                # Log.out('AUGMENT READ', {
-                #     'next_idx': next_idx,
-                #     'action_index': action._index,
-                #     'action_hash': action.hash(),
-                #     'action_id': id(action),
-                # })
-            else:
-                sampled = True
-
-            thm = repl.apply(action)
-
-            if sampled:
-                argument = ptra.build_argument(
-                    thm.concl(), thm.hyp(), thm.index(),
-                )
-            else:
-                argument = ground.arguments()[next_idx]
-                argument._index = thm.index()
-                next_idx += 1
-
-            # Log.out('AUGMENT APPLY', {
-            #     'action_index': action._index,
-            #     'action_hash': action.hash(),
-            #     'action_id': id(action),
-            # })
-
-            ptra.append(action, argument)
-
-        return ptra, ptra.len()-1
-
     def __getitem__(
             self,
             idx: int,
@@ -172,18 +84,20 @@ class ProofTraceLMDataset(Dataset):
         with gzip.open(rfiles[0], 'rb') as f:
             rollout = pickle.load(f)
 
+        # actions/arguemnts are going from 0 to index padded with EXTRACT
+        # truth is goign from 1 to the end of the PTRA padded with EMPTY
+        # index is therefore taken between prepare_len() and ptra.len()-1
+        # (removing the final QED)
+
         ptra = rollout.positive()
         index = random.randrange(
             ptra.prepare_len(),
-            min(ptra.len(), self._sequence_length),
+            min(ptra.len()-1, self._sequence_length),
         )
-
-        if self._augment == 'random':
-            ptra, index = self.random_augment(ptra, index)
 
         assert index <= self._sequence_length
 
-        truth = ptra.actions()[index]
+        truth = ptra.actions()[1:]
         actions = ptra.actions()[:index]
         arguments = ptra.arguments()[:index]
 
@@ -192,12 +106,16 @@ class ProofTraceLMDataset(Dataset):
 
         value = float(index - ptra.prepare_len()) / ptra.action_len()
 
-        actions.append(Action.from_action('EXTRACT', None, None))
+        empty = ptra.ations()[1]
+        assert empty.value == PREPARE_TOKENS['EMTPY']
 
-        empty = Action.from_action('EMPTY', None, None)
+        extract = Action.from_action('EXTRACT', empty, empty)
+
         while len(actions) < self._sequence_length:
-            actions.append(empty)
+            actions.append(extract)
         while len(arguments) < self._sequence_length:
             arguments.append(empty)
+        while len(truth) < self._sequence_length:
+            truth.append(empty)
 
         return (index, actions, arguments, truth, value)
