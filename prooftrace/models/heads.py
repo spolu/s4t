@@ -22,8 +22,6 @@ class PH(nn.Module):
         self.head_hidden_size = \
             config.get('prooftrace_head_hidden_size')
 
-        # self.adapter = nn.Linear(self.hidden_size, self.head_hidden_size)
-
         self.action_head = nn.Sequential(
             nn.Linear(
                 self.head_hidden_size,
@@ -64,10 +62,6 @@ class PH(nn.Module):
             self.head_hidden_size,
             self.head_hidden_size,
         )
-        # self.left_ptr_targets = nn.Linear(
-        #     self.head_hidden_size,
-        #     self.head_hidden_size,
-        # )
         self.left_ptr_hiddens = nn.Linear(
             self.head_hidden_size,
             self.head_hidden_size,
@@ -85,10 +79,6 @@ class PH(nn.Module):
             self.head_hidden_size,
             self.head_hidden_size,
         )
-        # self.right_ptr_targets = nn.Linear(
-        #     self.head_hidden_size,
-        #     self.head_hidden_size,
-        # )
         self.right_ptr_hiddens = nn.Linear(
             self.head_hidden_size,
             self.head_hidden_size,
@@ -102,7 +92,7 @@ class PH(nn.Module):
             ),
         )
 
-        self.log_softmax = nn.LogSoftmax(dim=1)
+        self.log_softmax = nn.LogSoftmax(dim=2)
 
     def parameters_count(
             self,
@@ -111,36 +101,40 @@ class PH(nn.Module):
 
     def forward(
             self,
-            heads,
             hiddens,
-            targets,
     ):
-        # targets = self.adapter(targets)
-        # actions = self.action_head(targets + heads)
-        actions = self.action_head(heads)
+        actions = self.action_head(hiddens)
 
-        # lefts = self.left_head(targets + heads)
-        # rights = self.right_head(targets + heads)
+        # lefts = self.left_head(hiddens)
+        # rights = self.right_head(hiddens)
 
-        lefts = self.left_ptr_proj(
-            self.left_ptr_heads(
-                heads
-            ).unsqueeze(1).expand(hiddens.size()) +
-            # self.left_ptr_targets(
-            #     targets
-            # ).unsqueeze(1).expand(hiddens.size()) +
-            self.left_ptr_hiddens(hiddens)
-        ).squeeze(2)
+        left_hiddens = self.left_ptr_hiddens(hiddens).unsqueeze(1).expand(
+            hiddens.size(0),
+            hiddens.size(1),
+            hiddens.size(1),
+            hiddens.size(2),
+        )
+        left_heads = self.left_ptr_heads(hiddens).unsqueeze(2).expand(
+            hiddens.size(0),
+            hiddens.size(1),
+            hiddens.size(1),
+            hiddens.size(2),
+        )
+        lefts = self.left_ptr_proj(left_hiddens + left_heads).squeeze()
 
-        rights = self.right_ptr_proj(
-            self.right_ptr_heads(
-                heads
-            ).unsqueeze(1).expand(hiddens.size()) +
-            # self.right_ptr_targets(
-            #     targets
-            # ).unsqueeze(1).expand(hiddens.size()) +
-            self.right_ptr_hiddens(hiddens)
-        ).squeeze(2)
+        right_hiddens = self.right_ptr_hiddens(hiddens).unsqueeze(1).expand(
+            hiddens.size(0),
+            hiddens.size(1),
+            hiddens.size(1),
+            hiddens.size(2),
+        )
+        right_heads = self.right_ptr_heads(hiddens).unsqueeze(2).expand(
+            hiddens.size(0),
+            hiddens.size(1),
+            hiddens.size(1),
+            hiddens.size(2),
+        )
+        rights = self.right_ptr_proj(right_hiddens + right_heads).squeeze()
 
         lefts = self.log_softmax(lefts)
         rights = self.log_softmax(rights)

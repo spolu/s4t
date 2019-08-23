@@ -80,6 +80,8 @@ class ACK:
             prd_actions, prd_lefts, prd_rights = \
                 self._model.infer(idx, act, arg)
 
+            import pdb; pdb.set_trace()
+
             actions = torch.tensor([
                 trh[i].value - len(PREPARE_TOKENS) for i in range(len(trh))
             ], dtype=torch.int64).to(self._device)

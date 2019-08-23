@@ -106,8 +106,8 @@ class ProofTraceLMDataset(Dataset):
 
         value = float(index - ptra.prepare_len()) / ptra.action_len()
 
-        empty = ptra.ations()[1]
-        assert empty.value == PREPARE_TOKENS['EMTPY']
+        empty = ptra.actions()[1]
+        assert empty.value == PREPARE_TOKENS['EMPTY']
 
         extract = Action.from_action('EXTRACT', empty, empty)
 

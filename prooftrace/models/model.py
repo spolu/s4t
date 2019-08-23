@@ -126,14 +126,7 @@ class LModel:
 
         hiddens = self._modules['pT'](action_embeds, argument_embeds)
 
-        heads = torch.cat([
-            hiddens[i][idx[i]].unsqueeze(0) for i in range(len(idx))
-        ], dim=0)
-        targets = torch.cat([
-            action_embeds[i][0].unsqueeze(0) for i in range(len(idx))
-        ], dim=0)
-
-        return self._modules['pH'](heads, hiddens, targets)
+        return self._modules['pH'](hiddens)
 
 
 class VModel:
