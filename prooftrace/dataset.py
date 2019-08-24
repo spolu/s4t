@@ -84,10 +84,11 @@ class ProofTraceLMDataset(Dataset):
         with gzip.open(rfiles[0], 'rb') as f:
             rollout = pickle.load(f)
 
-        # actions/arguemnts are going from 0 to index padded with EXTRACT
-        # truth is goign from 1 to the end of the PTRA padded with EMPTY
-        # index is therefore taken between prepare_len() and ptra.len()-1
-        # (removing the final QED)
+        # `actions/arguemnts` are going from 0 to index padded with EXTRACT.
+        # `truth` is going from 1 to index+1 (with PREPARE_TOKENS replaced by
+        # EMPTY) and padded with EXTRACT, index is therefore taken between
+        # prepare_len() and ptra.len()-1 (removing the final QED from
+        # `actions/arguments`)
 
         ptra = rollout.positive()
         index = random.randrange(
@@ -97,25 +98,28 @@ class ProofTraceLMDataset(Dataset):
 
         assert index <= self._sequence_length
 
-        truth = ptra.actions()[1:]
         actions = ptra.actions()[:index]
         arguments = ptra.arguments()[:index]
 
         assert ptra.action_len() > 0
         assert index >= ptra.prepare_len()
 
-        value = float(index - ptra.prepare_len()) / ptra.action_len()
-
         empty = ptra.actions()[1]
         assert empty.value == PREPARE_TOKENS['EMPTY']
 
         extract = Action.from_action('EXTRACT', empty, empty)
+
+        truth = [extract] * (ptra.prepare_len()-1) + ptra.actions()[
+            ptra.prepare_len():index+1
+        ]
 
         while len(actions) < self._sequence_length:
             actions.append(extract)
         while len(arguments) < self._sequence_length:
             arguments.append(empty)
         while len(truth) < self._sequence_length:
-            truth.append(empty)
+            truth.append(extract)
+
+        value = float(index - ptra.prepare_len()) / ptra.action_len()
 
         return (index, actions, arguments, truth, value)

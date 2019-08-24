@@ -77,24 +77,44 @@ class ACK:
                 self.update(info['config'])
             self._model.train()
 
+            trh_actions = []
+            trh_lefts = []
+            trh_rights = []
+            for b in range(len(trh)):
+                trh_actions += [[]]
+                trh_lefts += [[]]
+                trh_rights += [[]]
+                for i in range(len(trh[b])):
+                    trh_actions[b] += [trh[b][i].value - len(PREPARE_TOKENS)]
+                    if trh[b][i].value == 0 or trh[b][i].value == 21:
+                        trh_lefts[b] += [1]
+                        trh_rights[b] += [1]
+                    else:
+                        trh_lefts[b] += [arg[b].index(trh[b][i].left)]
+                        trh_rights[b] += [arg[b].index(trh[b][i].right)]
+
+            actions = torch.tensor(
+                trh_actions, dtype=torch.int64
+            ).to(self._device)
+            lefts = torch.tensor(
+                trh_lefts, dtype=torch.int64
+            ).to(self._device)
+            rights = torch.tensor(
+                trh_rights, dtype=torch.int64
+            ).to(self._device)
+
             prd_actions, prd_lefts, prd_rights = \
                 self._model.infer(idx, act, arg)
 
-            import pdb; pdb.set_trace()
-
-            actions = torch.tensor([
-                trh[i].value - len(PREPARE_TOKENS) for i in range(len(trh))
-            ], dtype=torch.int64).to(self._device)
-            lefts = torch.tensor([
-                arg[i].index(trh[i].left) for i in range(len(trh))
-            ], dtype=torch.int64).to(self._device)
-            rights = torch.tensor([
-                arg[i].index(trh[i].right) for i in range(len(trh))
-            ], dtype=torch.int64).to(self._device)
-
-            act_loss = self._nll_loss(prd_actions, actions)
-            lft_loss = self._nll_loss(prd_lefts, lefts)
-            rgt_loss = self._nll_loss(prd_rights, rights)
+            act_loss = self._nll_loss(
+                prd_actions.view(-1, prd_actions.size(-1)), actions.view(-1),
+            )
+            lft_loss = self._nll_loss(
+                prd_lefts.view(-1, prd_lefts.size(-1)), lefts.view(-1),
+            )
+            rgt_loss = self._nll_loss(
+                prd_rights.view(-1, prd_rights.size(-1)), rights.view(-1),
+            )
 
             # Backward pass.
             for m in self._model.modules():
