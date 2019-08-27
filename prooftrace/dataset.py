@@ -112,8 +112,10 @@ class ProofTraceLMDataset(Dataset):
         ptra = rollout.positive()
         assert ptra.action_len() > 0
 
-        actions = ptra.actions()[:-1]
-        arguments = ptra.arguments()[:-1]
+        ptra_len = min(ptra.len(), self._sequence_length)
+
+        actions = ptra.actions()[:ptra_len-1]
+        arguments = ptra.arguments()[:ptra_len-1]
 
         empty = ptra.actions()[1]
         assert empty.value == PREPARE_TOKENS['EMPTY']
@@ -121,7 +123,7 @@ class ProofTraceLMDataset(Dataset):
         extract = Action.from_action('EXTRACT', empty, empty)
 
         truth = [extract] * (ptra.prepare_len()-1) + \
-            ptra.actions()[ptra.prepare_len():]
+            ptra.actions()[ptra.prepare_len():ptra_len]
 
         while len(actions) < self._sequence_length:
             actions.append(extract)

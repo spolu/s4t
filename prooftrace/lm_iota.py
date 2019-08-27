@@ -33,6 +33,8 @@ class ACK:
 
         self._device = torch.device(config.get('device'))
 
+        self._sequence_length = config.get('prooftrace_sequence_length')
+
         self._model = LModel(config)
         self._ack = IOTAAck(
             config.get('prooftrace_lm_iota_sync_dir'),
@@ -81,7 +83,7 @@ class ACK:
 
             # Because we can't run a pointer network on the full length
             # (memory), we extract indices to focus loss on.
-            idx = random.sample(range(len(act[0])), 64)
+            idx = random.sample(range(self._sequence_length), 64)
 
             actions = torch.index_select(
                 torch.tensor(trh_actions, dtype=torch.int64),
@@ -196,7 +198,7 @@ class TST:
 
                 # Because we can't run a pointer network on the full length
                 # (memory), we extract indices to focus loss on.
-                idx = random.sample(range(len(act[0])), 64)
+                idx = random.sample(range(self._sequence_length), 64)
 
                 actions = torch.index_select(
                     torch.tensor(trh_actions, dtype=torch.int64),
