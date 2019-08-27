@@ -9,12 +9,9 @@ class TransformerBlock(nn.Module):
             sequence_max_length,
             hidden_size,
             attention_head_count,
-            dropout=0.1
+            dropout=0.1,
+            attn_mask=None,
     ):
-        # TODO: add mask
-        # https://twitter.com/Thom_Wolf/status/1129658539142766592
-        # https://github.com/pytorch/examples/blob/master/word_language_model/model.py#L126
-
         super(TransformerBlock, self).__init__()
 
         self.attention = nn.MultiheadAttention(
@@ -29,12 +26,17 @@ class TransformerBlock(nn.Module):
         )
         self.mlp_layer_norm = nn.LayerNorm(hidden_size, eps=1e-12)
 
+        self._attn_mask = attn_mask
+
     def forward(
             self,
             input_tensor,
     ):
         h = self.attention_layer_norm(input_tensor)
-        x, _ = self.attention(h, h, h, need_weights=False)
+        x, _ = self.attention(
+            h, h, h,
+            attn_mask=self._attn_mask,
+            need_weights=False)
         h = x + h
 
         h = self.mlp_layer_norm(h)
