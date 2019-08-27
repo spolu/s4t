@@ -160,6 +160,8 @@ class TST:
 
         self._device = torch.device(config.get('device'))
 
+        self._sequence_length = config.get('prooftrace_sequence_length')
+
         self._model = LModel(config)
         self._ack = IOTAAck(
             config.get('prooftrace_lm_iota_sync_dir'),
