@@ -33,11 +33,12 @@ class TransformerBlock(nn.Module):
             input_tensor,
     ):
         h = self.attention_layer_norm(input_tensor)
+        h = h.transpose(0, 1)
         x, _ = self.attention(
             h, h, h,
             attn_mask=self._attn_mask,
             need_weights=False)
-        h = x + h
+        h = (x + h).transpose(0, 1)
 
         h = self.mlp_layer_norm(h)
         x = self.mlp(h)
