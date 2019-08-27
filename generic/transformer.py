@@ -11,6 +11,10 @@ class TransformerBlock(nn.Module):
             attention_head_count,
             dropout=0.1
     ):
+        # TODO: add mask
+        # https://twitter.com/Thom_Wolf/status/1129658539142766592
+        # https://github.com/pytorch/examples/blob/master/word_language_model/model.py#L126
+
         super(TransformerBlock, self).__init__()
 
         self.attention = nn.MultiheadAttention(

@@ -1,7 +1,6 @@
 import gzip
 import os
 import pickle
-import random
 import re
 import typing
 
@@ -15,25 +14,47 @@ from utils.log import Log
 def lm_collate(
         batch
 ) -> typing.Tuple[
-    typing.List[int],
     typing.List[typing.List[Action]],
     typing.List[typing.List[Action]],
     typing.List[Action],
 ]:
-    indices = []
     actions = []
     arguments = []
     truths = []
-    values = []
 
-    for (idx, act, arg, trh, val) in batch:
-        indices.append(idx)
+    for (act, arg, trh) in batch:
         actions.append(act)
         arguments.append(arg)
         truths.append(trh)
-        values.append(val)
 
-    return (indices, actions, arguments, truths, values)
+    return (actions, arguments, truths)
+
+
+def trh_extract(
+        trh,
+        arg,
+) -> typing.Tuple[
+    typing.List[typing.List[int]],
+    typing.List[typing.List[int]],
+    typing.List[typing.List[int]],
+]:
+    trh_actions = []
+    trh_lefts = []
+    trh_rights = []
+    for b in range(len(trh)):
+        trh_actions += [[]]
+        trh_lefts += [[]]
+        trh_rights += [[]]
+        for i in range(len(trh[b])):
+            trh_actions[b] += [trh[b][i].value - len(PREPARE_TOKENS)]
+            if trh[b][i].value == 0 or trh[b][i].value == 21:
+                trh_lefts[b] += [1]
+                trh_rights[b] += [1]
+            else:
+                trh_lefts[b] += [arg[b].index(trh[b][i].left)]
+                trh_rights[b] += [arg[b].index(trh[b][i].right)]
+
+    return trh_actions, trh_lefts, trh_rights
 
 
 class ProofTraceLMDataset(Dataset):
@@ -84,34 +105,23 @@ class ProofTraceLMDataset(Dataset):
         with gzip.open(rfiles[0], 'rb') as f:
             rollout = pickle.load(f)
 
-        # `actions/arguemnts` are going from 0 to index padded with EXTRACT.
-        # `truth` is going from 1 to index+1 (with PREPARE_TOKENS replaced by
-        # EMPTY) and padded with EXTRACT, index is therefore taken between
-        # prepare_len() and ptra.len()-1 (removing the final QED from
-        # `actions/arguments`)
+        # `actions/arguemnts` are going from 0 to `ptra.len()-1` padded with
+        # EXTRACT (removing final QED). `truth` is going from 1 to `ptra.len()`
+        # (with PREPARE_TOKENS replaced by EXTRACT) and padded with EXTRACT.
 
         ptra = rollout.positive()
-        index = random.randrange(
-            ptra.prepare_len(),
-            min(ptra.len()-1, self._sequence_length),
-        )
-
-        assert index <= self._sequence_length
-
-        actions = ptra.actions()[:index]
-        arguments = ptra.arguments()[:index]
-
         assert ptra.action_len() > 0
-        assert index >= ptra.prepare_len()
+
+        actions = ptra.actions()[:-1]
+        arguments = ptra.arguments()[:-1]
 
         empty = ptra.actions()[1]
         assert empty.value == PREPARE_TOKENS['EMPTY']
 
         extract = Action.from_action('EXTRACT', empty, empty)
 
-        truth = [extract] * (ptra.prepare_len()-1) + ptra.actions()[
-            ptra.prepare_len():index+1
-        ]
+        truth = [extract] * (ptra.prepare_len()-1) + \
+            ptra.actions()[ptra.prepare_len():]
 
         while len(actions) < self._sequence_length:
             actions.append(extract)
@@ -120,6 +130,4 @@ class ProofTraceLMDataset(Dataset):
         while len(truth) < self._sequence_length:
             truth.append(extract)
 
-        value = float(index - ptra.prepare_len()) / ptra.action_len()
-
-        return (index, actions, arguments, truth, value)
+        return (actions, arguments, truth)
