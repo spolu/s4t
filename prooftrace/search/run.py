@@ -11,8 +11,8 @@ from prooftrace.models.model import LModel
 from prooftrace.prooftrace import INV_PREPARE_TOKENS, ProofTraceActions
 from prooftrace.repl.repl import REPL
 from prooftrace.search.beam import Beam
-from prooftrace.search.mcts import MCTS
-from prooftrace.search.particle_filter import ParticleFilter
+# from prooftrace.search.mcts import MCTS
+# from prooftrace.search.particle_filter import ParticleFilter
 from prooftrace.search.policy_sample import PolicySample
 # from prooftrace.search.random import Random
 
