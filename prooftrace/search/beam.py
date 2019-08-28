@@ -40,9 +40,9 @@ class Head:
             beta_width,
             len(PROOFTRACE_TOKENS) - len(PREPARE_TOKENS),
         )
-        top_actions = torch.exp(self._prd_actions.cpu()).topk(a_count)
-        top_lefts = torch.exp(self._prd_lefts.cpu()).topk(beta_width)
-        top_rights = torch.exp(self._prd_rights.cpu()).topk(beta_width)
+        top_actions = torch.exp(self._prd_actions[0].cpu()).topk(a_count)
+        top_lefts = torch.exp(self._prd_lefts[0].cpu()).topk(beta_width)
+        top_rights = torch.exp(self._prd_rights[0].cpu()).topk(beta_width)
 
         candidates = []
 
