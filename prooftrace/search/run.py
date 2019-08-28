@@ -7,12 +7,12 @@ import random
 import re
 import time
 
-from prooftrace.models.model import LModel, VModel
+from prooftrace.models.model import LModel
 from prooftrace.prooftrace import INV_PREPARE_TOKENS, ProofTraceActions
 from prooftrace.repl.repl import REPL
 from prooftrace.search.beam import Beam
-from prooftrace.search.mcts import MCTS
-from prooftrace.search.particle_filter import ParticleFilter
+# from prooftrace.search.mcts import MCTS
+# from prooftrace.search.particle_filter import ParticleFilter
 from prooftrace.search.policy_sample import PolicySample
 # from prooftrace.search.random import Random
 
@@ -110,7 +110,7 @@ def search():
         })
 
     l_model = LModel(config).load()
-    v_model = VModel(config).load()
+    # v_model = VModel(config).load()
 
     cases = sorted(cases, key=lambda c: c[1])
 
@@ -167,12 +167,12 @@ def search():
         search = None
         if config.get('prooftrace_search_type') == 'beam':
             search = Beam(config, l_model, ptra, repl, target)
-        if config.get('prooftrace_search_type') == 'mcts':
-            search = MCTS(config, l_model, v_model, ptra, repl, target)
-        if config.get('prooftrace_search_type') == 'particle_filter':
-            search = ParticleFilter(
-                config, l_model, v_model, ptra, repl, target,
-            )
+        # if config.get('prooftrace_search_type') == 'mcts':
+        #     search = MCTS(config, l_model, v_model, ptra, repl, target)
+        # if config.get('prooftrace_search_type') == 'particle_filter':
+        #     search = ParticleFilter(
+        #         config, l_model, v_model, ptra, repl, target,
+        #     )
         if config.get('prooftrace_search_type') == 'policy_sample':
             search = PolicySample(config, l_model, ptra, repl, target)
         assert search is not None

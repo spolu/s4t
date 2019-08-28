@@ -736,19 +736,18 @@ def test():
                 config.get('prooftrace_dataset_size'),
                 'traces.tokenizer',
             ), 'rb') as f:
-        tokenizer = pickle.load(f)
+        t = pickle.load(f)
 
     k = ProofTraceKernel(
         os.path.expanduser(config.get('prooftrace_dataset_dir')),
         config.get('prooftrace_dataset_size'),
-        tokenizer,
     )
 
     print("==============================")
     print("ProofTrace Fusion testing \\o/")
     print("------------------------------")
 
-    fusion = Fusion(tokenizer)
+    fusion = Fusion(t)
 
     for i in range(len(k._proofs)):
         step = k._proofs[i]
@@ -760,12 +759,12 @@ def test():
                 step[0] == 'AXIOM':
             thm = Thm(
                 i,
-                [k.term(hy) for hy in k._theorems[i]['hy']],
-                k.term(k._theorems[i]['cc']),
+                [t.term(hy) for hy in k._theorems[i]['hy']],
+                t.term(k._theorems[i]['cc']),
             )
 
         if step[0] == 'REFL':
-            thm = fusion.REFL(k.term(step[1]))
+            thm = fusion.REFL(t.term(step[1]))
 
         if step[0] == 'TRANS':
             thm = fusion.TRANS(
@@ -780,13 +779,13 @@ def test():
             )
 
         if step[0] == 'ABS':
-            thm = fusion.ABS(step[1], k.term(step[2]))
+            thm = fusion.ABS(step[1], t.term(step[2]))
 
         if step[0] == 'BETA':
-            thm = fusion.BETA(k.term(step[1]))
+            thm = fusion.BETA(t.term(step[1]))
 
         if step[0] == 'ASSUME':
-            thm = fusion.ASSUME(k.term(step[1]))
+            thm = fusion.ASSUME(t.term(step[1]))
 
         if step[0] == 'EQ_MP':
             thm = fusion.EQ_MP(
@@ -803,13 +802,13 @@ def test():
         if step[0] == 'INST':
             thm = fusion.INST(
                 step[1],
-                [[k.term(s[0]), k.term(s[1])] for s in step[2]],
+                [[t.term(s[0]), t.term(s[1])] for s in step[2]],
             )
 
         if step[0] == 'INST_TYPE':
             thm = fusion.INST_TYPE(
                 step[1],
-                [[k.type(s[0]), k.type(s[1])] for s in step[2]],
+                [[t.type(s[0]), t.type(s[1])] for s in step[2]],
             )
 
         if thm is None:
@@ -824,8 +823,8 @@ def test():
 
         org = Thm(
             i,
-            [k.term(hy) for hy in k._theorems[i]['hy']],
-            k.term(k._theorems[i]['cc']),
+            [t.term(hy) for hy in k._theorems[i]['hy']],
+            t.term(k._theorems[i]['cc']),
         )
 
         Log.out("STEP", {

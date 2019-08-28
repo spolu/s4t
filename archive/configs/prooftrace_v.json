@@ -28,8 +28,6 @@
 
   "prooftrace_v_iota_sync_dir": null,
   "prooftrace_v_iota_min_update_count": 8,
-  "prooftrace_v_iota_augment": "none",
-  "prooftrace_v_iota_augment_period": 4,
 
   "prooftrace_search_type": "particle_filter",
   "prooftrace_search_fixed_gamma": 8,

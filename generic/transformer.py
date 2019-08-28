@@ -9,7 +9,8 @@ class TransformerBlock(nn.Module):
             sequence_max_length,
             hidden_size,
             attention_head_count,
-            dropout=0.1
+            dropout=0.1,
+            attn_mask=None,
     ):
         super(TransformerBlock, self).__init__()
 
@@ -25,13 +26,19 @@ class TransformerBlock(nn.Module):
         )
         self.mlp_layer_norm = nn.LayerNorm(hidden_size, eps=1e-12)
 
+        self._attn_mask = attn_mask
+
     def forward(
             self,
             input_tensor,
     ):
         h = self.attention_layer_norm(input_tensor)
-        x, _ = self.attention(h, h, h, need_weights=False)
-        h = x + h
+        h = h.transpose(0, 1)
+        x, _ = self.attention(
+            h, h, h,
+            attn_mask=self._attn_mask,
+            need_weights=False)
+        h = (x + h).transpose(0, 1)
 
         h = self.mlp_layer_norm(h)
         x = self.mlp(h)

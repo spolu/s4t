@@ -53,6 +53,8 @@ class T(nn.Module):
             self.adapter_in = \
                 nn.Linear(self.hidden_size, self.transformer_hidden_size)
 
+            attn_mask = self._generate_attn_mask(self.sequence_length)
+
             for _ in range(self.transformer_layer_count):
                 torso += [
                     TransformerBlock(
@@ -60,6 +62,7 @@ class T(nn.Module):
                         self.transformer_hidden_size,
                         self.attention_head_count,
                         dropout=0.0,
+                        attn_mask=attn_mask,
                     ),
                 ]
 
@@ -72,18 +75,24 @@ class T(nn.Module):
         if self.torso_type == "universal_transformer":
             self.adapter_in = \
                 nn.Linear(self.hidden_size, self.transformer_hidden_size)
+
+            attn_mask = self._generate_attn_mask(self.sequence_length)
+
             self.inner_transformer = TransformerBlock(
                 self.sequence_length,
                 self.transformer_hidden_size,
                 self.attention_head_count,
                 dropout=0.0,
+                attn_mask=attn_mask,
             )
             self.outer_transformer = TransformerBlock(
                 self.sequence_length,
                 self.transformer_hidden_size,
                 self.attention_head_count,
                 dropout=0.0,
+                attn_mask=attn_mask,
             )
+
             self.adapter_out = nn.Linear(
                 self.transformer_hidden_size, self.head_hidden_size,
             )
@@ -109,6 +118,15 @@ class T(nn.Module):
             self,
     ):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+    def _generate_attn_mask(
+            self,
+            sz,
+    ):
+        mask = torch.full((sz, sz), float('-inf'), device=self.device)
+        mask = torch.triu(mask, diagonal=1)
+
+        return mask
 
     def forward(
             self,

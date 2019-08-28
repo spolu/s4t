@@ -2,6 +2,7 @@ import argparse
 import gzip
 import os
 import pickle
+import random
 import time
 import torch
 import torch.nn as nn
@@ -9,9 +10,8 @@ import torch.optim as optim
 
 from generic.iota import IOTAAck, IOTASyn
 
-from prooftrace.dataset import ProofTraceLMDataset, lm_collate
+from prooftrace.dataset import ProofTraceLMDataset, lm_collate, trh_extract
 from prooftrace.models.model import LModel
-from prooftrace.prooftrace import PREPARE_TOKENS
 
 from tensorboardX import SummaryWriter
 
@@ -32,6 +32,8 @@ class ACK:
         self._grad_norm_max = config.get('prooftrace_lm_grad_norm_max')
 
         self._device = torch.device(config.get('device'))
+
+        self._sequence_length = config.get('prooftrace_sequence_length')
 
         self._model = LModel(config)
         self._ack = IOTAAck(
@@ -71,28 +73,46 @@ class ACK:
             self,
             epoch,
     ):
-        for it, (idx, act, arg, trh, _) in enumerate(self._train_loader):
+        for it, (act, arg, trh) in enumerate(self._train_loader):
             info = self._ack.fetch(self._device)
             if info is not None:
                 self.update(info['config'])
             self._model.train()
 
+            trh_actions, trh_lefts, trh_rights = trh_extract(trh, arg)
+
+            # Because we can't run a pointer network on the full length
+            # (memory), we extract indices to focus loss on.
+            idx = random.sample(range(self._sequence_length), 64)
+
+            actions = torch.index_select(
+                torch.tensor(trh_actions, dtype=torch.int64),
+                1,
+                torch.tensor(idx, dtype=torch.int64),
+            ).to(self._device)
+            lefts = torch.index_select(
+                torch.tensor(trh_lefts, dtype=torch.int64),
+                1,
+                torch.tensor(idx, dtype=torch.int64),
+            ).to(self._device)
+            rights = torch.index_select(
+                torch.tensor(trh_rights, dtype=torch.int64),
+                1,
+                torch.tensor(idx, dtype=torch.int64),
+            ).to(self._device)
+
             prd_actions, prd_lefts, prd_rights = \
                 self._model.infer(idx, act, arg)
 
-            actions = torch.tensor([
-                trh[i].value - len(PREPARE_TOKENS) for i in range(len(trh))
-            ], dtype=torch.int64).to(self._device)
-            lefts = torch.tensor([
-                arg[i].index(trh[i].left) for i in range(len(trh))
-            ], dtype=torch.int64).to(self._device)
-            rights = torch.tensor([
-                arg[i].index(trh[i].right) for i in range(len(trh))
-            ], dtype=torch.int64).to(self._device)
-
-            act_loss = self._nll_loss(prd_actions, actions)
-            lft_loss = self._nll_loss(prd_lefts, lefts)
-            rgt_loss = self._nll_loss(prd_rights, rights)
+            act_loss = self._nll_loss(
+                prd_actions.view(-1, prd_actions.size(-1)), actions.view(-1),
+            )
+            lft_loss = self._nll_loss(
+                prd_lefts.view(-1, prd_lefts.size(-1)), lefts.view(-1),
+            )
+            rgt_loss = self._nll_loss(
+                prd_rights.view(-1, prd_rights.size(-1)), rights.view(-1),
+            )
 
             # Backward pass.
             for m in self._model.modules():
@@ -140,6 +160,8 @@ class TST:
 
         self._device = torch.device(config.get('device'))
 
+        self._sequence_length = config.get('prooftrace_sequence_length')
+
         self._model = LModel(config)
         self._ack = IOTAAck(
             config.get('prooftrace_lm_iota_sync_dir'),
@@ -170,26 +192,45 @@ class TST:
         rgt_loss_meter = Meter()
 
         with torch.no_grad():
-            for it, (idx, act, arg, trh, _) in enumerate(self._test_loader):
+            for it, (act, arg, trh) in enumerate(self._test_loader):
                 self._ack.fetch(self._device, blocking=False)
                 self._model.eval()
+
+                trh_actions, trh_lefts, trh_rights = trh_extract(trh, arg)
+
+                # Because we can't run a pointer network on the full length
+                # (memory), we extract indices to focus loss on.
+                idx = random.sample(range(self._sequence_length), 64)
+
+                actions = torch.index_select(
+                    torch.tensor(trh_actions, dtype=torch.int64),
+                    1,
+                    torch.tensor(idx, dtype=torch.int64),
+                ).to(self._device)
+                lefts = torch.index_select(
+                    torch.tensor(trh_lefts, dtype=torch.int64),
+                    1,
+                    torch.tensor(idx, dtype=torch.int64),
+                ).to(self._device)
+                rights = torch.index_select(
+                    torch.tensor(trh_rights, dtype=torch.int64),
+                    1,
+                    torch.tensor(idx, dtype=torch.int64),
+                ).to(self._device)
 
                 prd_actions, prd_lefts, prd_rights = \
                     self._model.infer(idx, act, arg)
 
-                actions = torch.tensor([
-                    trh[i].value - len(PREPARE_TOKENS) for i in range(len(trh))
-                ], dtype=torch.int64).to(self._device)
-                lefts = torch.tensor([
-                    arg[i].index(trh[i].left) for i in range(len(trh))
-                ], dtype=torch.int64).to(self._device)
-                rights = torch.tensor([
-                    arg[i].index(trh[i].right) for i in range(len(trh))
-                ], dtype=torch.int64).to(self._device)
-
-                act_loss = self._nll_loss(prd_actions, actions)
-                lft_loss = self._nll_loss(prd_lefts, lefts)
-                rgt_loss = self._nll_loss(prd_rights, rights)
+                act_loss = self._nll_loss(
+                    prd_actions.view(-1, prd_actions.size(-1)),
+                    actions.view(-1),
+                )
+                lft_loss = self._nll_loss(
+                    prd_lefts.view(-1, prd_lefts.size(-1)), lefts.view(-1),
+                )
+                rgt_loss = self._nll_loss(
+                    prd_rights.view(-1, prd_rights.size(-1)), rights.view(-1),
+                )
 
                 act_loss_meter.update(act_loss.item())
                 lft_loss_meter.update(lft_loss.item())
@@ -520,8 +561,6 @@ def ack_run():
         ),
         config.get('prooftrace_sequence_length'),
         tokenizer,
-        config.get('prooftrace_lm_iota_augment'),
-        config.get('prooftrace_lm_iota_augment_period'),
     )
 
     ack = ACK(config, train_dataset)
@@ -598,8 +637,6 @@ def tst_run():
         ),
         config.get('prooftrace_sequence_length'),
         tokenizer,
-        config.get('prooftrace_lm_iota_augment'),
-        config.get('prooftrace_lm_iota_augment_period'),
     )
 
     tst = TST(config, test_dataset)

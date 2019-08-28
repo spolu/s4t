@@ -4,7 +4,7 @@ import torch.distributions as D
 import torch.nn.functional as F
 
 from prooftrace.prooftrace import \
-    ACTION_TOKENS, PREPARE_TOKENS, INV_ACTION_TOKENS, \
+    PROOFTRACE_TOKENS, PREPARE_TOKENS, INV_PROOFTRACE_TOKENS, \
     Action, ProofTraceActions
 
 from prooftrace.models.model import LModel, VModel
@@ -71,7 +71,7 @@ class ParticleFilter(Search):
         #             continue
 
         #         a = Action.from_action(
-        #             INV_ACTION_TOKENS[action + len(PREPARE_TOKENS)],
+        #             INV_PROOFTRACE_TOKENS[action + len(PREPARE_TOKENS)],
         #             p['ptra'].arguments()[left],
         #             p['ptra'].arguments()[right],
         #         )
@@ -143,7 +143,7 @@ class ParticleFilter(Search):
 
         a_count = min(
             beta_width,
-            len(ACTION_TOKENS) - len(PREPARE_TOKENS),
+            len(PROOFTRACE_TOKENS) - len(PREPARE_TOKENS),
         )
         top_actions = torch.exp(prd_actions.cpu()).topk(a_count)
         top_lefts = torch.exp(prd_lefts.cpu()).topk(beta_width)
@@ -161,7 +161,7 @@ class ParticleFilter(Search):
                             continue
 
                         a = Action.from_action(
-                            INV_ACTION_TOKENS[action + len(PREPARE_TOKENS)],
+                            INV_PROOFTRACE_TOKENS[action + len(PREPARE_TOKENS)],
                             p['ptra'].arguments()[left],
                             p['ptra'].arguments()[right],
                         )

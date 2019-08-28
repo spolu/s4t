@@ -6,12 +6,14 @@
   "prooftrace_save_dir": null,
   "prooftrace_rollout_dir": null,
 
+  "prooftrace_max_demo_length": 1024,
+
   "prooftrace_type_token_count": 70,
   "prooftrace_term_token_count": 1125,
   "prooftrace_hidden_size": 64,
   "prooftrace_sequence_length": 1024,
 
-  "prooftrace_torso_type": "lstm",
+  "prooftrace_torso_type": "transformer",
 
   "prooftrace_transformer_hidden_size": 512,
   "prooftrace_transformer_attention_head_count": 8,
@@ -23,17 +25,15 @@
   "prooftrace_universal_transformer_act": false,
   "prooftrace_universal_transformer_steps": 4,
 
-  "prooftrace_head_hidden_size": 512,
+  "prooftrace_head_hidden_size": 128,
 
-  "prooftrace_lm_batch_size": 64,
-  "prooftrace_lm_learning_rate": 0.00005,
-  "prooftrace_lm_action_coeff": 2.0,
-  "prooftrace_lm_grad_norm_max": 1.0,
+  "prooftrace_lm_batch_size": 6,
+  "prooftrace_lm_learning_rate": 0.0001,
+  "prooftrace_lm_action_coeff": 4.0,
+  "prooftrace_lm_grad_norm_max": 0.0,
 
   "prooftrace_lm_iota_sync_dir": null,
   "prooftrace_lm_iota_min_update_count": 8,
-  "prooftrace_lm_iota_augment": "none",
-  "prooftrace_lm_iota_augment_period": 4,
 
   "prooftrace_search_type": "beam",
   "prooftrace_search_fixed_gamma": 8,
