@@ -38,13 +38,13 @@ class PolicySample(Search):
     ]:
         index, actions, arguments = self.preprocess_ptra(self._ptra)
 
-        idx = [index]
+        idx = index
         act = [actions]
         arg = [arguments]
 
         with torch.no_grad():
             prd_actions, prd_lefts, prd_rights = \
-                self._l_model.infer(idx, act, arg)
+                self._l_model.infer([idx], act, arg)
 
         beta_width = \
             self._config.get('prooftrace_search_policy_sample_beta_width')

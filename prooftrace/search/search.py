@@ -1,6 +1,6 @@
 import typing
 
-from prooftrace.prooftrace import ProofTraceActions, Action
+from prooftrace.prooftrace import ProofTraceActions, Action, PREPARE_TOKENS
 
 from prooftrace.repl.fusion import Thm
 from prooftrace.repl.repl import REPL
@@ -37,15 +37,16 @@ class Search:
         actions = ptra.actions().copy()
         arguments = ptra.arguments().copy()
 
-        index = len(actions)
-
+        index = len(actions)-1
         assert index < self._config.get('prooftrace_sequence_length')
 
-        actions.append(Action.from_action('EXTRACT', None, None))
+        empty = ptra.actions()[1]
+        assert empty.value == PREPARE_TOKENS['EMPTY']
 
-        empty = Action.from_action('EMPTY', None, None)
+        extract = Action.from_action('EXTRACT', empty, empty)
+
         while len(actions) < self._config.get('prooftrace_sequence_length'):
-            actions.append(empty)
+            actions.append(extract)
         while len(arguments) < self._config.get('prooftrace_sequence_length'):
             arguments.append(empty)
 

@@ -40,9 +40,9 @@ class Head:
             beta_width,
             len(PROOFTRACE_TOKENS) - len(PREPARE_TOKENS),
         )
-        top_actions = torch.exp(self._prd_actions[0].cpu()).topk(a_count)
-        top_lefts = torch.exp(self._prd_lefts[0].cpu()).topk(beta_width)
-        top_rights = torch.exp(self._prd_rights[0].cpu()).topk(beta_width)
+        top_actions = torch.exp(self._prd_actions.cpu()).topk(a_count)
+        top_lefts = torch.exp(self._prd_lefts.cpu()).topk(beta_width)
+        top_rights = torch.exp(self._prd_rights.cpu()).topk(beta_width)
 
         candidates = []
 
@@ -104,9 +104,9 @@ class Beam(Search):
         self._repls = [repl.copy()]
         self._heads = [
             Head(
-                prd_actions[0].cpu(),
-                prd_lefts[0].cpu(),
-                prd_rights[0].cpu(),
+                prd_actions[0][0].cpu(),
+                prd_lefts[0][0].cpu(),
+                prd_rights[0][0].cpu(),
                 1.0,  # PROB
             )
         ]
@@ -162,20 +162,24 @@ class Beam(Search):
 
         candidates = uniques
 
-        idx = []
+        idx = None
         act = []
         arg = []
 
         for c in candidates:
             index, actions, arguments = self.preprocess_ptra(c[0])
 
-            idx.append(index)
+            if idx is None:
+                idx = index
+            else:
+                assert idx == index
+
             act.append(actions)
             arg.append(arguments)
 
         with torch.no_grad():
             prd_actions, prd_lefts, prd_rights = \
-                self._l_model.infer(idx, act, arg)
+                self._l_model.infer([idx], act, arg)
 
         next_heads = []
         for i in range(len(candidates)):
@@ -183,9 +187,9 @@ class Beam(Search):
                 candidates[i][0],
                 candidates[i][1],
                 Head(
-                    prd_actions[i].cpu(),
-                    prd_lefts[i].cpu(),
-                    prd_rights[i].cpu(),
+                    prd_actions[i][0].cpu(),
+                    prd_lefts[i][0].cpu(),
+                    prd_rights[i][0].cpu(),
                     candidates[i][3],  # PROB
                 ),
                 candidates[i][3],  # PROB
