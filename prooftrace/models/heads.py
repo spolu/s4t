@@ -33,7 +33,7 @@ class PH(nn.Module):
                 self.head_hidden_size,
                 len(PROOFTRACE_TOKENS) - len(PREPARE_TOKENS)
             ),
-            nn.LogSoftmax(dim=1),
+            nn.LogSoftmax(dim=2),
         )
 
         self.left_ptr_heads = nn.Linear(
@@ -96,7 +96,7 @@ class PH(nn.Module):
             hiddens.size(1),
             heads.size(2),
         )
-        lefts = self.left_ptr_proj(left_hiddens + left_heads).squeeze()
+        lefts = self.left_ptr_proj(left_hiddens + left_heads).squeeze(-1)
 
         right_hiddens = self.right_ptr_hiddens(hiddens).unsqueeze(1).expand(
             hiddens.size(0),
@@ -110,7 +110,7 @@ class PH(nn.Module):
             hiddens.size(1),
             heads.size(2),
         )
-        rights = self.right_ptr_proj(right_hiddens + right_heads).squeeze()
+        rights = self.right_ptr_proj(right_hiddens + right_heads).squeeze(-1)
 
         lefts = self.log_softmax(lefts)
         rights = self.log_softmax(rights)

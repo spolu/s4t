@@ -49,7 +49,6 @@ class Head:
         for ia in range(a_count):
             for il in range(beta_width):
                 for ir in range(beta_width):
-
                     action = top_actions[1][ia].item()
                     left = top_lefts[1][il].item()
                     right = top_rights[1][ir].item()
