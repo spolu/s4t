@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 
-from generic.act import ACT
 # from generic.gelu import GeLU
 from generic.transformer import TransformerBlock
 
@@ -29,8 +28,6 @@ class T(nn.Module):
 
         self.universal_transformer_steps = \
             config.get('prooftrace_universal_transformer_steps')
-        self.universal_transformer_act = \
-            config.get('prooftrace_universal_transformer_act')
 
         self.lstm_layer_count = \
             config.get('prooftrace_transformer_layer_count')
@@ -96,12 +93,6 @@ class T(nn.Module):
             self.adapter_out = nn.Linear(
                 self.transformer_hidden_size, self.head_hidden_size,
             )
-            if self.universal_transformer_act:
-                self.act = ACT(
-                    self.device,
-                    self.transformer_hidden_size,
-                    self.universal_transformer_steps,
-                )
 
         if self.torso_type == "lstm":
             self.adapter_in = \
@@ -149,11 +140,8 @@ class T(nn.Module):
             hiddens = self.torso(hiddens)
 
         if self.torso_type == "universal_transformer":
-            if self.universal_transformer_act:
-                self.act(hiddens, self.inner_transformer)
-            else:
-                for i in range(self.universal_transformer_steps):
-                    hiddens = self.inner_transformer(hiddens)
+            for i in range(self.universal_transformer_steps):
+                hiddens = self.inner_transformer(hiddens)
             hiddens = self.outer_transformer(hiddens)
 
         if self.torso_type == "lstm":
