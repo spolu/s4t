@@ -13,7 +13,7 @@
   "prooftrace_hidden_size": 64,
   "prooftrace_sequence_length": 1024,
 
-  "prooftrace_torso_type": "transformer",
+  "prooftrace_torso_type": "universal_transformer",
 
   "prooftrace_transformer_hidden_size": 512,
   "prooftrace_transformer_attention_head_count": 8,
@@ -23,17 +23,17 @@
   "prooftrace_lstm_layer_count": 1,
 
   "prooftrace_universal_transformer_act": false,
-  "prooftrace_universal_transformer_steps": 4,
+  "prooftrace_universal_transformer_steps": 12,
 
   "prooftrace_head_hidden_size": 128,
 
-  "prooftrace_lm_batch_size": 6,
+  "prooftrace_lm_batch_size": 4,
   "prooftrace_lm_learning_rate": 0.0001,
   "prooftrace_lm_action_coeff": 4.0,
   "prooftrace_lm_grad_norm_max": 0.0,
 
   "prooftrace_lm_iota_sync_dir": null,
-  "prooftrace_lm_iota_min_update_count": 8,
+  "prooftrace_lm_iota_min_update_count": 4,
 
   "prooftrace_search_type": "beam",
   "prooftrace_search_fixed_gamma": 8,
